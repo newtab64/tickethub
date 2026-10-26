@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   NotFoundException,
   ConflictException,
@@ -24,10 +25,16 @@ import {
   SeatStatus,
 } from "@tickethub/shared";
 import { WaitingRoomService } from "../waiting-room/waiting-room.service";
-
+import { EventReadCacheService } from "../events/event-read-cache.service";
 @Injectable()
 export class BookingService {
-  constructor(private readonly waitingRoomService: WaitingRoomService) {}
+  constructor(
+    @Inject(WaitingRoomService)
+    private readonly waitingRoomService: WaitingRoomService,
+
+    @Inject(EventReadCacheService)
+    private readonly eventReadCacheService: EventReadCacheService,
+  ) {}
 
   async holdSeats(
     userId: string,
@@ -128,7 +135,7 @@ export class BookingService {
     // Sắp xếp ID ghế tăng dần để loại trừ deadlock
     const sortedSeatIds = [...seatIds].sort();
 
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // 1. Khóa và cập nhật ghế ngồi
       if (sortedSeatIds.length > 0) {
         // Khóa các dòng ghế theo thứ tự ID tăng dần
@@ -387,6 +394,11 @@ export class BookingService {
         remainingSeconds: 300,
       };
     });
+
+    // Chi xoa cache sau khi PostgreSQL commit thanh cong
+    await this.eventReadCacheService.invalidate(dto.eventId);
+
+    return result;
   }
 
   async releaseHold(userId: string, orderId: string) {
@@ -417,7 +429,7 @@ export class BookingService {
       });
     }
 
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // 1. Cập nhật đơn hàng thành CANCELLED
       const updatedOrders = await tx
         .update(orders)
@@ -485,6 +497,11 @@ export class BookingService {
         message: "Đã giải phóng ghế thành công",
       };
     });
+
+    // Sau khi huy giu ve thanh cong
+    await this.eventReadCacheService.invalidate(order.eventId);
+
+    return result;
   }
 
   async getOrderById(userId: string, orderId: string) {
@@ -528,10 +545,13 @@ export class BookingService {
   async cleanExpiredOrders(): Promise<{ expiredOrdersCount: number }> {
     const now = new Date();
 
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       // Tìm các đơn hàng PENDING đã hết hạn
       const expiredOrders = await tx
-        .select({ id: orders.id })
+        .select({
+          id: orders.id,
+          eventId: orders.eventId,
+        })
         .from(orders)
         .where(
           and(
@@ -540,7 +560,19 @@ export class BookingService {
           ),
         )
         .for("update");
+      const expiredSeatEvents = await tx
+        .selectDistinct({ eventId: seats.eventId })
+        .from(seats)
+        .where(
+          and(eq(seats.status, SeatStatus.HELD), lt(seats.holdExpiresAt, now)),
+        );
 
+      const affectedEventIds = Array.from(
+        new Set([
+          ...expiredOrders.map((item) => item.eventId),
+          ...expiredSeatEvents.map((item) => item.eventId),
+        ]),
+      );
       if (expiredOrders.length === 0) {
         // Vẫn dọn các ghế rác nếu có trạng thái HELD mà quá hạn
         await tx
@@ -558,7 +590,10 @@ export class BookingService {
               lt(seats.holdExpiresAt, now),
             ),
           );
-        return { expiredOrdersCount: 0 };
+        return {
+          expiredOrdersCount: 0,
+          affectedEventIds,
+        };
       }
 
       const expiredOrderIds = expiredOrders.map((o) => o.id);
@@ -613,7 +648,19 @@ export class BookingService {
           .where(eq(ticketTypes.id, item.ticketTypeId));
       }
 
-      return { expiredOrdersCount: expiredOrderIds.length };
+      return {
+        expiredOrdersCount: expiredOrderIds.length,
+        affectedEventIds,
+      };
     });
+    await Promise.all(
+      result.affectedEventIds.map((eventId) =>
+        this.eventReadCacheService.invalidate(eventId),
+      ),
+    );
+
+    return {
+      expiredOrdersCount: result.expiredOrdersCount,
+    };
   }
 }

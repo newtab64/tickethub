@@ -8,6 +8,20 @@
       "when": 1791846737763,
       "tag": "0000_remarkable_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793033923349,
+      "tag": "0001_w03-event-search",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793034892821,
+      "tag": "0002_w03-search-trigger-index",
+      "breakpoints": true
     }
   ]
 }

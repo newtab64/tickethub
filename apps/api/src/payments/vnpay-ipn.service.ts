@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { and, eq, gte, sql } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import {
@@ -26,9 +26,16 @@ import { VnpayGateway } from "./vnpay.gateway";
 import { toVnpayAmount } from "./vnpay-amount";
 import { decideVnpayIpn, type IpnDecision } from "./vnpay-ipn.decision";
 
+import { EventReadCacheService } from "../events/event-read-cache.service";
+
 @Injectable()
 export class VnpayIpnService {
   private readonly gateway = new VnpayGateway();
+
+  constructor(
+    @Inject(EventReadCacheService)
+    private readonly eventReadCacheService: EventReadCacheService,
+  ) {}
 
   async process(params: Record<string, string>): Promise<IpnDecision> {
     // 1. Xac minh chu ky va merchant VNPay
@@ -59,7 +66,7 @@ export class VnpayIpnService {
       return "MANUAL_REVIEW";
     }
     // 3. Tat ca thay doi phai nam trong mot DB transaction
-    return db.transaction(async (tx): Promise<IpnDecision> => {
+    const decision = await db.transaction(async (tx): Promise<IpnDecision> => {
       // Khoa order truoc, tuong thich voi Booking Cleanup
       const [order] = await tx
         .select()
@@ -342,5 +349,21 @@ export class VnpayIpnService {
       }
       return decision;
     });
+
+    // Redis chỉ được invalidated sau khi transaction DB commit thành công.
+    // Callback trùng, sai chữ ký, hoặc manual review không đổi tồn kho.
+    if (decision === "APPLY_SUCCESS" || decision === "RECORD_FAILURE") {
+      const [affectedOrder] = await db
+        .select({ eventId: orders.eventId })
+        .from(orders)
+        .where(eq(orders.id, existing.orderId))
+        .limit(1);
+
+      if (affectedOrder) {
+        await this.eventReadCacheService.invalidate(affectedOrder.eventId);
+      }
+    }
+
+    return decision;
   }
 }

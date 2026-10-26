@@ -8,10 +8,15 @@ import {
   timestamp,
   jsonb,
   index,
+  customType,
 } from "drizzle-orm/pg-core";
 import { EventStatus, RefundPolicyType } from "@tickethub/shared";
 import { organizerProfiles } from "./organizer-profiles";
-
+const tsVector = customType<{ data: string }>({
+  dataType() {
+    return "tsvector";
+  },
+});
 export const events = pgTable(
   "events",
   {
@@ -22,6 +27,7 @@ export const events = pgTable(
     title: varchar("title", { length: 255 }).notNull(),
     slug: varchar("slug", { length: 255 }).notNull().unique(),
     description: text("description").notNull(),
+    searchVector: tsVector("search_vector"),
     category: varchar("category", { length: 50 }).notNull(),
     bannerUrl: varchar("banner_url", { length: 500 }).notNull(),
     venueName: varchar("venue_name", { length: 255 }).notNull(),

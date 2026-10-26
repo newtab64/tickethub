@@ -5,20 +5,40 @@ import {
   UseGuards,
   Res,
   HttpStatus,
+  SetMetadata,
+  Inject,
 } from "@nestjs/common";
-import { FastifyReply } from "fastify";
+
+import type { FastifyReply } from "fastify";
+
 import { WaitingRoomService } from "./waiting-room.service";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+
 import {
   CurrentUser,
   AuthenticatedUser,
 } from "../auth/decorators/current-user.decorator";
 
-@Controller("api/v1/waiting-room")
-@UseGuards(JwtAuthGuard)
-export class WaitingRoomController {
-  constructor(private readonly waitingRoomService: WaitingRoomService) {}
+import {
+  WaitingRoomRateLimitGuard,
+  WAITING_ROOM_RATE_ACTION,
+} from "./guards/waiting-room-rate-limit.guard";
 
+@Controller("api/v1/waiting-room")
+@UseGuards(JwtAuthGuard, WaitingRoomRateLimitGuard)
+export class WaitingRoomController {
+  constructor(
+    @Inject(WaitingRoomService)
+    private readonly waitingRoomService: WaitingRoomService,
+  ) {}
+
+  // ==========================================
+  // API 1: JOIN WAITING ROOM
+  // POST /api/v1/waiting-room/:eventId/join
+  // Rate Limit: 20 requests / minute / IP
+  // ==========================================
+
+  @SetMetadata(WAITING_ROOM_RATE_ACTION, "join")
   @Post(":eventId/join")
   async joinQueue(
     @CurrentUser() user: AuthenticatedUser,
@@ -42,6 +62,13 @@ export class WaitingRoomController {
     };
   }
 
+  // ==========================================
+  // API 2: HEARTBEAT WAITING ROOM
+  // POST /api/v1/waiting-room/:eventId/heartbeat
+  // Rate Limit: 600 requests / minute / IP
+  // ==========================================
+
+  @SetMetadata(WAITING_ROOM_RATE_ACTION, "heartbeat")
   @Post(":eventId/heartbeat")
   async heartbeat(
     @CurrentUser() user: AuthenticatedUser,

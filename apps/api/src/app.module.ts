@@ -8,6 +8,7 @@ import { BookingModule } from "./booking/booking.module";
 import { PaymentsModule } from "./payments/payments.module";
 import { AdminModule } from "./admin/admin.module";
 import { UploadsModule } from "./uploads/uploads.module";
+import { SearchModule } from "./search/search.module";
 @Module({
   imports: [
     RedisModule,
@@ -19,6 +20,7 @@ import { UploadsModule } from "./uploads/uploads.module";
     PaymentsModule,
     AdminModule,
     UploadsModule,
+    SearchModule,
   ],
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
 import {
+  Inject,
   Injectable,
   OnModuleInit,
   OnModuleDestroy,
@@ -11,7 +12,7 @@ export class BookingCleanupTask implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BookingCleanupTask.name);
   private timer: NodeJS.Timeout | null = null;
 
-  constructor(private readonly bookingService: BookingService) {}
+  constructor(@Inject(BookingService) private readonly bookingService: BookingService) {}
 
   onModuleInit() {
     // Quét dọn các đơn hàng và ghế hết hạn định kỳ mỗi 15 giây

@@ -1,0 +1,1 @@
+ALTER TABLE "events" ADD COLUMN "search_vector" "tsvector";

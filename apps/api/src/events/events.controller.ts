@@ -1,4 +1,6 @@
 import {
+  Inject,
+  ParseUUIDPipe,
   Controller,
   Post,
   Get,
@@ -28,7 +30,7 @@ import {
   CreateEventRequestSchema,
   EventFilterQuerySchema,
 } from "@tickethub/shared";
-
+import { EventReadCacheService } from "./event-read-cache.service";
 @Controller("api/v1/organizer/events")
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ORGANIZER, UserRole.ADMIN)
@@ -159,14 +161,24 @@ export class OrganizerEventsController {
 
 @Controller("api/v1/events")
 export class PublicEventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    @Inject(EventsService)
+    private readonly eventsService: EventsService,
 
+    @Inject(EventReadCacheService)
+    private readonly cacheService: EventReadCacheService,
+  ) {}
+
+  // GET /api/v1/events
+  // Lay danh sach su kien cong khai
   @Get()
   async getPublicEvents(@Query() query: unknown) {
     const parseResult = EventFilterQuerySchema.safeParse(query);
+
     const filters = parseResult.success ? parseResult.data : {};
 
     const items = await this.eventsService.getPublicEvents(filters);
+
     return {
       success: true,
       data: {
@@ -176,18 +188,36 @@ export class PublicEventsController {
     };
   }
 
-  @Get(":slug")
-  async getPublicEventBySlug(@Param("slug") slug: string) {
-    const data = await this.eventsService.getPublicEventBySlug(slug);
+  // GET /api/v1/events/:id/seatmap
+  // Lay so do ghe qua Redis Cache, TTL 60 giay
+  @Get(":id/seatmap")
+  async getEventSeatMap(@Param("id", ParseUUIDPipe) id: string) {
+    const data = await this.cacheService.getSeatMap(id);
+
     return {
       success: true,
       data,
     };
   }
 
-  @Get(":id/seatmap")
-  async getEventSeatMap(@Param("id") id: string) {
-    const data = await this.eventsService.getEventSeatMap(id);
+  // GET /api/v1/events/:id/inventory
+  // Lay ton kho ve qua Redis Cache, TTL 60 giay
+  @Get(":id/inventory")
+  async getEventInventory(@Param("id", ParseUUIDPipe) id: string) {
+    const data = await this.cacheService.getInventory(id);
+
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  // GET /api/v1/events/:slug
+  // Lay chi tiet su kien bang slug
+  @Get(":slug")
+  async getPublicEventBySlug(@Param("slug") slug: string) {
+    const data = await this.eventsService.getPublicEventBySlug(slug);
+
     return {
       success: true,
       data,
