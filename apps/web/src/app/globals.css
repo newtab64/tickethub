@@ -65,10 +65,10 @@
 
   /* SeatMap domain tokens */
   --seat-available: #10b981;
-  --seat-selected: #f97316;
+  --seat-selected: #059669;
   --seat-held: #d97706;
-  --seat-sold: #64748b;
-  --seat-vip: #eab308;
+  --seat-sold: #cbd5e1;
+  --seat-vip: #047857;
 }
 
 @media (min-width: 1024px) and (min-height: 850px) {
@@ -98,10 +98,10 @@
   --ring: #10b981;
 
   --seat-available: #10b981;
-  --seat-selected: #f97316;
+  --seat-selected: #059669;
   --seat-held: #b45309;
   --seat-sold: #475569;
-  --seat-vip: #facc15;
+  --seat-vip: #34d399;
 }
 
 @layer base {

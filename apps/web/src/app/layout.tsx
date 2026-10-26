@@ -21,19 +21,6 @@ export const metadata: Metadata = {
   title: "Mua vé hòa nhạc, thể thao và sân khấu trên TicketHub!",
   description:
     "Khám phá và đặt vé chính thức các đêm nhạc, liveshow, kịch sân khấu và giải đấu thể thao trên toàn quốc.",
-  manifest: "/manifest.json",
-  themeColor: "#059669",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "default",
-    title: "TicketHub",
-  },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
 };
 
 export default function RootLayout({

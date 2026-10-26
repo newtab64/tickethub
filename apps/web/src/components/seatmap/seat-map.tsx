@@ -9,21 +9,21 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-// ─── Color mapping (Light Mode Optimized) ──────────────────────────────────
+// ─── Color mapping (TicketHub Design Tokens) ──────────────────────────────
 function getSeatColors(seat: Seat, isSelected: boolean) {
   if (isSelected) {
-    return { fill: "#ea580c", stroke: "#ffffff", strokeWidth: 2, opacity: 1 };
+    return { fill: "#059669", stroke: "#ffffff", strokeWidth: 1.5, opacity: 1 };
   }
   if (seat.status === "HELD") {
-    return { fill: "#fef3c7", stroke: "#d97706", strokeWidth: 1.2, opacity: 0.85 };
+    return { fill: "#fef3c7", stroke: "#d97706", strokeWidth: 1, opacity: 0.85 };
   }
   if (seat.status === "SOLD") {
-    return { fill: "#e2e8f0", stroke: "#cbd5e1", strokeWidth: 1, opacity: 0.65 };
+    return { fill: "#f1f5f9", stroke: "#cbd5e1", strokeWidth: 1, opacity: 0.55 };
   }
   const tierFill: Record<SeatTier, string> = {
-    VIP: "#f59e0b",
+    VIP:      "#047857",
     STANDARD: "#10b981",
-    ECONOMY: "#8b5cf6",
+    ECONOMY:  "#34d399",
   };
   return { fill: tierFill[seat.tier] ?? "#10b981", stroke: "#ffffff", strokeWidth: 1, opacity: 1 };
 }
@@ -42,10 +42,9 @@ const SeatNode = memo(({
 }: SeatNodeProps) => {
   const isInteractive = seat.status === "AVAILABLE" || isSelected;
   const { fill, stroke, strokeWidth, opacity: baseOpacity } = getSeatColors(seat, isSelected);
-  const r = seat.radius ?? 6;
+  const r = seat.radius ?? 5.5;
 
-  // Dim unselected seats when other seats are selected or zone is filtered
-  const finalOpacity = isSelected ? 1 : isDimmed ? baseOpacity * 0.32 : baseOpacity;
+  const finalOpacity = isSelected ? 1 : isDimmed ? baseOpacity * 0.35 : baseOpacity;
 
   return (
     <g
@@ -62,20 +61,19 @@ const SeatNode = memo(({
       onMouseLeave={() => onHover(null)}
     >
       <circle
-        r={isSelected ? r + 1.5 : r}
+        r={isSelected ? r + 1 : r}
         fill={fill}
         stroke={stroke}
-        strokeWidth={isSelected ? 2 : strokeWidth}
+        strokeWidth={isSelected ? 1.5 : strokeWidth}
         opacity={finalOpacity}
         vectorEffect="non-scaling-stroke"
-        style={{ willChange: "transform", transition: "opacity 0.2s ease" }}
       />
     </g>
   );
 });
 SeatNode.displayName = "SeatNode";
 
-// ─── Top Layer: Prominent Highlight & Pin Markers for Selected Seats ────────
+// ─── Top Layer: Selected Seats Indicator ───────────────────────────────────
 const SelectedSeatsOverlay = memo(({
   seats,
   onToggle,
@@ -89,86 +87,47 @@ const SelectedSeatsOverlay = memo(({
 
   return (
     <g id="selected-seats-overlay">
-      {seats.map((seat) => (
-        <g
-          key={`selected-overlay-${seat.id}`}
-          transform={`translate(${seat.x}, ${seat.y})`}
-          className="cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle(seat);
-          }}
-          onMouseEnter={() => onHover(seat)}
-          onMouseLeave={() => onHover(null)}
-        >
-          {/* 1. Radar wave pulse */}
-          <circle
-            r={18}
-            fill="#f97316"
-            opacity={0.35}
-            className="animate-ping"
-            style={{ animationDuration: "2s" }}
-          />
-
-          {/* 2. Outer glowing ring */}
-          <circle
-            r={12.5}
-            fill="#fff7ed"
-            stroke="#f97316"
-            strokeWidth={1.8}
-            opacity={0.95}
-          />
-
-          {/* 3. Solid center circle with drop shadow */}
-          <circle
-            r={8.5}
-            fill="#ea580c"
-            stroke="#ffffff"
-            strokeWidth={2.4}
-            filter="url(#selectedShadow)"
-          />
-
-          {/* 4. White checkmark inside seat */}
-          <path
-            d="M -3 0 L -0.5 2.5 L 3.5 -1.8"
-            stroke="#ffffff"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-
-          {/* 5. Floating Pin Marker Badge above seat */}
-          <g transform="translate(0, -29)" filter="url(#badgeShadow)">
-            {/* Pill background */}
-            <rect
-              x={-28}
-              y={-13}
-              width={56}
-              height={20}
-              rx={5}
-              fill="#0f172a"
-              stroke="#f97316"
-              strokeWidth={1.4}
+      {seats.map((seat) => {
+        const r = (seat.radius ?? 5.5) + 1;
+        return (
+          <g
+            key={`selected-overlay-${seat.id}`}
+            transform={`translate(${seat.x}, ${seat.y})`}
+            className="cursor-pointer"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle(seat);
+            }}
+            onMouseEnter={() => onHover(seat)}
+            onMouseLeave={() => onHover(null)}
+          >
+            {/* Subtle emerald halo */}
+            <circle
+              r={r + 3.5}
+              fill="#059669"
+              opacity={0.2}
             />
-            {/* Downward triangle pointer */}
-            <polygon points="0,10 -4,7 4,7" fill="#0f172a" />
-            {/* Seat code label */}
-            <text
-              x={0}
-              y={1}
-              fill="#ffffff"
-              fontSize="9.5"
-              fontWeight="700"
-              textAnchor="middle"
-              fontFamily="monospace"
-              dominantBaseline="middle"
-            >
-              {seat.code}
-            </text>
+
+            {/* Selected circle */}
+            <circle
+              r={r}
+              fill="#059669"
+              stroke="#ffffff"
+              strokeWidth={1.5}
+            />
+
+            {/* Clean checkmark */}
+            <path
+              d="M -2.5 -0.5 L -0.5 1.5 L 2.5 -1.5"
+              stroke="#ffffff"
+              strokeWidth={1.4}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              fill="none"
+            />
           </g>
-        </g>
-      ))}
+        );
+      })}
     </g>
   );
 });
@@ -347,8 +306,8 @@ export function SeatMap({
           </div>
         ))}
         <div className="flex items-center gap-1.5">
-          <span className="size-2.5 rounded-full bg-orange-600 ring-2 ring-orange-300/40 shrink-0" />
-          <span className="text-orange-600 font-bold text-[10.5px]">Đang chọn</span>
+          <span className="size-2.5 rounded-full bg-primary ring-2 ring-primary/20 shrink-0" />
+          <span className="text-primary font-bold text-[10.5px]">Đang chọn</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="size-2.5 rounded-full bg-amber-100 border border-amber-500 shrink-0" />
@@ -378,14 +337,6 @@ export function SeatMap({
             <stop offset="0%"   stopColor="#ecfdf5" stopOpacity="0.95" />
             <stop offset="100%" stopColor="#d1fae5" stopOpacity="0.45" />
           </linearGradient>
-
-          {/* High-visibility drop shadows for selected seats and pins */}
-          <filter id="selectedShadow" x="-50%" y="-50%" width="200%" height="200%">
-            <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#ea580c" floodOpacity="0.5" />
-          </filter>
-          <filter id="badgeShadow" x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow dx="0" dy="2" stdDeviation="2.5" floodColor="#000000" floodOpacity="0.3" />
-          </filter>
         </defs>
 
         {/* Stage */}
@@ -501,13 +452,12 @@ export function SeatMap({
                   <span
                     key={s.id}
                     onClick={() => focusOnSeat(s)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200 shadow-2xs hover:bg-orange-100 cursor-pointer transition-colors"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-[6px] text-[12px] font-medium bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100 cursor-pointer transition-colors"
                     title="Nhấn để phóng to định vị ghế này"
                   >
-                    <Navigation className="size-2.5 text-orange-500 shrink-0" />
-                    <span>{s.code}</span>
-                    <span className="text-[10px] text-orange-500 font-normal">
-                      ({(s.price / 1000).toFixed(0)}k)
+                    <span className="font-mono font-bold">{s.code}</span>
+                    <span className="text-[11px] text-emerald-600 font-mono">
+                      {(s.price / 1000).toFixed(0)}k
                     </span>
                     <button
                       type="button"
@@ -532,20 +482,20 @@ export function SeatMap({
         {/* Total & Action */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right">
-            <div className="text-[10px] text-slate-400 uppercase font-semibold">Tổng thanh toán</div>
-            <div className="text-base font-extrabold text-emerald-600 leading-tight">
+            <div className="text-[10px] text-slate-400 uppercase font-semibold">Tổng tạm tính</div>
+            <div className="text-base font-bold text-primary font-mono leading-tight">
               {totalPrice > 0 ? `${totalPrice.toLocaleString("vi-VN")} ₫` : "0 ₫"}
             </div>
           </div>
 
           <Button
             size="sm"
-            className="rounded-xl px-5 font-semibold text-xs h-9 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all active:scale-95 cursor-pointer"
+            className="rounded-[8px] px-4 font-medium text-[13px] h-9 bg-primary hover:bg-emerald-700 text-white transition-all cursor-pointer"
             disabled={internalSelected.length === 0}
-            aria-label={`Giữ ${internalSelected.length} vé và thanh toán`}
+            aria-label={`Tiếp tục thanh toán ${internalSelected.length} vé`}
             onClick={() => {
               if (internalSelected.length === 0) return;
-              alert(`✅ Đã chọn ${internalSelected.length} ghế:\n${internalSelected.map((s) => s.code).join(", ")}\n\nTổng: ${totalPrice.toLocaleString("vi-VN")} ₫\n\n→ Chuyển sang thanh toán`);
+              alert(`Đã chọn ${internalSelected.length} ghế:\n${internalSelected.map((s) => s.code).join(", ")}\n\nTổng tạm tính: ${totalPrice.toLocaleString("vi-VN")} ₫`);
             }}
           >
             Tiếp tục thanh toán ({internalSelected.length})
