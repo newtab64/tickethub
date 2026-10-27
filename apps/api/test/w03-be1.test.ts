@@ -472,6 +472,26 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
           ],
         }),
       ]);
+      for (const [index, result] of [res1, res2].entries()) {
+        if (result.status === "rejected") {
+          const err = result.reason;
+
+          console.error(`\n[DEBUG HOLD SEATS - BUYER ${index + 1}]`, {
+            name: err?.name,
+            message: err?.message,
+            code: err?.code,
+            response: err?.response,
+            causeCode: err?.cause?.code,
+            causeMessage: err?.cause?.message,
+            detail: err?.detail ?? err?.cause?.detail,
+          });
+        } else {
+          console.log(
+            `[DEBUG HOLD SEATS - BUYER ${index + 1}] SUCCESS`,
+            result.value.orderId,
+          );
+        }
+      }
 
       const successCount = [res1, res2].filter(
         (r) => r.status === "fulfilled",
