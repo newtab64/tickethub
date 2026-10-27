@@ -49,6 +49,9 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
   let testSeat2Id = "";
   let testSeat3Id = "";
 
+  // Đơn giữ 2 ghế (seat 1 + seat 2) của Người mua 1, dùng lại ở nhóm test 3
+  let buyer1SeatOrderId = "";
+
   before(async () => {
     redis = new Redis(env.REDIS_URL);
     jwtService = new JwtService({ secret: env.JWT_SECRET });
@@ -82,38 +85,18 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
     }
 
     // 2. Tạo 4 người mua để kiểm thử
+    const stamp = Date.now();
     const createdUsers = await db
       .insert(users)
-      .values([
-        {
-          email: `b1_w03_${Date.now()}@tickethub.vn`,
-          fullName: "Người Mua 1",
+      .values(
+        [1, 2, 3, 4].map((n) => ({
+          email: `b${n}_w03_${stamp}@tickethub.vn`,
+          fullName: `Người Mua ${n}`,
           passwordHash: "$argon2id$dummy",
           role: UserRole.BUYER,
           status: UserStatus.ACTIVE,
-        },
-        {
-          email: `b2_w03_${Date.now()}@tickethub.vn`,
-          fullName: "Người Mua 2",
-          passwordHash: "$argon2id$dummy",
-          role: UserRole.BUYER,
-          status: UserStatus.ACTIVE,
-        },
-        {
-          email: `b3_w03_${Date.now()}@tickethub.vn`,
-          fullName: "Người Mua 3",
-          passwordHash: "$argon2id$dummy",
-          role: UserRole.BUYER,
-          status: UserStatus.ACTIVE,
-        },
-        {
-          email: `b4_w03_${Date.now()}@tickethub.vn`,
-          fullName: "Người Mua 4",
-          passwordHash: "$argon2id$dummy",
-          role: UserRole.BUYER,
-          status: UserStatus.ACTIVE,
-        },
-      ])
+        })),
+      )
       .returning();
 
     testBuyer1Id = createdUsers[0]!.id;
@@ -206,32 +189,16 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
     // 6. Tạo 3 ghế mẫu
     const createdSeats = await db
       .insert(seats)
-      .values([
-        {
+      .values(
+        ["01", "02", "03"].map((seatNumber) => ({
           eventId: regularEventId,
           ticketTypeId: seatedTicketTypeId,
           zoneName: "Khu VIP",
           rowLabel: "A",
-          seatNumber: "01",
+          seatNumber,
           status: SeatStatus.AVAILABLE,
-        },
-        {
-          eventId: regularEventId,
-          ticketTypeId: seatedTicketTypeId,
-          zoneName: "Khu VIP",
-          rowLabel: "A",
-          seatNumber: "02",
-          status: SeatStatus.AVAILABLE,
-        },
-        {
-          eventId: regularEventId,
-          ticketTypeId: seatedTicketTypeId,
-          zoneName: "Khu VIP",
-          rowLabel: "A",
-          seatNumber: "03",
-          status: SeatStatus.AVAILABLE,
-        },
-      ])
+        })),
+      )
       .returning();
 
     testSeat1Id = createdSeats[0]!.id;
@@ -240,7 +207,7 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
   });
 
   after(async () => {
-    // Don dep Redis cua su kien kiem thu
+    // Dọn dẹp Redis của sự kiện kiểm thử
     if (waitingRoomEventId) {
       const heartbeatKeys = [
         testBuyer1Id,
@@ -261,8 +228,6 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
     }
 
     redis.disconnect();
-
-    // Giu nguyen phan don dep database ben duoi
 
     // Dọn dẹp dữ liệu DB
     const eventIds = [regularEventId, waitingRoomEventId].filter(Boolean);
@@ -309,6 +274,7 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
   describe("1. Hàng chờ ảo Waiting Room (UC03)", () => {
     let buyer1AdmissionToken = "";
     let buyer2AdmissionToken = "";
+
     it("Người dùng 1 và 2 gia nhập khi chưa đủ MAX_ACTIVE (2) -> Nhận ADMITTED và admissionToken", async () => {
       const res1 = await waitingRoomService.joinQueue(
         testBuyer1Id,
@@ -365,33 +331,30 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
       assert.equal(res4.queuePosition, 1);
     });
 
-    it("Kiểm tra Admission Token va phien Redis", async () => {
-      // Buyer 2 van ACTIVE, token phai hop le
+    it("Kiểm tra Admission Token và phiên Redis", async () => {
+      // Buyer 2 vẫn ACTIVE, token phải hợp lệ
       const isValid = await waitingRoomService.verifyAdmissionToken(
         buyer2AdmissionToken,
         waitingRoomEventId,
         testBuyer2Id,
       );
-
       assert.equal(isValid, true);
 
-      // Token Buyer 2 khong the dung cho Buyer 1
+      // Token Buyer 2 không thể dùng cho Buyer 1
       const isInvalidUser = await waitingRoomService.verifyAdmissionToken(
         buyer2AdmissionToken,
         waitingRoomEventId,
         testBuyer1Id,
       );
-
       assert.equal(isInvalidUser, false);
 
-      // Buyer 1 da leaveActive o bai test truoc
-      // Token cu cua Buyer 1 phai bi thu hoi hieu luc
+      // Buyer 1 đã leaveActive ở bài test trước,
+      // token cũ của Buyer 1 phải bị thu hồi hiệu lực
       const isRevoked = await waitingRoomService.verifyAdmissionToken(
         buyer1AdmissionToken,
         waitingRoomEventId,
         testBuyer1Id,
       );
-
       assert.equal(isRevoked, false);
     });
   });
@@ -440,6 +403,9 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
       assert.equal(result.totalAmount, 2000000);
       assert.equal(result.remainingSeconds, 300);
 
+      // Lưu lại để nhóm test 3 giải phóng đúng đơn này
+      buyer1SeatOrderId = result.orderId;
+
       // Kiểm tra trạng thái ghế trong database đã chuyển sang HELD
       const seatRow = await db.query.seats.findFirst({
         where: eq(seats.id, testSeat1Id),
@@ -449,14 +415,28 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
     });
 
     it("Kiểm soát tranh chấp đồng thời: 2 người giữ cùng 1 ghế -> Đúng 1 người thành công, 1 người nhận SEAT_ALREADY_HELD", async () => {
-      // testSeat3Id hiện đang AVAILABLE
+      // testSeat3Id chưa ai giữ (seat 1, 2 đã thuộc đơn của Người mua 1)
+      const seatBefore = await db.query.seats.findFirst({
+        where: eq(seats.id, testSeat3Id),
+      });
+
+      assert.ok(seatBefore, "Ghế test phải tồn tại");
+      assert.equal(seatBefore.eventId, regularEventId);
+      assert.equal(seatBefore.ticketTypeId, seatedTicketTypeId);
+      assert.equal(
+        seatBefore.status,
+        SeatStatus.AVAILABLE,
+        "Ghế phải AVAILABLE trước khi tranh chấp",
+      );
+
+      // Hai người cùng giữ ĐÚNG ghế seat 3 (đã sửa: trước đây dùng nhầm seat 1)
       const [res1, res2] = await Promise.allSettled([
         bookingService.holdSeats(testBuyer2Id, {
           eventId: regularEventId,
           items: [
             {
               ticketTypeId: seatedTicketTypeId,
-              seatId: testSeat1Id,
+              seatId: testSeat3Id,
               quantity: 1,
             },
           ],
@@ -466,50 +446,36 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
           items: [
             {
               ticketTypeId: seatedTicketTypeId,
-              seatId: testSeat1Id,
+              seatId: testSeat3Id,
               quantity: 1,
             },
           ],
         }),
       ]);
-      for (const [index, result] of [res1, res2].entries()) {
-        if (result.status === "rejected") {
-          const err = result.reason;
 
-          console.error(`\n[DEBUG HOLD SEATS - BUYER ${index + 1}]`, {
-            name: err?.name,
-            message: err?.message,
-            code: err?.code,
-            response: err?.response,
-            causeCode: err?.cause?.code,
-            causeMessage: err?.cause?.message,
-            detail: err?.detail ?? err?.cause?.detail,
-          });
-        } else {
-          console.log(
-            `[DEBUG HOLD SEATS - BUYER ${index + 1}] SUCCESS`,
-            result.value.orderId,
-          );
-        }
-      }
+      const results = [res1, res2];
 
-      const successCount = [res1, res2].filter(
-        (r) => r.status === "fulfilled",
-      ).length;
-      const rejectedCount = [res1, res2].filter(
-        (r) => r.status === "rejected",
-      ).length;
-
-      assert.equal(successCount, 1, "Đúng 1 yêu cầu phải thành công");
-      assert.equal(rejectedCount, 1, "Đúng 1 yêu cầu phải bị xung đột");
-
-      const rejectedResult = (
-        res1.status === "rejected" ? res1 : res2
-      ) as PromiseRejectedResult;
+      const fulfilled = results.filter(
+        (r): r is Extract<typeof r, { status: "fulfilled" }> =>
+          r.status === "fulfilled",
+      );
+      const rejected = results.filter(
+        (r): r is Extract<typeof r, { status: "rejected" }> =>
+          r.status === "rejected",
+      );
+      assert.equal(fulfilled.length, 1, "Đúng 1 yêu cầu phải thành công");
+      assert.equal(rejected.length, 1, "Đúng 1 yêu cầu phải bị xung đột");
       assert.equal(
-        rejectedResult.reason?.response?.error?.code,
+        rejected[0]!.reason?.response?.error?.code,
         "SEAT_ALREADY_HELD",
       );
+
+      // Ghế phải thuộc về đúng đơn của người thắng
+      const seatAfter = await db.query.seats.findFirst({
+        where: eq(seats.id, testSeat3Id),
+      });
+      assert.equal(seatAfter?.status, SeatStatus.HELD);
+      assert.equal(seatAfter?.holdOrderId, fulfilled[0]!.value.orderId);
     });
 
     it("Giữ chỗ khu đứng cập nhật held_count; vượt sức chứa bị từ chối INSUFFICIENT_TICKET_CAPACITY", async () => {
@@ -545,37 +511,40 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
   });
 
   describe("3. Giải phóng ghế chủ động & Tác vụ dọn đơn hết hạn", () => {
-    let activeOrderId = "";
-
     it("Giải phóng ghế chủ động (releaseHold) -> Ghế trở lại AVAILABLE, đơn CANCELLED", async () => {
-      // Giải phóng đơn giữ 2 ghế của Người Mua 1
+      // Dùng đúng đơn 2 ghế đã lưu (Người mua 1 còn một đơn khu đứng PENDING nữa,
+      // nên không được dùng findFirst vì có thể lấy nhầm)
+      assert.ok(buyer1SeatOrderId, "Phải có đơn 2 ghế từ test trước");
+
       const order = await db.query.orders.findFirst({
         where: and(
+          eq(orders.id, buyer1SeatOrderId),
           eq(orders.userId, testBuyer1Id),
           eq(orders.status, OrderStatus.PENDING),
         ),
       });
-      assert.ok(order);
-      activeOrderId = order.id;
+      assert.ok(order, "Đơn 2 ghế phải còn PENDING");
 
       const releaseRes = await bookingService.releaseHold(
         testBuyer1Id,
-        activeOrderId,
+        buyer1SeatOrderId,
       );
       assert.ok(releaseRes.message);
 
       // Kiểm tra trạng thái đơn hàng
       const updatedOrder = await db.query.orders.findFirst({
-        where: eq(orders.id, activeOrderId),
+        where: eq(orders.id, buyer1SeatOrderId),
       });
       assert.equal(updatedOrder?.status, OrderStatus.CANCELLED);
 
-      // Kiểm tra ghế được trả về AVAILABLE
-      const seat1 = await db.query.seats.findFirst({
-        where: eq(seats.id, testSeat1Id),
-      });
-      assert.equal(seat1?.status, SeatStatus.AVAILABLE);
-      assert.equal(seat1?.holdOrderId, null);
+      // Kiểm tra cả 2 ghế được trả về AVAILABLE
+      for (const seatId of [testSeat1Id, testSeat2Id]) {
+        const seat = await db.query.seats.findFirst({
+          where: eq(seats.id, seatId),
+        });
+        assert.equal(seat?.status, SeatStatus.AVAILABLE);
+        assert.equal(seat?.holdOrderId, null);
+      }
     });
 
     it("Tác vụ quét định kỳ (cleanExpiredOrders) tự động hủy đơn quá hạn và trả ghế về AVAILABLE", async () => {
