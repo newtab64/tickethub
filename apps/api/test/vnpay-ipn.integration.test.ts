@@ -6,6 +6,7 @@ import { BookingService } from "../src/booking/booking.service";
 import type { WaitingRoomService } from "../src/waiting-room/waiting-room.service";
 import { PaymentService } from "../src/payments/payment.service";
 import { VnpayGateway } from "../src/payments/vnpay.gateway";
+import type { EventReadCacheService } from "../src/events/event-read-cache.service";
 import {
   OrderStatus,
   TransactionStatus,
@@ -31,6 +32,12 @@ import { VnpayIpnService } from "../src/payments/vnpay-ipn.service";
 import { toVnpayAmount } from "../src/payments/vnpay-ipn.preview.service";
 
 // Safety guard: never write integration fixtures to dev DB.
+
+const cacheStub = {
+  invalidate: async (_eventId: string): Promise<void> => {
+    // Unit/integration test khong can xoa Redis cache that
+  },
+} as EventReadCacheService;
 
 const targetDb = decodeURIComponent(
   new URL(env.DATABASE_URL).pathname.slice(1),
@@ -113,7 +120,7 @@ async function createFixture(expired = false) {
 // Mock only the already-verified gateway result.
 // Database transactions and inventory changes remain real.
 function serviceWithVerifiedCallback(transactionRef: string, success: boolean) {
-  const service = new VnpayIpnService();
+  const service = new VnpayIpnService(cacheStub);
 
   Object.defineProperty(service, "gateway", {
     value: {
@@ -344,7 +351,7 @@ if (!isSafeTestDb) {
 
     const ipn = serviceWithVerifiedCallback(fixture.transactionRef, true);
 
-    const booking = new BookingService({} as WaitingRoomService);
+    const booking = new BookingService({} as WaitingRoomService, cacheStub);
 
     const [paymentResult, releaseResult] = await Promise.allSettled([
       ipn.process({
@@ -387,7 +394,7 @@ if (!isSafeTestDb) {
   });
 
   test("IPN vs Booking Cleanup: expired order never becomes PAID", async () => {
-    const booking = new BookingService({} as WaitingRoomService);
+    const booking = new BookingService({} as WaitingRoomService, cacheStub);
 
     // Don cac hold da het han cua cac test truoc.
     await booking.cleanExpiredOrders();
@@ -710,7 +717,7 @@ if (!isSafeTestDb) {
     // 1. Tao mot don hang GA da het han
     const fixture = await createFixture(true);
 
-    const booking = new BookingService({} as WaitingRoomService);
+    const booking = new BookingService({} as WaitingRoomService, cacheStub);
 
     // 2. Cleanup chay truoc khi VNPay callback
     await booking.cleanExpiredOrders();

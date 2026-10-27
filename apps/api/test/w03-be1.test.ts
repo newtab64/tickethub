@@ -6,6 +6,7 @@ import { eq, and, inArray } from "drizzle-orm";
 import { WaitingRoomService } from "../src/waiting-room/waiting-room.service";
 import { BookingService } from "../src/booking/booking.service";
 import { db, sqlClient } from "../src/database/db";
+import type { EventReadCacheService } from "../src/events/event-read-cache.service";
 import {
   users,
   events,
@@ -24,6 +25,10 @@ import {
   OrderStatus,
 } from "@tickethub/shared";
 import { env } from "../src/config/env.config";
+
+const cacheStub = {
+  invalidate: async (_eventId: string): Promise<void> => {},
+} as EventReadCacheService;
 
 describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", () => {
   let redis: Redis;
@@ -48,7 +53,7 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
     redis = new Redis(env.REDIS_URL);
     jwtService = new JwtService({ secret: env.JWT_SECRET });
     waitingRoomService = new WaitingRoomService(redis, jwtService);
-    bookingService = new BookingService(waitingRoomService);
+    bookingService = new BookingService(waitingRoomService, cacheStub);
 
     // 1. Lấy hoặc tạo organizer profile
     let orgProfile = await db.query.organizerProfiles.findFirst();
@@ -235,10 +240,29 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
   });
 
   after(async () => {
-    // Dọn dẹp Redis
-    await redis.del(`active_users:${waitingRoomEventId}`);
-    await redis.del(`waiting_room:${waitingRoomEventId}`);
+    // Don dep Redis cua su kien kiem thu
+    if (waitingRoomEventId) {
+      const heartbeatKeys = [
+        testBuyer1Id,
+        testBuyer2Id,
+        testBuyer3Id,
+        testBuyer4Id,
+      ]
+        .filter(Boolean)
+        .map((userId) => `w03:waiting-room:hb:${waitingRoomEventId}:${userId}`);
+
+      await redis.del(
+        `active_users:${waitingRoomEventId}`,
+        `waiting_room:${waitingRoomEventId}`,
+        ...heartbeatKeys,
+      );
+
+      await redis.srem("w03:waiting-room:events", waitingRoomEventId);
+    }
+
     redis.disconnect();
+
+    // Giu nguyen phan don dep database ben duoi
 
     // Dọn dẹp dữ liệu DB
     const eventIds = [regularEventId, waitingRoomEventId].filter(Boolean);
@@ -284,7 +308,7 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
 
   describe("1. Hàng chờ ảo Waiting Room (UC03)", () => {
     let buyer1AdmissionToken = "";
-
+    let buyer2AdmissionToken = "";
     it("Người dùng 1 và 2 gia nhập khi chưa đủ MAX_ACTIVE (2) -> Nhận ADMITTED và admissionToken", async () => {
       const res1 = await waitingRoomService.joinQueue(
         testBuyer1Id,
@@ -300,6 +324,7 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
       );
       assert.equal(res2.status, "ADMITTED");
       assert.ok(res2.admissionToken);
+      buyer2AdmissionToken = res2.admissionToken!;
     });
 
     it("Người dùng 3 gia nhập khi đã đạt MAX_ACTIVE (2) -> Đưa vào hàng chờ QUEUED tại vị trí 1", async () => {
@@ -340,21 +365,34 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
       assert.equal(res4.queuePosition, 1);
     });
 
-    it("Kiểm thực Admission Token hợp lệ", async () => {
+    it("Kiểm tra Admission Token va phien Redis", async () => {
+      // Buyer 2 van ACTIVE, token phai hop le
       const isValid = await waitingRoomService.verifyAdmissionToken(
+        buyer2AdmissionToken,
+        waitingRoomEventId,
+        testBuyer2Id,
+      );
+
+      assert.equal(isValid, true);
+
+      // Token Buyer 2 khong the dung cho Buyer 1
+      const isInvalidUser = await waitingRoomService.verifyAdmissionToken(
+        buyer2AdmissionToken,
+        waitingRoomEventId,
+        testBuyer1Id,
+      );
+
+      assert.equal(isInvalidUser, false);
+
+      // Buyer 1 da leaveActive o bai test truoc
+      // Token cu cua Buyer 1 phai bi thu hoi hieu luc
+      const isRevoked = await waitingRoomService.verifyAdmissionToken(
         buyer1AdmissionToken,
         waitingRoomEventId,
         testBuyer1Id,
       );
-      assert.equal(isValid, true);
 
-      // Token sai sự kiện hoặc sai userId phải bị từ chối
-      const isInvalidUser = await waitingRoomService.verifyAdmissionToken(
-        buyer1AdmissionToken,
-        waitingRoomEventId,
-        testBuyer2Id,
-      );
-      assert.equal(isInvalidUser, false);
+      assert.equal(isRevoked, false);
     });
   });
 
@@ -364,7 +402,13 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
         async () => {
           await bookingService.holdSeats(testBuyer1Id, {
             eventId: waitingRoomEventId,
-            items: [{ ticketTypeId: seatedTicketTypeId, seatId: testSeat1Id }],
+            items: [
+              {
+                ticketTypeId: seatedTicketTypeId,
+                seatId: testSeat1Id,
+                quantity: 1,
+              },
+            ],
           });
         },
         (err: any) => {
@@ -378,8 +422,16 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
       const result = await bookingService.holdSeats(testBuyer1Id, {
         eventId: regularEventId,
         items: [
-          { ticketTypeId: seatedTicketTypeId, seatId: testSeat1Id },
-          { ticketTypeId: seatedTicketTypeId, seatId: testSeat2Id },
+          {
+            ticketTypeId: seatedTicketTypeId,
+            seatId: testSeat1Id,
+            quantity: 1,
+          },
+          {
+            ticketTypeId: seatedTicketTypeId,
+            seatId: testSeat2Id,
+            quantity: 1,
+          },
         ],
       });
 
@@ -401,11 +453,23 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
       const [res1, res2] = await Promise.allSettled([
         bookingService.holdSeats(testBuyer2Id, {
           eventId: regularEventId,
-          items: [{ ticketTypeId: seatedTicketTypeId, seatId: testSeat3Id }],
+          items: [
+            {
+              ticketTypeId: seatedTicketTypeId,
+              seatId: testSeat1Id,
+              quantity: 1,
+            },
+          ],
         }),
         bookingService.holdSeats(testBuyer3Id, {
           eventId: regularEventId,
-          items: [{ ticketTypeId: seatedTicketTypeId, seatId: testSeat3Id }],
+          items: [
+            {
+              ticketTypeId: seatedTicketTypeId,
+              seatId: testSeat1Id,
+              quantity: 1,
+            },
+          ],
         }),
       ]);
 
@@ -498,7 +562,13 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
       // 1. Tạo đơn giữ testSeat1Id
       const holdRes = await bookingService.holdSeats(testBuyer4Id, {
         eventId: regularEventId,
-        items: [{ ticketTypeId: seatedTicketTypeId, seatId: testSeat1Id }],
+        items: [
+          {
+            ticketTypeId: seatedTicketTypeId,
+            seatId: testSeat1Id,
+            quantity: 1,
+          },
+        ],
       });
 
       // 2. Ép đơn hàng và ghế về quá khứ (hết hạn giữ chỗ)
