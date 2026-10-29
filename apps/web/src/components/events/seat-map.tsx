@@ -1,15 +1,20 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { Plus, Minus, Maximize2 } from "lucide-react";
 import { VENUE_SVG, type VenueMapKey } from "@/lib/venue-svg.generated";
 import { formatVnd } from "@/lib/events-catalog";
+import { SeatMinimap } from "@/components/events/seat-minimap";
+import { clampPanToMap, shouldShowMinimap } from "@/components/events/seat-map.utils";
 
-interface SeatMapProps {
+export interface SeatMapProps {
   mapKey: VenueMapKey;
   activeZoneId?: string | null;
   hoveredZoneId?: string | null;
-  zoneInfoMap?: Record<string, { name: string; minPrice: number; count: number }>;
+  zoneInfoMap?: Record<
+    string,
+    { name: string; minPrice: number; count: number }
+  >;
   onSelectZone: (zoneId: string | null) => void;
   onHoverZone: (zoneId: string | null) => void;
 }
@@ -28,31 +33,99 @@ function SeatMapView({
 }: SeatMapProps) {
   const mapData = VENUE_SVG[mapKey] || VENUE_SVG["arena-t-stage"];
 
+  // Pan, Zoom & Dragging
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const panStartRef = useRef({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const [viewportSize, setViewportSize] = useState({
+    canvasWidth: 0,
+    canvasHeight: 0,
+    svgWidth: 0,
+    svgHeight: 0,
+  });
+
+  // Track the actual canvas/SVG dimensions so minimap geometry matches letterboxed maps.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const svg = svgRef.current;
+    if (!canvas || !svg) return;
+
+    const observer = new ResizeObserver(() => {
+      const nextSize = {
+        canvasWidth: canvas.clientWidth,
+        canvasHeight: canvas.clientHeight,
+        svgWidth: svg.clientWidth,
+        svgHeight: svg.clientHeight,
+      };
+      setViewportSize((current) =>
+        current.canvasWidth === nextSize.canvasWidth &&
+        current.canvasHeight === nextSize.canvasHeight &&
+        current.svgWidth === nextSize.svgWidth &&
+        current.svgHeight === nextSize.svgHeight
+          ? current
+          : nextSize,
+      );
+    });
+
+    observer.observe(canvas);
+    observer.observe(svg);
+    return () => observer.disconnect();
+  }, []);
+
+  const visiblePan = clampPanToMap({
+    pan,
+    zoom,
+    containerWidth: viewportSize.canvasWidth,
+    containerHeight: viewportSize.canvasHeight,
+    svgWidth: viewportSize.svgWidth,
+    svgHeight: viewportSize.svgHeight,
+    viewBox: mapData.viewBox,
+  });
+
+  // Tooltip for overview hover
   const [tooltip, setTooltip] = useState<{
     price: number;
+    name: string;
+    count: number;
+    isSoldOut: boolean;
     x: number;
     y: number;
   } | null>(null);
 
-  const handleZoomIn = () => setZoom((z) => Math.min(2.5, Number((z + 0.25).toFixed(2))));
-  const handleZoomOut = () => setZoom((z) => Math.max(0.75, Number((z - 0.25).toFixed(2))));
+  const updateZoom = (nextZoom: number) => {
+    setZoom(nextZoom);
+    setPan((currentPan) =>
+      clampPanToMap({
+        pan: currentPan,
+        zoom: nextZoom,
+        containerWidth: viewportSize.canvasWidth,
+        containerHeight: viewportSize.canvasHeight,
+        svgWidth: viewportSize.svgWidth,
+        svgHeight: viewportSize.svgHeight,
+        viewBox: mapData.viewBox,
+      }),
+    );
+  };
+  const handleZoomIn = () =>
+    updateZoom(Math.min(2.5, Number((zoom + 0.25).toFixed(2))));
+  const handleZoomOut = () =>
+    updateZoom(Math.max(0.75, Number((zoom - 0.25).toFixed(2))));
   const handleReset = () => {
+    // Reset zoom and pan only - do not wipe selected activeZoneId (Gia Khang review #12)
     setZoom(1);
     setPan({ x: 0, y: 0 });
-    onSelectZone(null);
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
     setIsDragging(true);
     dragStartRef.current = { x: e.clientX, y: e.clientY };
-    panStartRef.current = { ...pan };
+    panStartRef.current = { ...visiblePan };
   };
 
   const handleMouseMove = useCallback(
@@ -60,23 +133,37 @@ function SeatMapView({
       if (isDragging) {
         const dx = e.clientX - dragStartRef.current.x;
         const dy = e.clientY - dragStartRef.current.y;
-        setPan({
-          x: panStartRef.current.x + dx,
-          y: panStartRef.current.y + dy,
-        });
+        setPan(
+          clampPanToMap({
+            pan: {
+              x: panStartRef.current.x + dx,
+              y: panStartRef.current.y + dy,
+            },
+            zoom,
+            containerWidth: viewportSize.canvasWidth,
+            containerHeight: viewportSize.canvasHeight,
+            svgWidth: viewportSize.svgWidth,
+            svgHeight: viewportSize.svgHeight,
+            viewBox: mapData.viewBox,
+          }),
+        );
         return;
       }
 
-      // Check hovering zone: only available zones show tooltip and highlight
       const target = (e.target as Element).closest("[data-zone]");
       if (target) {
         const zid = target.getAttribute("data-zone");
-        if (zid && zoneInfoMap[zid]) {
+        if (zid) {
+          const info = zoneInfoMap[zid];
+          const isSoldOut = !info || info.count <= 0;
           onHoverZone(zid);
           const rect = containerRef.current?.getBoundingClientRect();
           if (rect) {
             setTooltip({
-              price: zoneInfoMap[zid].minPrice,
+              price: info?.minPrice ?? 0,
+              name: info?.name ?? `Khu ${zid}`,
+              count: info?.count ?? 0,
+              isSoldOut,
               x: e.clientX - rect.left,
               y: e.clientY - rect.top,
             });
@@ -87,13 +174,75 @@ function SeatMapView({
       onHoverZone(null);
       setTooltip(null);
     },
-    [isDragging, onHoverZone, zoneInfoMap]
+    [isDragging, onHoverZone, zoneInfoMap, zoom, viewportSize, mapData.viewBox],
   );
 
+  // Mouseup must bubble from the minimap so canvas drags always finish.
   const handleMouseUp = () => setIsDragging(false);
 
+  // Touch (mobile): one finger pans, two fingers pinch-zoom.
+  const pinchStartRef = useRef<{ distance: number; zoom: number } | null>(null);
+  const touchDistance = (touches: React.TouchList) =>
+    Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY,
+    );
+  const clampTo = (nextPan: { x: number; y: number }, nextZoom: number) =>
+    clampPanToMap({
+      pan: nextPan,
+      zoom: nextZoom,
+      containerWidth: viewportSize.canvasWidth,
+      containerHeight: viewportSize.canvasHeight,
+      svgWidth: viewportSize.svgWidth,
+      svgHeight: viewportSize.svgHeight,
+      viewBox: mapData.viewBox,
+    });
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      pinchStartRef.current = { distance: touchDistance(e.touches), zoom };
+      setIsDragging(false);
+      return;
+    }
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      setIsDragging(true);
+      dragStartRef.current = { x: t.clientX, y: t.clientY };
+      panStartRef.current = { ...visiblePan };
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && pinchStartRef.current) {
+      const ratio = touchDistance(e.touches) / pinchStartRef.current.distance;
+      const nextZoom = Math.min(
+        2.5,
+        Math.max(0.75, Number((pinchStartRef.current.zoom * ratio).toFixed(2))),
+      );
+      updateZoom(nextZoom);
+      return;
+    }
+    if (e.touches.length === 1 && isDragging) {
+      const t = e.touches[0];
+      setPan(
+        clampTo(
+          {
+            x: panStartRef.current.x + (t.clientX - dragStartRef.current.x),
+            y: panStartRef.current.y + (t.clientY - dragStartRef.current.y),
+          },
+          zoom,
+        ),
+      );
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length < 2) pinchStartRef.current = null;
+    if (e.touches.length === 0) setIsDragging(false);
+  };
+
+  // Click on overview zone
   const handleClick = (e: React.MouseEvent) => {
-    // Only process click if user wasn't dragging
     const dx = Math.abs(e.clientX - dragStartRef.current.x);
     const dy = Math.abs(e.clientY - dragStartRef.current.y);
     if (dx > 5 || dy > 5) return;
@@ -101,240 +250,292 @@ function SeatMapView({
     const target = (e.target as Element).closest("[data-zone]");
     if (target) {
       const zid = target.getAttribute("data-zone");
-      // Only available zones with active tickets can be clicked/selected
-      if (zid && zoneInfoMap[zid]) {
+      if (zid) {
+        const info = zoneInfoMap[zid];
+        // Do not allow selecting sold out / unavailable zones
+        if (!info || info.count <= 0) {
+          return;
+        }
         onSelectZone(activeZoneId === zid ? null : zid);
         return;
       }
     }
-    // Clicked on empty space, non-selling zone, or sold-out zone: clear selection
+    // Deselect if clicking outside
     onSelectZone(null);
   };
 
   return (
     <div
       ref={containerRef}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={() => {
-        setIsDragging(false);
-        onHoverZone(null);
-        setTooltip(null);
-      }}
-      onClick={handleClick}
       role="region"
       aria-label="Sơ đồ khán đài tương tác"
-      className="relative w-full h-full bg-[#f8fafc] overflow-hidden select-none cursor-grab active:cursor-grabbing"
+      className="relative w-full h-full bg-muted overflow-hidden select-none flex flex-col font-sans"
     >
-      {/* Floating Zoom & Reset Toolbar (top-right controls) */}
-      <div className="absolute top-4 right-4 z-20 flex flex-col rounded-[8px] bg-white border border-[#dfe3e5] shadow-xs overflow-hidden">
+      {/* Floating Toolbar: Zoom & Reset */}
+      <div className="absolute top-4 right-4 z-20 flex flex-col rounded-md bg-background border border-border shadow-xs overflow-hidden">
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleZoomIn();
-          }}
+          onClick={handleZoomIn}
           aria-label="Phóng to"
-          className="size-9 flex items-center justify-center text-[#141d23] hover:bg-[#f5f7f8] transition-colors border-b border-[#dfe3e5]"
+          className="size-8 flex items-center justify-center text-foreground hover:bg-muted transition-colors border-b border-border"
         >
-          <Plus className="size-4" />
+          <Plus className="size-3.5" />
         </button>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleZoomOut();
-          }}
+          onClick={handleZoomOut}
           aria-label="Thu nhỏ"
-          className="size-9 flex items-center justify-center text-[#141d23] hover:bg-[#f5f7f8] transition-colors border-b border-[#dfe3e5]"
+          className="size-8 flex items-center justify-center text-foreground hover:bg-muted transition-colors border-b border-border"
         >
-          <Minus className="size-4" />
+          <Minus className="size-3.5" />
         </button>
         <button
           type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            handleReset();
-          }}
+          onClick={handleReset}
           aria-label="Căn giữa toàn cảnh"
-          className="size-9 flex items-center justify-center text-[#141d23] hover:bg-[#f5f7f8] transition-colors"
+          className="size-8 flex items-center justify-center text-foreground hover:bg-muted transition-colors"
         >
-          <Maximize2 className="size-3.5" />
+          <Maximize2 className="size-3" />
         </button>
       </div>
 
-      {/* Floating Hover Tooltip: Positioned directly above cursor and aligned center */}
-      {tooltip && (
+      {/* SVG Canvas Workspace */}
+      <div
+        ref={canvasRef}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={() => {
+          setIsDragging(false);
+          onHoverZone(null);
+          setTooltip(null);
+        }}
+        onClick={handleClick}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
+        style={{ touchAction: "none" }}
+        className="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing overflow-hidden"
+      >
+        {/* Floating Hover Tooltip on Section */}
+        {tooltip && (
+          <div
+            style={{
+              left: `${tooltip.x}px`,
+              top: `${tooltip.y - 12}px`,
+              pointerEvents: "none",
+            }}
+            className="absolute z-30 transform -translate-x-1/2 -translate-y-full bg-foreground text-white text-[12px] px-3 py-1.5 rounded-[6px] shadow-lg whitespace-nowrap pointer-events-none select-none"
+          >
+            <div className="font-semibold text-background/90">{tooltip.name}</div>
+            {tooltip.isSoldOut ? (
+              <div className="font-bold text-red-300 font-mono text-[11px] pt-0.5">
+                Hết vé khả dụng
+              </div>
+            ) : (
+              <div className="font-bold text-emerald-200 font-mono">
+                Từ {formatVnd(tooltip.price)}
+                <span className="text-[11px] text-background/70 font-normal ml-1">
+                  ({tooltip.count} vé)
+                </span>
+              </div>
+            )}
+            <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-foreground" />
+          </div>
+        )}
+
+        {/* SVG Canvas with Pan & Zoom */}
         <div
           style={{
-            left: `${tooltip.x}px`,
-            top: `${tooltip.y - 10}px`,
-            pointerEvents: "none",
+            transform: `translate(${visiblePan.x}px, ${visiblePan.y}px) scale(${zoom})`,
+            transformOrigin: "center center",
+            transition: isDragging ? "none" : "transform 0.15s ease-out",
           }}
-          className="absolute z-30 transform -translate-x-1/2 -translate-y-full bg-[#141d23] text-white text-[12px] px-2.5 py-1 rounded-[6px] shadow-lg whitespace-nowrap pointer-events-none select-none"
+          className="w-full h-full flex items-center justify-center p-4 gpu-layer"
         >
-          <span className="font-bold text-[#a7f3d0]">{formatVnd(tooltip.price)}</span>
-          <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-[#141d23]" />
+          <svg
+            ref={svgRef}
+            viewBox={mapData.viewBox}
+            className="w-full h-full max-h-[82vh] transition-colors duration-150"
+            preserveAspectRatio="xMidYMid meet"
+            dangerouslySetInnerHTML={{ __html: mapData.markup }}
+          />
         </div>
-      )}
 
-      {/* SVG Canvas with Pan & Zoom */}
-      <div
-        style={{
-          transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-          transformOrigin: "center center",
-          transition: isDragging ? "none" : "transform 0.15s ease-out",
-        }}
-        className="w-full h-full flex items-center justify-center p-4"
-      >
-        <svg
-          viewBox={mapData.viewBox}
-          className="w-full h-full max-h-[82vh] transition-colors duration-150"
-          dangerouslySetInnerHTML={{ __html: mapData.markup }}
+        {/* Interactive Minimap: shown only for large venues or when zoomed in */}
+        {shouldShowMinimap(mapKey, zoom) && (
+          <div
+            className="absolute bottom-4 right-4 z-20 hidden sm:block"
+            onMouseDown={(e) => e.stopPropagation()}
+            onMouseMove={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <SeatMinimap
+              viewBox={mapData.viewBox}
+              markup={mapData.markup}
+              zoom={zoom}
+              pan={visiblePan}
+              containerWidth={viewportSize.canvasWidth}
+              containerHeight={viewportSize.canvasHeight}
+              svgWidth={viewportSize.svgWidth}
+              svgHeight={viewportSize.svgHeight}
+              onNavigate={(newPan) => setPan(newPan)}
+            />
+          </div>
+        )}
+
+        {/* Dynamic SVG Styles for Zone Highlights */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+          .sec {
+            fill: var(--accent);
+            stroke: var(--ring);
+            stroke-width: 3px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+          }
+          g[data-zone="11448"],
+          g[data-zone="885"] {
+            cursor: not-allowed !important;
+          }
+          g[data-zone="11448"] .sec,
+          g[data-zone="885"] .sec {
+            fill: var(--secondary) !important;
+            stroke: var(--border) !important;
+            cursor: not-allowed !important;
+            opacity: 0.6 !important;
+          }
+          g[data-zone="11448"] text,
+          g[data-zone="885"] text {
+            fill: var(--muted-foreground) !important;
+            font-weight: 500 !important;
+          }
+          g[data-zone] {
+            cursor: default;
+          }
+          g[data-zone] .sec {
+            fill: var(--background);
+            stroke: var(--border);
+            stroke-width: 2px;
+            cursor: not-allowed;
+            transition: all 0.15s ease;
+            opacity: 0.65;
+          }
+          g[data-zone] text {
+            fill: var(--muted-foreground);
+            font-family: var(--font-sans), system-ui, sans-serif;
+            font-weight: 600;
+            pointer-events: none;
+            user-select: none;
+          }
+          ${Object.keys(zoneInfoMap)
+            .map((zid) => {
+              const info = zoneInfoMap[zid];
+              if (!info || info.count <= 0) {
+                return `
+          g[data-zone="${zid}"] {
+            cursor: not-allowed !important;
+          }
+          g[data-zone="${zid}"] .sec {
+            fill: var(--secondary) !important;
+            stroke: var(--border) !important;
+            stroke-width: 2px !important;
+            cursor: not-allowed !important;
+            opacity: 0.6 !important;
+          }
+          g[data-zone="${zid}"] text {
+            fill: var(--muted-foreground) !important;
+            font-weight: 500 !important;
+          }
+                `;
+              }
+              return `
+          g[data-zone="${zid}"] {
+            cursor: pointer !important;
+          }
+          g[data-zone="${zid}"] .sec {
+            fill: var(--accent) !important;
+            stroke: var(--ring) !important;
+            stroke-width: 3px !important;
+            cursor: pointer !important;
+            opacity: 1 !important;
+          }
+          g[data-zone="${zid}"] text {
+            fill: var(--accent-foreground) !important;
+            font-weight: 800 !important;
+          }
+              `;
+            })
+            .join("\n")}
+          ${
+            hoveredZoneId && zoneInfoMap[hoveredZoneId] && zoneInfoMap[hoveredZoneId].count > 0
+              ? `
+            g[data-zone="${hoveredZoneId}"] .sec {
+              fill: var(--ring) !important;
+              stroke: var(--accent-foreground) !important;
+              stroke-width: 6px !important;
+            }
+            g[data-zone="${hoveredZoneId}"] text {
+              fill: var(--primary-foreground) !important;
+              font-weight: 800 !important;
+            }
+          `
+              : ""
+          }
+          ${
+            activeZoneId
+              ? `
+            g[data-zone]:not([data-zone="${activeZoneId}"]) {
+              opacity: 0.35;
+            }
+            g[data-zone="${activeZoneId}"] .sec {
+              fill: var(--primary) !important;
+              stroke: var(--accent-foreground) !important;
+              stroke-width: 7px !important;
+              opacity: 1 !important;
+            }
+            g[data-zone="${activeZoneId}"] text {
+              fill: var(--primary-foreground) !important;
+              font-weight: 800 !important;
+            }
+          `
+              : ""
+          }
+          .stage {
+            fill: var(--venue-stage) !important;
+          }
+          .stage-label {
+            fill: var(--primary-foreground) !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.08em;
+          }
+          .prop {
+            fill: var(--secondary) !important;
+          }
+          .prop-box {
+            stroke: var(--border) !important;
+          }
+          /* Football pitch styling */
+          .pitch-apron {
+            fill: var(--secondary);
+            stroke: var(--border);
+          }
+          .pitch {
+            fill: var(--venue-pitch) !important;
+            stroke: var(--venue-pitch-stroke) !important;
+          }
+          .pitch-mark {
+            stroke: var(--primary-foreground) !important;
+            fill: none !important;
+          }
+          `,
+          }}
         />
       </div>
-
-      {/* Dynamic CSS injecting live highlight styles based on activeZoneId and hoveredZoneId */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-        /* Base section styles */
-        .sec {
-          fill: #eff6ff;
-          stroke: #93c5fd;
-          stroke-width: 3px;
-          transition: all 0.2s ease;
-          cursor: pointer;
-        }
-
-        /* Non-selling & Priority zones (simply gray and not clickable) */
-        g[data-zone="11448"],
-        g[data-zone="885"] {
-          cursor: not-allowed !important;
-        }
-        g[data-zone="11448"] .sec,
-        g[data-zone="885"] .sec {
-          fill: #e2e8f0 !important;
-          stroke: #cbd5e1 !important;
-          stroke-dasharray: none !important;
-          cursor: not-allowed !important;
-        }
-        g[data-zone="11448"] text,
-        g[data-zone="885"] text {
-          fill: #94a3b8 !important;
-          font-weight: 500 !important;
-        }
-
-        /* Default for sections without active tickets (sold out or unlisted) */
-        g[data-zone] {
-          cursor: default;
-        }
-        g[data-zone] .sec {
-          fill: #f8fafc;
-          stroke: #cbd5e1;
-          stroke-width: 2px;
-          cursor: default;
-          transition: all 0.15s ease;
-        }
-        g[data-zone] text {
-          fill: #94a3b8;
-          font-family: var(--font-sans), system-ui, sans-serif;
-          font-weight: 600;
-          pointer-events: none;
-          user-select: none;
-          transition: all 0.15s ease;
-        }
-
-        /* Available zones with active tickets */
-        ${Object.keys(zoneInfoMap)
-          .map(
-            (zid) => `
-        g[data-zone="${zid}"] .sec {
-          fill: #ecfdf5;
-          stroke: #10b981;
-          stroke-width: 3px;
-          cursor: pointer;
-        }
-        g[data-zone="${zid}"] text {
-          fill: #064e3b;
-          font-weight: 800;
-        }
-        `
-          )
-          .join("\n")}
-
-        /* Hovered zone highlight */
-        ${
-          hoveredZoneId
-            ? `
-          g[data-zone="${hoveredZoneId}"] .sec {
-            fill: #10b981 !important;
-            stroke: #047857 !important;
-            stroke-width: 6px !important;
-            filter: drop-shadow(0 2px 8px rgba(16, 185, 129, 0.45));
-          }
-          g[data-zone="${hoveredZoneId}"] text {
-            fill: #ffffff !important;
-            font-weight: 800 !important;
-          }
-        `
-            : ""
-        }
-
-        /* Active / Selected zone highlight */
-        ${
-          activeZoneId
-            ? `
-          g[data-zone]:not([data-zone="${activeZoneId}"]) {
-            opacity: 0.35;
-          }
-          g[data-zone="${activeZoneId}"] .sec {
-            fill: #059669 !important;
-            stroke: #064e3b !important;
-            stroke-width: 7px !important;
-            filter: drop-shadow(0 4px 12px rgba(5, 150, 105, 0.55));
-          }
-          g[data-zone="${activeZoneId}"] text {
-            fill: #ffffff !important;
-            font-weight: 800 !important;
-          }
-        `
-            : ""
-        }
-
-        /* Stage styling */
-        .stage {
-          fill: #334155 !important;
-        }
-        .stage-label {
-          fill: #ffffff !important;
-          font-weight: 800 !important;
-          letter-spacing: 0.08em;
-        }
-        .prop {
-          fill: #cbd5e1 !important;
-        }
-        .prop-box {
-          stroke: #94a3b8 !important;
-        }
-
-        /* Football pitch styling */
-        .pitch-apron {
-          fill: #e2e8f0;
-          stroke: #cbd5e1;
-        }
-        .pitch {
-          fill: #4ade80 !important;
-          stroke: #22c55e !important;
-        }
-        .pitch-mark {
-          stroke: #ffffff !important;
-          fill: none !important;
-        }
-      `,
-        }}
-      />
     </div>
   );
 }

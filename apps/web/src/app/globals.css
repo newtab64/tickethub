@@ -52,6 +52,9 @@
   --border: #dfe3e5;
   --input: #dfe3e5;
   --ring: #10b981;
+  --venue-stage: #334155;
+  --venue-pitch: #4ade80;
+  --venue-pitch-stroke: #22c55e;
   --radius: 12px;
   --auth-stage-offset: 0px;
 }

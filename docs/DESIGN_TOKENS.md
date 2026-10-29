@@ -22,6 +22,9 @@ Nguyên tắc chung: nền trắng, viền mảnh, ít đổ bóng, một màu n
 | `--secondary` | `#eff1f2` | Nền ảnh chờ tải, nút phụ |
 | `--border` / `--input` | `#dfe3e5` | Viền, đường kẻ, ô nhập |
 | `--destructive` | `#d51b34` | Lỗi, hành động nguy hiểm |
+| `--venue-stage` | `#334155` | Nền sân khấu trong sơ đồ |
+| `--venue-pitch` | `#4ade80` | Mặt sân bóng trong sơ đồ sân vận động |
+| `--venue-pitch-stroke` | `#22c55e` | Viền sân bóng trong sơ đồ sân vận động |
 
 ### Giá trị thô đang dùng trực tiếp trong JSX
 

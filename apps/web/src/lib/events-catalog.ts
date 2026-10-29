@@ -435,7 +435,9 @@ export function getEventById(id: string): EventItem | undefined {
 }
 
 
-import { VenueMapKey } from "./venue-svg.generated";
+import type { VenueMapKey } from "./venue-svg.generated";
+import { VENUE_SVG } from "./venue-svg.generated";
+import { buildZoneListings, resolveNewMapKey } from "./venue-zones";
 
 export interface TicketListing {
   id: string;
@@ -457,6 +459,8 @@ export interface TicketListing {
 }
 
 export function getEventVenueMapKey(event: EventItem): VenueMapKey {
+  const newMapKey = resolveNewMapKey(event.id);
+  if (newMapKey) return newMapKey;
   if (event.category === "SPORT") {
     if (event.id.includes("vba") || event.id.includes("saigon-heat")) {
       return "arena-basketball";
@@ -479,6 +483,9 @@ export function getEventVenueMapKey(event: EventItem): VenueMapKey {
 export function getEventListings(event: EventItem): TicketListing[] {
   const mapKey = getEventVenueMapKey(event);
   const base = event.minPriceNumber;
+  if (resolveNewMapKey(event.id)) {
+    return buildZoneListings(event, mapKey, VENUE_SVG[mapKey].markup);
+  }
   const roundVnd = (num: number) => Math.round(num / 10000) * 10000;
 
   if (mapKey === "arena-t-stage") {

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4000 3000">
+  <path class="stage" d="M1300 120 H2700 V520 H2160 V1100 H1840 V520 H1300 Z"/>
+  <text class="stage-label" x="2000" y="320" font-size="110" text-anchor="middle" dominant-baseline="central">SÂN KHẤU</text>
+  <g data-zone="VV1" data-tier="vvip" data-sec="VV1"><path class="sec" d="M1300 1180 H1960 V1400 H1300 Z"/><text x="1630" y="1290" font-size="90" text-anchor="middle" dominant-baseline="central">VV1</text></g>
+  <g data-zone="VV2" data-tier="vvip" data-sec="VV2"><path class="sec" d="M2040 1180 H2700 V1400 H2040 Z"/><text x="2370" y="1290" font-size="90" text-anchor="middle" dominant-baseline="central">VV2</text></g>
+  <g data-zone="V1" data-tier="vip" data-sec="V1"><path class="sec" d="M900 1440 H1435 V1760 H900 Z"/><text x="1167.5" y="1600" font-size="85" text-anchor="middle" dominant-baseline="central">V1</text></g>
+  <g data-zone="V2" data-tier="vip" data-sec="V2"><path class="sec" d="M1455 1440 H1990 V1760 H1455 Z"/><text x="1722.5" y="1600" font-size="85" text-anchor="middle" dominant-baseline="central">V2</text></g>
+  <g data-zone="V3" data-tier="vip" data-sec="V3"><path class="sec" d="M2010 1440 H2545 V1760 H2010 Z"/><text x="2277.5" y="1600" font-size="85" text-anchor="middle" dominant-baseline="central">V3</text></g>
+  <g data-zone="V4" data-tier="vip" data-sec="V4"><path class="sec" d="M2565 1440 H3100 V1760 H2565 Z"/><text x="2832.5" y="1600" font-size="85" text-anchor="middle" dominant-baseline="central">V4</text></g>
+  <g data-zone="A1" data-tier="cat1" data-sec="A1"><path class="sec" d="M500 1800 H983.3 V2120 H500 Z"/><text x="741.7" y="1960" font-size="80" text-anchor="middle" dominant-baseline="central">A1</text></g>
+  <g data-zone="A2" data-tier="cat1" data-sec="A2"><path class="sec" d="M1003.3 1800 H1486.7 V2120 H1003.3 Z"/><text x="1245" y="1960" font-size="80" text-anchor="middle" dominant-baseline="central">A2</text></g>
+  <g data-zone="A3" data-tier="cat1" data-sec="A3"><path class="sec" d="M1506.7 1800 H1990 V2120 H1506.7 Z"/><text x="1748.3" y="1960" font-size="80" text-anchor="middle" dominant-baseline="central">A3</text></g>
+  <g data-zone="A4" data-tier="cat1" data-sec="A4"><path class="sec" d="M2010 1800 H2493.3 V2120 H2010 Z"/><text x="2251.7" y="1960" font-size="80" text-anchor="middle" dominant-baseline="central">A4</text></g>
+  <g data-zone="A5" data-tier="cat1" data-sec="A5"><path class="sec" d="M2513.3 1800 H2996.7 V2120 H2513.3 Z"/><text x="2755" y="1960" font-size="80" text-anchor="middle" dominant-baseline="central">A5</text></g>
+  <g data-zone="A6" data-tier="cat1" data-sec="A6"><path class="sec" d="M3016.7 1800 H3500 V2120 H3016.7 Z"/><text x="3258.3" y="1960" font-size="80" text-anchor="middle" dominant-baseline="central">A6</text></g>
+  <g data-zone="B1" data-tier="cat2" data-sec="B1"><path class="sec" d="M500 2160 H983.3 V2480 H500 Z"/><text x="741.7" y="2320" font-size="80" text-anchor="middle" dominant-baseline="central">B1</text></g>
+  <g data-zone="B2" data-tier="cat2" data-sec="B2"><path class="sec" d="M1003.3 2160 H1486.7 V2480 H1003.3 Z"/><text x="1245" y="2320" font-size="80" text-anchor="middle" dominant-baseline="central">B2</text></g>
+  <g data-zone="B3" data-tier="cat2" data-sec="B3"><path class="sec" d="M1506.7 2160 H1990 V2480 H1506.7 Z"/><text x="1748.3" y="2320" font-size="80" text-anchor="middle" dominant-baseline="central">B3</text></g>
+  <g data-zone="B4" data-tier="cat2" data-sec="B4"><path class="sec" d="M2010 2160 H2493.3 V2480 H2010 Z"/><text x="2251.7" y="2320" font-size="80" text-anchor="middle" dominant-baseline="central">B4</text></g>
+  <g data-zone="B5" data-tier="cat2" data-sec="B5"><path class="sec" d="M2513.3 2160 H2996.7 V2480 H2513.3 Z"/><text x="2755" y="2320" font-size="80" text-anchor="middle" dominant-baseline="central">B5</text></g>
+  <g data-zone="B6" data-tier="cat2" data-sec="B6"><path class="sec" d="M3016.7 2160 H3500 V2480 H3016.7 Z"/><text x="3258.3" y="2320" font-size="80" text-anchor="middle" dominant-baseline="central">B6</text></g>
+  <g data-zone="C1" data-tier="cat3" data-sec="C1"><path class="sec" d="M300 2520 H707.5 V2850 H300 Z"/><text x="503.8" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C1</text></g>
+  <g data-zone="C2" data-tier="cat3" data-sec="C2"><path class="sec" d="M727.5 2520 H1135 V2850 H727.5 Z"/><text x="931.2" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C2</text></g>
+  <g data-zone="C3" data-tier="cat3" data-sec="C3"><path class="sec" d="M1155 2520 H1562.5 V2850 H1155 Z"/><text x="1358.8" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C3</text></g>
+  <g data-zone="C4" data-tier="cat3" data-sec="C4"><path class="sec" d="M1582.5 2520 H1990 V2850 H1582.5 Z"/><text x="1786.2" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C4</text></g>
+  <g data-zone="C5" data-tier="cat3" data-sec="C5"><path class="sec" d="M2010 2520 H2417.5 V2850 H2010 Z"/><text x="2213.8" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C5</text></g>
+  <g data-zone="C6" data-tier="cat3" data-sec="C6"><path class="sec" d="M2437.5 2520 H2845 V2850 H2437.5 Z"/><text x="2641.2" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C6</text></g>
+  <g data-zone="C7" data-tier="cat3" data-sec="C7"><path class="sec" d="M2865 2520 H3272.5 V2850 H2865 Z"/><text x="3068.8" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C7</text></g>
+  <g data-zone="C8" data-tier="cat3" data-sec="C8"><path class="sec" d="M3292.5 2520 H3700 V2850 H3292.5 Z"/><text x="3496.2" y="2685" font-size="75" text-anchor="middle" dominant-baseline="central">C8</text></g>
+  <g data-zone="W1" data-tier="wing" data-sec="W1"><path class="sec" d="M130 600 H440 V1047.5 H130 Z"/><text x="285" y="823.8" font-size="75" text-anchor="middle" dominant-baseline="central">W1</text></g>
+  <g data-zone="W2" data-tier="wing" data-sec="W2"><path class="sec" d="M130 1067.5 H440 V1515 H130 Z"/><text x="285" y="1291.2" font-size="75" text-anchor="middle" dominant-baseline="central">W2</text></g>
+  <g data-zone="W3" data-tier="wing" data-sec="W3"><path class="sec" d="M130 1535 H440 V1982.5 H130 Z"/><text x="285" y="1758.8" font-size="75" text-anchor="middle" dominant-baseline="central">W3</text></g>
+  <g data-zone="W4" data-tier="wing" data-sec="W4"><path class="sec" d="M130 2002.5 H440 V2450 H130 Z"/><text x="285" y="2226.2" font-size="75" text-anchor="middle" dominant-baseline="central">W4</text></g>
+  <g data-zone="W5" data-tier="wing" data-sec="W5"><path class="sec" d="M3560 600 H3870 V1047.5 H3560 Z"/><text x="3715" y="823.8" font-size="75" text-anchor="middle" dominant-baseline="central">W5</text></g>
+  <g data-zone="W6" data-tier="wing" data-sec="W6"><path class="sec" d="M3560 1067.5 H3870 V1515 H3560 Z"/><text x="3715" y="1291.2" font-size="75" text-anchor="middle" dominant-baseline="central">W6</text></g>
+  <g data-zone="W7" data-tier="wing" data-sec="W7"><path class="sec" d="M3560 1535 H3870 V1982.5 H3560 Z"/><text x="3715" y="1758.8" font-size="75" text-anchor="middle" dominant-baseline="central">W7</text></g>
+  <g data-zone="W8" data-tier="wing" data-sec="W8"><path class="sec" d="M3560 2002.5 H3870 V2450 H3560 Z"/><text x="3715" y="2226.2" font-size="75" text-anchor="middle" dominant-baseline="central">W8</text></g>
+</svg>
