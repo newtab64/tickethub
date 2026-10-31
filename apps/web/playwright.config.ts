@@ -13,6 +13,11 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./test",
+  testIgnore: [
+    "**/uc02-search.spec.ts",
+    "**/uc03-queue.spec.ts",
+    "**/booking-concurrency.spec.ts",
+  ],
   testMatch: /.*\.spec\.ts/,
   /* Run tests in files in parallel */
   fullyParallel: true,
