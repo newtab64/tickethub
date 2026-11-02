@@ -61,13 +61,13 @@ test("Do not process duplicate completed payment", () => {
   );
 });
 
-test("Do not pay expired order", () => {
+test("Route successful payment of expired order to late settlement", () => {
   assert.equal(
     decideVnpayIpn({
       ...valid,
       orderExpired: true,
     }),
-    "MANUAL_REVIEW",
+    "LATE_SUCCESS",
   );
 });
 

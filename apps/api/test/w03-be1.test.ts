@@ -374,8 +374,19 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
             ],
           });
         },
-        (err: any) => {
-          assert.equal(err.response?.error?.code, "MISSING_ADMISSION_TOKEN");
+        (err: unknown) => {
+          assert.ok(err !== null && typeof err === "object");
+          assert.ok("response" in err);
+
+          const response = err.response;
+          assert.ok(response !== null && typeof response === "object");
+          assert.ok("error" in response);
+
+          const error = response.error;
+          assert.ok(error !== null && typeof error === "object");
+          assert.ok("code" in error);
+
+          assert.equal(error.code, "MISSING_ADMISSION_TOKEN");
           return true;
         },
       );
@@ -499,11 +510,19 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
             items: [{ ticketTypeId: standingTicketTypeId, quantity: 3 }],
           });
         },
-        (err: any) => {
-          assert.equal(
-            err.response?.error?.code,
-            "INSUFFICIENT_TICKET_CAPACITY",
-          );
+        (err: unknown) => {
+          assert.ok(err !== null && typeof err === "object");
+          assert.ok("response" in err);
+
+          const response = err.response;
+          assert.ok(response !== null && typeof response === "object");
+          assert.ok("error" in response);
+
+          const error = response.error;
+          assert.ok(error !== null && typeof error === "object");
+          assert.ok("code" in error);
+
+          assert.equal(error.code, "INSUFFICIENT_TICKET_CAPACITY");
           return true;
         },
       );

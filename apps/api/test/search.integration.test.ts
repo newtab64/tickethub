@@ -384,9 +384,20 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
           minPrice: "500000",
           maxPrice: "200000",
         }),
-        (err: any) => {
+        (err: unknown) => {
+          assert.ok(err !== null && typeof err === "object");
+          assert.ok("status" in err && "response" in err);
+
+          const response = err.response;
+          assert.ok(response !== null && typeof response === "object");
+          assert.ok("error" in response);
+
+          const error = response.error;
+          assert.ok(error !== null && typeof error === "object");
+          assert.ok("code" in error);
+
           assert.equal(err.status, 400);
-          assert.equal(err.response.error.code, "VALIDATION_ERROR");
+          assert.equal(error.code, "VALIDATION_ERROR");
           return true;
         },
       );
@@ -398,9 +409,20 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
           fromDate: "2026-11-20T00:00:00.000Z",
           toDate: "2026-11-10T00:00:00.000Z",
         }),
-        (err: any) => {
+        (err: unknown) => {
+          assert.ok(err !== null && typeof err === "object");
+          assert.ok("status" in err && "response" in err);
+
+          const response = err.response;
+          assert.ok(response !== null && typeof response === "object");
+          assert.ok("error" in response);
+
+          const error = response.error;
+          assert.ok(error !== null && typeof error === "object");
+          assert.ok("code" in error);
+
           assert.equal(err.status, 400);
-          assert.equal(err.response.error.code, "VALIDATION_ERROR");
+          assert.equal(error.code, "VALIDATION_ERROR");
           return true;
         },
       );

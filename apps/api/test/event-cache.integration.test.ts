@@ -3,9 +3,21 @@ import assert from "node:assert/strict";
 import Redis from "ioredis";
 import { inArray, eq } from "drizzle-orm";
 
-import { EventStatus, SeatStatus } from "@tickethub/shared";
+import {
+  EventStatus,
+  SeatStatus,
+  UserRole,
+  UserStatus,
+  OrganizerStatus,
+} from "@tickethub/shared";
 import { db } from "../src/database/db";
-import { events, ticketTypes, seats, organizerProfiles, users } from "../src/database/schema";
+import {
+  events,
+  ticketTypes,
+  seats,
+  organizerProfiles,
+  users,
+} from "../src/database/schema";
 import { EventReadCacheService } from "../src/events/event-read-cache.service";
 import { EventsService } from "../src/events/events.service";
 import { env } from "../src/config/env.config";
@@ -32,6 +44,7 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
       let user = await db.query.users.findFirst({
         where: eq(users.email, "organizer_cache_test@tickethub.vn"),
       });
+
       if (!user) {
         const [u] = await db
           .insert(users)
@@ -39,10 +52,15 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
             email: "organizer_cache_test@tickethub.vn",
             fullName: "Ban To Chuc Cache Test",
             passwordHash: "test-hash",
-            role: "ORGANIZER",
-            status: "VERIFIED",
+            role: UserRole.ORGANIZER,
+            status: UserStatus.ACTIVE,
           })
           .returning();
+
+        if (!u) {
+          throw new Error("Failed to create organizer test user");
+        }
+
         user = u;
       }
 
@@ -50,10 +68,11 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
         .insert(organizerProfiles)
         .values({
           userId: user!.id,
-          organizationName: "Cong ty To Chuc Cache Test",
-          taxId: "0108888777",
-          businessRegistrationUrl: "https://example.com/license.pdf",
-          status: "VERIFIED",
+          organizationName: "Ban To Chuc Cache Test",
+          taxCode: "0109999999",
+          businessLicenseUrl: "https://example.test/license.pdf",
+          representativeName: "Cache Test Organizer",
+          status: OrganizerStatus.VERIFIED,
         })
         .returning();
       orgProfile = p;
@@ -71,7 +90,8 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
         organizerId,
         title: "Su Kien Thu Nghiem Cache Ton Kho",
         slug: `cache-event-${stamp}`,
-        description: "Su kien danh cho kiem thu Redis Cache so do ghe va ton kho",
+        description:
+          "Su kien danh cho kiem thu Redis Cache so do ghe va ton kho",
         city: "Hà Nội",
         category: "CONCERT",
         bannerUrl: "https://cdn.tickethub.vn/cache-banner.webp",
@@ -159,10 +179,7 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
       await db
         .delete(ticketTypes)
         .where(
-          inArray(ticketTypes.id, [
-            seatedTicketTypeId,
-            standingTicketTypeId,
-          ]),
+          inArray(ticketTypes.id, [seatedTicketTypeId, standingTicketTypeId]),
         );
     }
     if (testEventId) {
@@ -205,7 +222,10 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
       await redis.set(cacheKey, JSON.stringify(customPayload), "EX", 60);
 
       const res = await cacheService.getSeatMap(testEventId);
-      assert.equal((res as any).cachedMarker, "from-redis-test");
+      assert.ok(
+        res !== null && typeof res === "object" && "cachedMarker" in res,
+      );
+      assert.equal(res.cachedMarker, "from-redis-test");
     });
   });
 

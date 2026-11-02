@@ -40,7 +40,7 @@ export const CreateEventRequestSchema = z.object({
       RefundPolicyType.NO_REFUND,
     ])
     .default(RefundPolicyType.FLEXIBLE),
-  refundPolicyRules: z.array(z.record(z.unknown())).default([]),
+  refundPolicyRules: z.array(z.record(z.string(), z.unknown())).default([]),
   ticketTypes: z.array(TicketTypeInputSchema).min(1),
 });
 export type CreateEventRequest = z.infer<typeof CreateEventRequestSchema>;
@@ -86,4 +86,3 @@ export const SearchQuerySchema = EventFilterQuerySchema.extend({
   }
 });
 export type SearchQuery = z.infer<typeof SearchQuerySchema>;
-
