@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // apps/web/src/app/(public)/waiting-room/page.tsx
 "use client";
 

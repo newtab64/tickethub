@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // apps/web/src/components/home/home-discovery-client.tsx
 "use client";
 

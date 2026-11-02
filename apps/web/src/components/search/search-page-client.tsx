@@ -1,4 +1,5 @@
 // apps/web/src/components/search/search-page-client.tsx
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -117,27 +118,20 @@ export function SearchPageClient({
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   useEffect(() => {
-    setItems(initialPage.items);
-    setNextCursor(initialPage.nextCursor);
-    setHasMore(initialPage.hasMore);
-    setTotalFiltered(initialPage.totalFiltered ?? initialPage.items.length);
-
     let isCancelled = false;
     searchApi.searchEvents(filterParams).then((res) => {
       if (!isCancelled) {
         setItems(res.items);
         setNextCursor(res.nextCursor);
         setHasMore(res.hasMore);
-        if (res.totalFiltered !== undefined) {
-          setTotalFiltered(res.totalFiltered);
-        }
+        setTotalFiltered(res.totalFiltered ?? res.items.length);
       }
     });
 
     return () => {
       isCancelled = true;
     };
-  }, [filterParams, initialPage]);
+  }, [filterParams]);
 
   useEffect(() => {
     const params = new URLSearchParams(urlSearchParams.toString());

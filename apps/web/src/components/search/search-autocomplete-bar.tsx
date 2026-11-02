@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 // apps/web/src/components/search/search-autocomplete-bar.tsx
 "use client";
 
@@ -21,13 +22,15 @@ export function SearchAutocompleteBar({
 }: SearchAutocompleteBarProps) {
   const router = useRouter();
   const [query, setQuery] = useState(defaultValue);
+  const [prevDefaultValue, setPrevDefaultValue] = useState(defaultValue);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
+  if (defaultValue !== prevDefaultValue) {
+    setPrevDefaultValue(defaultValue);
     setQuery(defaultValue);
-  }, [defaultValue]);
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -108,6 +111,7 @@ export function SearchAutocompleteBar({
         <Search className="size-4.5 text-primary shrink-0 mr-3" />
         <input
           type="text"
+          role="combobox"
           value={query}
           onFocus={() => {
             if (query.trim().length > 0) setIsOpen(true);
@@ -121,6 +125,7 @@ export function SearchAutocompleteBar({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           aria-label={placeholder}
+          aria-autocomplete="list"
           aria-expanded={isOpen}
           aria-controls="search-suggestions-listbox"
           data-testid="search-keyword-input"
