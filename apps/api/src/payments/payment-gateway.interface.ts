@@ -10,6 +10,7 @@ export interface CreatePaymentRequest {
 export interface CreatePaymentResult {
   transactionRef: string;
   paymentUrl: string;
+  vnpCreateDate?: string;
 }
 
 export interface VerifyPaymentResult {
@@ -17,6 +18,7 @@ export interface VerifyPaymentResult {
   success: boolean;
   transactionRef: string | null;
   providerTransactionId?: string;
+  amountVnd?: number;
 }
 
 export interface PaymentGateway {

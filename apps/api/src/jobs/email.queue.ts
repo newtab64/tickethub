@@ -5,6 +5,7 @@ import {
   EMAIL_QUEUE_NAME,
   UserRegisteredPayloadSchema,
   parseReviewPayload,
+  OrderPaidPayloadSchema,
 } from "./email.types";
 
 import type {
@@ -12,6 +13,7 @@ import type {
   UserRegisteredPayload,
   ReviewEventType,
   ReviewNotificationPayload,
+  OrderPaidPayload,
 } from "./email.types";
 
 const redisUrl = new URL(env.REDIS_URL);
@@ -85,5 +87,18 @@ export async function enqueueReviewEmail(
     {
       jobId: `outbox_${outboxId}`,
     },
+  );
+}
+
+// W04: stable jobId + durable Outbox makes enqueue idempotent.
+export async function enqueueOrderPaidEmail(
+  outboxId: string,
+  payload: OrderPaidPayload,
+) {
+  const validPayload = OrderPaidPayloadSchema.parse(payload);
+  return emailQueue.add(
+    "order-paid",
+    { outboxId, eventType: "ORDER_PAID", payload: validPayload },
+    { jobId: `outbox_${outboxId}` },
   );
 }

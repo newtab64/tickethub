@@ -1,10 +1,10 @@
-import { and, asc, eq, lte } from "drizzle-orm";
+import { and, asc, eq, inArray, lte } from "drizzle-orm";
 import { OutboxStatus } from "@tickethub/shared";
 import { decideRecovery } from "./recovery-decision";
 import { db, sqlClient } from "../database/db";
 import { outbox } from "../database/schema";
 import { emailQueue } from "./email.queue";
-
+import { REVIEW_EVENT_TYPES } from "./email.types";
 const STALE_AFTER_MS = 5 * 60 * 1000;
 const markFailed = process.argv.includes("--mark-failed");
 const idArgs = process.argv.filter((arg) => arg.startsWith("--outbox-id="));
@@ -55,7 +55,11 @@ async function main() {
     .where(
       and(
         eq(outbox.status, OutboxStatus.PROCESSING),
-        eq(outbox.eventType, "USER_REGISTERED"),
+        inArray(outbox.eventType, [
+          "USER_REGISTERED",
+          "ORDER_PAID",
+          ...REVIEW_EVENT_TYPES,
+        ]),
         lte(outbox.updatedAt, cutoff),
         targetId ? eq(outbox.id, targetId) : undefined,
       ),

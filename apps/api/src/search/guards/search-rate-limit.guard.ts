@@ -47,9 +47,7 @@ export class SearchRateLimitGuard implements CanActivate {
       count = Number(result);
     } catch (error) {
       // Fail-open: khi Redis gap su co, van cho phep tim kiem doc tu Postgres
-      this.logger.warn(
-        `Redis rate limit failed, failing open: ${String(error)}`,
-      );
+      this.logger.warn(`Redis rate limit failed, failing open: ${String(error)}`);
       return true;
     }
 

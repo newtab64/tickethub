@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHmac } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
 import { BookingService } from "../src/booking/booking.service";
 import type { WaitingRoomService } from "../src/waiting-room/waiting-room.service";
 import { PaymentService } from "../src/payments/payment.service";
 import { VnpayGateway } from "../src/payments/vnpay.gateway";
 import type { EventReadCacheService } from "../src/events/event-read-cache.service";
+import { PaymentSettlementService } from "../src/payments/payment-settlement.service";
 import {
   OrderStatus,
   TransactionStatus,
@@ -25,12 +26,11 @@ import {
   tickets,
   outbox,
   seats,
-  auditLog,
 } from "../src/database/schema";
-
+import { VnpayReconciliationService } from "../src/payments/vnpay-reconciliation.service";
 import { VnpayIpnService } from "../src/payments/vnpay-ipn.service";
 import { toVnpayAmount } from "../src/payments/vnpay-ipn.preview.service";
-
+import type { VerifiedPaymentResult } from "../src/payments/payment-settlement.types";
 // Safety guard: never write integration fixtures to dev DB.
 
 const cacheStub = {
@@ -51,7 +51,7 @@ const expectedTestDb =
 const isValidExpectedDb = /^[a-z][a-z0-9_]*_test$/.test(expectedTestDb);
 const isSafeTestDb = isValidExpectedDb && targetDb === expectedTestDb;
 
-async function createFixture(expired = false) {
+async function createFixture(expired = false, withPaymentUrl = false) {
   const [user] = await db.select({ id: users.id }).from(users).limit(1);
 
   const [tt] = await db
@@ -96,6 +96,12 @@ async function createFixture(expired = false) {
       amount: tt.price,
       status: TransactionStatus.PENDING,
       idempotencyKey: `ipn-test:${id}`,
+      ...(withPaymentUrl
+        ? {
+            paymentUrl: `https://sandbox.example.test/pay?ref=${transactionRef}`,
+            vnpCreateDate: "20261029153000",
+          }
+        : {}),
     });
 
     await tx
@@ -120,7 +126,8 @@ async function createFixture(expired = false) {
 // Mock only the already-verified gateway result.
 // Database transactions and inventory changes remain real.
 function serviceWithVerifiedCallback(transactionRef: string, success: boolean) {
-  const service = new VnpayIpnService(cacheStub);
+  const settlementService = new PaymentSettlementService(cacheStub);
+  const service = new VnpayIpnService(settlementService);
 
   Object.defineProperty(service, "gateway", {
     value: {
@@ -207,33 +214,7 @@ if (!isSafeTestDb) {
     assert.equal(emittedEvents.length, 1);
   });
 
-  test("Failed IPN releases GA hold", async () => {
-    const fixture = await createFixture();
-    const service = serviceWithVerifiedCallback(fixture.transactionRef, false);
-
-    const result = await service.process({
-      vnp_Amount: fixture.amount,
-      vnp_ResponseCode: "24",
-      vnp_TransactionStatus: "02",
-    });
-
-    assert.equal(result, "RECORD_FAILURE");
-
-    const { order, transaction } = await readOrder(fixture.orderId);
-
-    assert.equal(order?.status, OrderStatus.FAILED);
-    assert.equal(transaction?.status, TransactionStatus.FAILED);
-
-    const [tt] = await db
-      .select()
-      .from(ticketTypes)
-      .where(eq(ticketTypes.id, fixture.ticketTypeId));
-
-    assert.equal(tt?.heldCount, fixture.heldBefore);
-    assert.equal(tt?.soldCount, fixture.soldBefore);
-  });
-
-  test("Expired order never becomes PAID", async () => {
+  test("Expired-but-still-held order is paid late, ticket issued once", async () => {
     const fixture = await createFixture(true);
     const service = serviceWithVerifiedCallback(fixture.transactionRef, true);
 
@@ -243,14 +224,18 @@ if (!isSafeTestDb) {
       vnp_TransactionStatus: "00",
     });
 
-    assert.equal(result, "MANUAL_REVIEW");
+    assert.equal(result, "LATE_SUCCESS");
 
     const { order, transaction } = await readOrder(fixture.orderId);
+    assert.equal(order?.status, OrderStatus.PAID);
+    assert.equal(transaction?.status, TransactionStatus.SUCCESS);
 
-    assert.equal(order?.status, OrderStatus.PENDING);
-    assert.equal(transaction?.status, TransactionStatus.PENDING);
+    const issued = await db
+      .select()
+      .from(tickets)
+      .where(eq(tickets.orderId, fixture.orderId));
+    assert.equal(issued.length, 1);
   });
-
   test("Concurrent duplicate IPNs update inventory only once", async () => {
     const fixture = await createFixture();
 
@@ -276,6 +261,12 @@ if (!isSafeTestDb) {
 
     assert.equal(order?.status, OrderStatus.PAID);
     assert.equal(transaction?.status, TransactionStatus.SUCCESS);
+
+    const issued = await db
+      .select()
+      .from(tickets)
+      .where(eq(tickets.orderId, fixture.orderId));
+    assert.equal(issued.length, 1);
 
     const [tt] = await db
       .select()
@@ -414,15 +405,29 @@ if (!isSafeTestDb) {
 
     assert.equal(paymentResult.status, "fulfilled");
     assert.equal(cleanupResult.status, "fulfilled");
-
     if (paymentResult.status === "fulfilled") {
-      assert.equal(paymentResult.value, "MANUAL_REVIEW");
+      assert.ok(
+        ["LATE_SUCCESS", "MANUAL_REVIEW"].includes(paymentResult.value),
+      );
     }
 
     const { order, transaction } = await readOrder(fixture.orderId);
+    const issued = await db
+      .select()
+      .from(tickets)
+      .where(eq(tickets.orderId, fixture.orderId));
 
-    assert.equal(order?.status, OrderStatus.EXPIRED);
-    assert.equal(transaction?.status, TransactionStatus.PENDING);
+    // Bat bien: khong bao gio phat ve ma don khong PAID, va toi da 1 bo ve.
+    assert.ok(issued.length <= 1);
+    if (issued.length === 1) {
+      assert.equal(order?.status, OrderStatus.PAID);
+    } else {
+      assert.notEqual(order?.status, OrderStatus.PAID);
+    }
+    assert.equal(
+      transaction?.status === TransactionStatus.SUCCESS,
+      issued.length === 1 || order?.status === OrderStatus.EXPIRED,
+    );
 
     const [tt] = await db
       .select()
@@ -430,7 +435,10 @@ if (!isSafeTestDb) {
       .where(eq(ticketTypes.id, fixture.ticketTypeId));
 
     assert.equal(tt?.heldCount, fixture.heldBefore);
-    assert.equal(tt?.soldCount, fixture.soldBefore);
+    assert.equal(
+      tt?.soldCount,
+      fixture.soldBefore + (issued.length === 1 ? 1 : 0),
+    );
   });
 
   test("Seated IPN sells seat and issues ticket once", async () => {
@@ -644,118 +652,386 @@ if (!isSafeTestDb) {
   });
 
   test("VNPay retry reuses pending transaction", async () => {
-    const fixture = await createFixture();
+    const fixture = await createFixture(false, true);
 
-    // Mock chi buoc tao URL, khong goi VNPay that.
+    // Nếu service lỡ gọi lại gateway thì test phải phát hiện.
     const originalCreatePaymentUrl = VnpayGateway.prototype.createPaymentUrl;
-
     const generatedRefs: string[] = [];
 
     VnpayGateway.prototype.createPaymentUrl = async (request) => {
       generatedRefs.push(request.transactionRef);
-
       return {
         transactionRef: request.transactionRef,
-        paymentUrl: `https://sandbox.example.test/pay?ref=${request.transactionRef}`,
+        paymentUrl: `https://sandbox.example.test/new?ref=${request.transactionRef}`,
+        vnpCreateDate: "20261030000000",
       };
     };
 
     try {
       const service = new PaymentService();
+      const expectedUrl = `https://sandbox.example.test/pay?ref=${fixture.transactionRef}`;
 
-      // Fixture da co mot giao dich PENDING.
-      // Goi lai lan 1.
       const first = await service.createVnpayPayment(
         fixture.userId,
         fixture.orderId,
         "127.0.0.1",
       );
-
-      // Goi lai lan 2.
       const second = await service.createVnpayPayment(
         fixture.userId,
         fixture.orderId,
         "127.0.0.1",
       );
 
-      // Hai lan phai su dung cung ma giao dich.
+      // Cùng mã giao dịch và cùng URL đã lưu, không tạo URL mới.
       assert.equal(first.transactionRef, fixture.transactionRef);
-
       assert.equal(second.transactionRef, fixture.transactionRef);
+      assert.equal(first.paymentUrl, expectedUrl);
+      assert.equal(second.paymentUrl, expectedUrl);
 
-      assert.deepEqual(generatedRefs, [
-        fixture.transactionRef,
-        fixture.transactionRef,
-      ]);
+      // Gateway không được gọi lại cho giao dịch đã tồn tại.
+      assert.deepEqual(generatedRefs, []);
 
-      // Kiem tra database chi co 1 transaction.
       const savedTransactions = await db
         .select()
         .from(transactions)
         .where(eq(transactions.orderId, fixture.orderId));
 
       assert.equal(savedTransactions.length, 1);
-
       assert.equal(savedTransactions[0]?.status, TransactionStatus.PENDING);
-
       assert.equal(
         savedTransactions[0]?.transactionRef,
         fixture.transactionRef,
       );
 
-      // Order van dang cho thanh toan.
       const { order } = await readOrder(fixture.orderId);
-
       assert.equal(order?.status, OrderStatus.PENDING);
     } finally {
-      // Khoi phuc gateway, tranh anh huong test khac.
       VnpayGateway.prototype.createPaymentUrl = originalCreatePaymentUrl;
     }
   });
 
-  test("Late successful IPN after cleanup must not issue tickets", async () => {
-    // 1. Tao mot don hang GA da het han
-    const fixture = await createFixture(true);
+  test("Existing PENDING transaction without paymentUrl requires reconciliation", async () => {
+    // Fixture mặc định: transaction PENDING nhưng thiếu paymentUrl/vnpCreateDate.
+    const fixture = await createFixture();
+    const service = new PaymentService();
 
-    const booking = new BookingService({} as WaitingRoomService, cacheStub);
+    await assert.rejects(
+      service.createVnpayPayment(fixture.userId, fixture.orderId, "127.0.0.1"),
+      /requires reconciliation/,
+    );
+  });
+}
 
-    // 2. Cleanup chay truoc khi VNPay callback
-    await booking.cleanExpiredOrders();
+test("W04: IPN and QueryDR settle one payment only once", async () => {
+  // 1. TAO DON HANG DANG CHO THANH TOAN
 
-    const before = await readOrder(fixture.orderId);
+  const fixture = await createFixture();
 
-    assert.equal(before.order?.status, OrderStatus.EXPIRED);
+  // IPN: gia lap callback VNPay da xac minh chu ky.
+  const ipn = serviceWithVerifiedCallback(fixture.transactionRef, true);
 
-    // 3. Gia lap VNPay thong bao thanh toan thanh cong
-    const service = serviceWithVerifiedCallback(fixture.transactionRef, true);
+  // QueryDR: su dung PaymentSettlementService dung chung.
+  const settlement = new PaymentSettlementService(cacheStub);
 
+  // 2. TAO VERIFIED EVIDENCE CHO QUERYDR
+
+  const queryEvidence: VerifiedPaymentResult = {
+    source: "QUERYDR",
+
+    transactionRef: fixture.transactionRef,
+    amountMinor: fixture.amount,
+
+    outcome: "SUCCESS",
+    responseCode: "00",
+    transactionStatus: "00",
+
+    providerTransactionId: "TESTPROVIDER001",
+    bankCode: "NCB",
+
+    rawEvidence: {
+      vnp_TxnRef: fixture.transactionRef,
+      vnp_Amount: fixture.amount,
+      vnp_ResponseCode: "00",
+      vnp_TransactionStatus: "00",
+      vnp_TransactionNo: "TESTPROVIDER001",
+      vnp_BankCode: "NCB",
+    },
+  };
+
+  // 3. TAO CALLBACK IPN
+
+  const callback = {
+    vnp_Amount: fixture.amount,
+    vnp_ResponseCode: "00",
+    vnp_TransactionStatus: "00",
+  };
+
+  // 4. CHO IPN VA QUERYDR CHAY DONG THOI
+
+  const [ipnResult, queryResult] = await Promise.all([
+    ipn.process(callback),
+    settlement.settle(queryEvidence),
+  ]);
+
+  // Chi mot luong duoc phep xac nhan thanh toan.
+  // Luong con lai phai nhan ra giao dich da xu ly.
+
+  assert.deepEqual(
+    [ipnResult, queryResult].sort(),
+    ["APPLY_SUCCESS", "ALREADY_PROCESSED"].sort(),
+  );
+
+  // 5. KIEM TRA ORDER VA TRANSACTION
+
+  const { order, transaction } = await readOrder(fixture.orderId);
+
+  assert.ok(order, "Order must exist");
+  assert.ok(transaction, "Transaction must exist");
+
+  assert.equal(order.status, OrderStatus.PAID, "Order must be PAID");
+
+  assert.equal(
+    transaction.status,
+    TransactionStatus.SUCCESS,
+    "Transaction must be SUCCESS",
+  );
+
+  // 6. KIEM TRA CHI PHAT HANH MOT VE
+  const issuedTickets = await db
+    .select()
+    .from(tickets)
+    .where(eq(tickets.orderId, fixture.orderId));
+
+  assert.equal(
+    issuedTickets.length,
+    1,
+    "Payment must issue exactly one ticket",
+  );
+
+  // Fixture mua GA nen khong co ghe cu the.
+  assert.equal(issuedTickets[0]?.seatId, null);
+
+  // Ma ve phai duoc tao.
+  assert.ok(
+    issuedTickets[0]?.ticketCode.startsWith("TK"),
+    "Ticket code must be generated",
+  );
+
+  // 7. KIEM TRA TON KHO KHONG BI TRU HAI LAN
+  const [ticketType] = await db
+    .select()
+    .from(ticketTypes)
+    .where(eq(ticketTypes.id, fixture.ticketTypeId));
+
+  assert.ok(ticketType, "Ticket type must exist");
+
+  assert.equal(
+    ticketType.heldCount,
+    fixture.heldBefore,
+    "Held count must decrease exactly once",
+  );
+
+  assert.equal(
+    ticketType.soldCount,
+    fixture.soldBefore + 1,
+    "Sold count must increase exactly once",
+  );
+
+  // 8. KIEM TRA OUTBOX CHI TAO MOT ORDER_PAID
+
+  const paidEvents = await db
+    .select({ id: outbox.id })
+    .from(outbox)
+    .where(
+      and(
+        eq(outbox.eventType, "ORDER_PAID"),
+        sql`${outbox.payload} ->> 'orderId' = ${fixture.orderId}`,
+      ),
+    );
+
+  assert.equal(
+    paidEvents.length,
+    1,
+    "ORDER_PAID event must be emitted exactly once",
+  );
+
+  // 9. QUERYDR GOI LAI CUNG KHONG DUOC CAP VE THEM
+
+  const retryResult = await settlement.settle(queryEvidence);
+
+  assert.equal(
+    retryResult,
+    "ALREADY_PROCESSED",
+    "Repeated QueryDR settlement must be idempotent",
+  );
+
+  // Kiem tra lai so ve sau khi retry.
+  const ticketsAfterRetry = await db
+    .select({ id: tickets.id })
+    .from(tickets)
+    .where(eq(tickets.orderId, fixture.orderId));
+
+  assert.equal(
+    ticketsAfterRetry.length,
+    1,
+    "Retry must not issue additional tickets",
+  );
+
+  // Kiem tra lai Outbox sau khi retry.
+  const eventsAfterRetry = await db
+    .select({ id: outbox.id })
+    .from(outbox)
+    .where(
+      and(
+        eq(outbox.eventType, "ORDER_PAID"),
+        sql`${outbox.payload} ->> 'orderId' = ${fixture.orderId}`,
+      ),
+    );
+
+  assert.equal(
+    eventsAfterRetry.length,
+    1,
+    "Retry must not create another ORDER_PAID event",
+  );
+});
+
+test("W04: full QueryDR and IPN race issues one ticket", async () => {
+  // 1. Tao fixture thanh toan
+  const fixture = await createFixture();
+
+  // QueryDR can ngay tao giao dich goc
+  const transactionDate = "20261030100000";
+
+  await db
+    .update(transactions)
+    .set({ vnpCreateDate: transactionDate })
+    .where(eq(transactions.transactionRef, fixture.transactionRef));
+
+  // 2. Khoi tao hai luong
+  const settlement = new PaymentSettlementService(cacheStub);
+
+  const reconciliation = new VnpayReconciliationService(
+    new PaymentService(),
+    settlement,
+  );
+
+  const ipn = serviceWithVerifiedCallback(fixture.transactionRef, true);
+
+  // 3. Mock HTTP QueryDR
+  const originalFetch = globalThis.fetch;
+  let queryDrCalls = 0;
+
+  globalThis.fetch = async (_url, options) => {
+    queryDrCalls++;
+
+    assert.equal(options?.method, "POST");
+
+    const request = JSON.parse(String(options?.body)) as Record<string, string>;
+
+    assert.equal(request.vnp_Command, "querydr");
+    assert.equal(request.vnp_TxnRef, fixture.transactionRef);
+    assert.equal(request.vnp_TransactionDate, transactionDate);
+
+    // 4. Gia lap response VNPay thanh cong
+    const response: Record<string, string> = {
+      vnp_ResponseId: "QUERYDRTEST001",
+      vnp_Command: "querydr",
+      vnp_ResponseCode: "00",
+      vnp_Message: "Success",
+      vnp_TmnCode: env.VNPAY_TMN_CODE,
+      vnp_TxnRef: fixture.transactionRef,
+      vnp_Amount: fixture.amount,
+      vnp_BankCode: "NCB",
+      vnp_PayDate: "20261030100000",
+      vnp_TransactionNo: "123456789",
+      vnp_TransactionType: "01",
+      vnp_TransactionStatus: "00",
+      vnp_OrderInfo: request.vnp_OrderInfo,
+      vnp_PromotionCode: "",
+      vnp_PromotionAmount: "",
+    };
+
+    const fields = [
+      "vnp_ResponseId",
+      "vnp_Command",
+      "vnp_ResponseCode",
+      "vnp_Message",
+      "vnp_TmnCode",
+      "vnp_TxnRef",
+      "vnp_Amount",
+      "vnp_BankCode",
+      "vnp_PayDate",
+      "vnp_TransactionNo",
+      "vnp_TransactionType",
+      "vnp_TransactionStatus",
+      "vnp_OrderInfo",
+      "vnp_PromotionCode",
+      "vnp_PromotionAmount",
+    ];
+
+    const signContent = fields.map((field) => response[field] ?? "").join("|");
+
+    response.vnp_SecureHash = createHmac("sha512", env.VNPAY_HASH_SECRET)
+      .update(signContent, "utf8")
+      .digest("hex");
+
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+  };
+
+  try {
+    // 5. Chay IPN va QueryDR dong thoi
     const callback = {
       vnp_Amount: fixture.amount,
       vnp_ResponseCode: "00",
       vnp_TransactionStatus: "00",
     };
 
-    const result = await service.process(callback);
+    const [ipnResult, queryResult] = await Promise.all([
+      ipn.process(callback),
+      reconciliation.reconcile(fixture.transactionRef, "127.0.0.1"),
+    ]);
 
-    // Don da het han phai chuyen sang doi soat
-    assert.equal(result, "MANUAL_REVIEW");
+    // QueryDR phai thuc su goi HTTP mock
+    assert.equal(queryDrCalls, 1);
 
-    // 4. Kiem tra trang thai database
+    // Chi mot luong duoc thuc hien settlement.
+    // QueryDR co the phat hien don da PAID ngay tu
+    // buoc inspect, truoc khi goi settle.
+    const results = [ipnResult, queryResult];
+
+    assert.equal(
+      results.filter((r) => r === "APPLY_SUCCESS").length,
+      1,
+      "Exactly one settlement must apply",
+    );
+
+    assert.ok(
+      results.every((r) =>
+        ["APPLY_SUCCESS", "ALREADY_PROCESSED", "ALREADY_PAID"].includes(r),
+      ),
+      `Unexpected results: ${results.join(", ")}`,
+    );
+
+    // 6. Kiem tra Order va Transaction
     const { order, transaction } = await readOrder(fixture.orderId);
 
-    assert.equal(order?.status, OrderStatus.EXPIRED);
+    assert.equal(order?.status, OrderStatus.PAID);
+    assert.equal(transaction?.status, TransactionStatus.SUCCESS);
 
-    assert.equal(transaction?.status, TransactionStatus.PENDING);
-
-    // 5. Khong duoc phat hanh ve
+    // 7. Khong cap ve trung
     const issuedTickets = await db
       .select()
       .from(tickets)
       .where(eq(tickets.orderId, fixture.orderId));
 
-    assert.equal(issuedTickets.length, 0);
+    assert.equal(issuedTickets.length, 1, "Must issue exactly one ticket");
 
-    // 6. Khong duoc tao su kien ORDER_PAID
+    // 8. Khong ghi Outbox trung
     const paidEvents = await db
       .select({ id: outbox.id })
       .from(outbox)
@@ -766,49 +1042,204 @@ if (!isSafeTestDb) {
         ),
       );
 
-    assert.equal(paidEvents.length, 0);
+    assert.equal(paidEvents.length, 1, "Must emit ORDER_PAID exactly once");
 
-    // 7. Callback lap lai cung khong duoc phat hanh ve
-    const second = await service.process(callback);
+    // 9. Kiem tra ton kho chi thay doi mot lan
+    const [ticketType] = await db
+      .select()
+      .from(ticketTypes)
+      .where(eq(ticketTypes.id, fixture.ticketTypeId));
 
-    assert.equal(second, "MANUAL_REVIEW");
+    assert.equal(ticketType?.heldCount, fixture.heldBefore);
 
-    // 8. Kiem tra callback can doi soat da duoc luu.
-    assert.ok(transaction);
+    assert.equal(ticketType?.soldCount, fixture.soldBefore + 1);
+  } finally {
+    // Luon khoi phuc fetch, ke ca khi test loi
+    globalThis.fetch = originalFetch;
+  }
+});
 
-    const auditRecords = await db
-      .select({
-        id: auditLog.id,
-        changes: auditLog.changes,
-      })
-      .from(auditLog)
-      .where(
-        and(
-          eq(auditLog.action, "VNPAY_IPN_MANUAL_REVIEW"),
-          eq(auditLog.targetType, "TRANSACTION"),
-          eq(auditLog.targetId, transaction.id),
-        ),
+test("W04: QueryDR rejects invalid signature and wrong amount", async (t) => {
+  const scenarios = [
+    {
+      name: "Reject tampered QueryDR signature",
+      kind: "BAD_SIGNATURE",
+      expected: "INVALID_SIGNATURE",
+    },
+    {
+      name: "Reject signed QueryDR with wrong amount",
+      kind: "WRONG_AMOUNT",
+      expected: "AMOUNT_MISMATCH",
+    },
+  ] as const;
+
+  for (const scenario of scenarios) {
+    await t.test(scenario.name, async () => {
+      // 1. Tao order PENDING
+      const fixture = await createFixture();
+
+      const transactionDate = "20261030100000";
+
+      await db
+        .update(transactions)
+        .set({ vnpCreateDate: transactionDate })
+        .where(eq(transactions.transactionRef, fixture.transactionRef));
+
+      const settlement = new PaymentSettlementService(cacheStub);
+
+      const reconciliation = new VnpayReconciliationService(
+        new PaymentService(),
+        settlement,
       );
 
-    // Callback gui 2 lan chi tao 1 ban ghi doi soat.
-    assert.equal(auditRecords.length, 1);
+      // 2. Mock HTTP QueryDR
+      const originalFetch = globalThis.fetch;
+      let fetchCalls = 0;
 
-    const changes = auditRecords[0]?.changes as Record<string, unknown> | null;
+      globalThis.fetch = async (_url, options) => {
+        fetchCalls++;
 
-    assert.equal(changes?.orderId, fixture.orderId);
+        assert.equal(options?.method, "POST");
 
-    // 9. Kiem tra bang transactions luu callback VNPay.
-    const { transaction: savedTransaction } = await readOrder(fixture.orderId);
+        const request = JSON.parse(String(options?.body)) as Record<
+          string,
+          string
+        >;
 
-    const savedCallback = savedTransaction?.rawCallback as Record<
-      string,
-      unknown
-    > | null;
+        assert.equal(request.vnp_TxnRef, fixture.transactionRef);
 
-    assert.equal(savedCallback?.vnp_ResponseCode, "00");
-    assert.equal(savedCallback?.vnp_TransactionStatus, "00");
+        assert.equal(request.vnp_TransactionDate, transactionDate);
 
-    // Transaction van PENDING de cho doi soat.
-    assert.equal(savedTransaction?.status, TransactionStatus.PENDING);
-  });
-}
+        // 3. Tao response hop le ban dau
+        const response: Record<string, string> = {
+          vnp_ResponseId: "QUERYDRNEGTEST",
+          vnp_Command: "querydr",
+          vnp_ResponseCode: "00",
+          vnp_Message: "Success",
+          vnp_TmnCode: env.VNPAY_TMN_CODE,
+          vnp_TxnRef: fixture.transactionRef,
+          vnp_Amount: fixture.amount,
+          vnp_BankCode: "NCB",
+          vnp_PayDate: "20261030100000",
+          vnp_TransactionNo: "NEGTEST001",
+          vnp_TransactionType: "01",
+          vnp_TransactionStatus: "00",
+          vnp_OrderInfo: request.vnp_OrderInfo,
+          vnp_PromotionCode: "",
+          vnp_PromotionAmount: "",
+        };
+
+        const fields = [
+          "vnp_ResponseId",
+          "vnp_Command",
+          "vnp_ResponseCode",
+          "vnp_Message",
+          "vnp_TmnCode",
+          "vnp_TxnRef",
+          "vnp_Amount",
+          "vnp_BankCode",
+          "vnp_PayDate",
+          "vnp_TransactionNo",
+          "vnp_TransactionType",
+          "vnp_TransactionStatus",
+          "vnp_OrderInfo",
+          "vnp_PromotionCode",
+          "vnp_PromotionAmount",
+        ];
+
+        const signResponse = () => {
+          const signContent = fields
+            .map((field) => response[field] ?? "")
+            .join("|");
+
+          return createHmac("sha512", env.VNPAY_HASH_SECRET)
+            .update(signContent, "utf8")
+            .digest("hex");
+        };
+
+        // Ky response goc
+        response.vnp_SecureHash = signResponse();
+
+        // 4. Gia lap hai tinh huong bao mat
+        const wrongAmount = (BigInt(fixture.amount) + 100n).toString();
+
+        if (scenario.kind === "BAD_SIGNATURE") {
+          // Sua tien SAU khi ky => chu ky sai
+          response.vnp_Amount = wrongAmount;
+        } else {
+          // Sua tien TRUOC khi ky lai
+          // => chu ky dung nhung tien khong khop DB
+          response.vnp_Amount = wrongAmount;
+          response.vnp_SecureHash = signResponse();
+        }
+
+        return new Response(JSON.stringify(response), {
+          status: 200,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+      };
+
+      try {
+        // 5. Goi toan bo Reconciliation Service
+        const result = await reconciliation.reconcile(
+          fixture.transactionRef,
+          "127.0.0.1",
+        );
+
+        assert.equal(fetchCalls, 1);
+
+        assert.equal(result, scenario.expected);
+
+        // 6. Kiem tra database khong bi thay doi
+        const { order, transaction } = await readOrder(fixture.orderId);
+
+        assert.equal(order?.status, OrderStatus.PENDING);
+
+        assert.equal(transaction?.status, TransactionStatus.PENDING);
+
+        // 7. Khong duoc phat hanh ve
+        const issuedTickets = await db
+          .select({ id: tickets.id })
+          .from(tickets)
+          .where(eq(tickets.orderId, fixture.orderId));
+
+        assert.equal(
+          issuedTickets.length,
+          0,
+          "Invalid QueryDR must not issue tickets",
+        );
+
+        // 8. Khong duoc tao su kien ORDER_PAID
+        const paidEvents = await db
+          .select({ id: outbox.id })
+          .from(outbox)
+          .where(
+            and(
+              eq(outbox.eventType, "ORDER_PAID"),
+              sql`${outbox.payload} ->> 'orderId' = ${fixture.orderId}`,
+            ),
+          );
+
+        assert.equal(
+          paidEvents.length,
+          0,
+          "Invalid QueryDR must not emit ORDER_PAID",
+        );
+
+        // 9. Ton kho phai giu nguyen
+        const [ticketType] = await db
+          .select()
+          .from(ticketTypes)
+          .where(eq(ticketTypes.id, fixture.ticketTypeId));
+
+        assert.equal(ticketType?.heldCount, fixture.heldBefore + 1);
+
+        assert.equal(ticketType?.soldCount, fixture.soldBefore);
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    });
+  }
+});

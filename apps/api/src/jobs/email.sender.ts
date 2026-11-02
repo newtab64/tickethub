@@ -6,7 +6,26 @@ import type {
   UserRegisteredPayload,
   ReviewEventType,
   ReviewNotificationPayload,
+  OrderPaidPayload,
 } from "./email.types";
+
+let client: Resend | null = null;
+
+function getMailer(): { resend: Resend; from: string } {
+  const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
+  const from = env.EMAIL_FROM || process.env.EMAIL_FROM;
+  if (!apiKey || !from) {
+    throw new Error("Email is not configured");
+  }
+  if (
+    env.NODE_ENV === "production" &&
+    from.toLowerCase().includes("resend.dev")
+  ) {
+    throw new Error("Production requires a verified sending domain");
+  }
+  client ??= new Resend(apiKey);
+  return { resend: client, from };
+}
 
 export async function sendRegistrationEmail(
   outboxId: string,
@@ -85,20 +104,7 @@ export async function sendReviewEmail(
   const valid = parseReviewPayload(eventType, payload);
 
   // 2. Kiểm tra cấu hình email
-  const apiKey = env.RESEND_API_KEY || process.env.RESEND_API_KEY;
-  const from = env.EMAIL_FROM || process.env.EMAIL_FROM;
-
-  if (!apiKey || !from) {
-    throw new Error("Chưa cấu hình RESEND_API_KEY hoặc EMAIL_FROM");
-  }
-
-  // Không dùng địa chỉ thử nghiệm làm sender production
-  if (
-    env.NODE_ENV === "production" &&
-    from.toLowerCase().includes("resend.dev")
-  ) {
-    throw new Error("Production cần tên miền gửi email đã xác minh");
-  }
+  const { resend, from } = getMailer();
 
   // 3. Xác định nội dung thông báo
   const approved = eventType.endsWith("APPROVED");
@@ -128,7 +134,6 @@ export async function sendReviewEmail(
   ].join("\n");
 
   // 4. Gửi email qua Resend
-  const resend = new Resend(apiKey);
 
   const { data, error } = await resend.emails.send(
     {
@@ -150,5 +155,63 @@ export async function sendReviewEmail(
     throw new Error("Resend không trả về Email ID");
   }
 
+  return data.id;
+}
+
+// Unit-testable, safe plain-text confirmation. Do not embed QR/JWT in email.
+export function composeOrderPaidEmail(
+  payload: OrderPaidPayload,
+  ticketCodes: string[],
+): { subject: string; text: string } {
+  return {
+    subject: `[TicketHub] Thanh toán thành công - ${payload.orderCode}`,
+    text: [
+      "Thanh toán đơn hàng đã được xác nhận.",
+      `Mã đơn hàng: ${payload.orderCode}`,
+      `Số tiền: ${payload.amount} VND`,
+      `Mã vé: ${ticketCodes.join(", ")}`,
+      "",
+      "Đăng nhập TicketHub để xem vé và lấy QR động.",
+      "Không sử dụng email này làm mã QR để vào cổng.",
+    ].join("\n"),
+  };
+}
+
+export async function sendOrderPaidEmail(
+  outboxId: string,
+  payload: OrderPaidPayload,
+  recipient: string,
+  ticketCodes: string[],
+): Promise<string> {
+  const { resend, from } = getMailer();
+
+  const message = composeOrderPaidEmail(payload, ticketCodes);
+  const { data, error } = await resend.emails.send(
+    {
+      from,
+      to: recipient,
+      ...message,
+    },
+    {
+      // A rejected test send used the original key with a DIFFERENT recipient.
+      // For exactly one isolated live-test Outbox, use a stable, distinct key.
+      // This avoids Resend's 409 payload/key conflict on retry, while keeping
+      // retries of this test email idempotent.
+      idempotencyKey:
+        env.NODE_ENV === "test" &&
+        new URL(env.DATABASE_URL).pathname === "/tickethub_w04_test" &&
+        new URL(env.REDIS_URL).pathname === "/15" &&
+        process.env.EMAIL_WORKER_MODE === "live-test" &&
+        process.env.ENABLE_ORDER_PAID_EMAIL_TEST === "true" &&
+        process.env.TEST_ORDER_PAID_OUTBOX_ID === outboxId &&
+        outboxId === "7a2df97c-7f7d-4540-a375-b46db47011b2" &&
+        recipient.trim().toLowerCase() === "nguyentuankhoi2603@gmail.com"
+          ? `order-paid-test-redirect/${outboxId}/v1`
+          : `order-paid/${outboxId}`,
+    },
+  );
+  if (error || !data?.id) {
+    throw new Error(`Resend ORDER_PAID failed: ${error?.message ?? "No ID"}`);
+  }
   return data.id;
 }

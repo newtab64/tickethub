@@ -22,6 +22,34 @@
       "when": 1793034892821,
       "tag": "0002_w03-search-trigger-index",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793302204668,
+      "tag": "0003_fantastic_punisher",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793371864771,
+      "tag": "0004_productive_wrecking_crew",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793468090612,
+      "tag": "0005_great_red_shift",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793508320056,
+      "tag": "0006_melodic_lake",
+      "breakpoints": true
     }
   ]
 }

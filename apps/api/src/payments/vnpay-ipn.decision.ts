@@ -7,6 +7,7 @@ export type IpnDecision =
   | "ALREADY_PROCESSED"
   | "APPLY_SUCCESS"
   | "RECORD_FAILURE"
+  | "LATE_SUCCESS"
   | "MANUAL_REVIEW";
 
 export interface IpnDecisionInput {
@@ -39,8 +40,7 @@ export function decideVnpayIpn(input: IpnDecisionInput): IpnDecision {
     return "MANUAL_REVIEW";
   }
 
-  // Cùng một giao dịch đã hoàn tất:
-  // tuyệt đối không cập nhật hay cấp vé thêm lần nữa.
+  // Cung mot giao dich da hoan tat (PAID + SUCCESS).
   if (
     input.orderStatus === OrderStatus.PAID &&
     input.transactionStatus === TransactionStatus.SUCCESS
@@ -48,7 +48,27 @@ export function decideVnpayIpn(input: IpnDecisionInput): IpnDecision {
     return "ALREADY_PROCESSED";
   }
 
-  // Các trạng thái không đồng nhất cần đối soát.
+  // Don da EXPIRED ma giao dich da SUCCESS: IPN muon da xu ly (refund tu dong).
+  if (
+    input.orderStatus === OrderStatus.EXPIRED &&
+    input.transactionStatus === TransactionStatus.SUCCESS
+  ) {
+    return "ALREADY_PROCESSED";
+  }
+
+  // Don da duoc cleanup (EXPIRED), giao dich van PENDING:
+  // thanh cong thi thu cap ve / refund; that bai thi ghi nhan va giai phong voucher.
+  // Khong duoc tru/nhan kho lan hai neu da EXPIRED.
+  if (
+    input.orderStatus === OrderStatus.EXPIRED &&
+    input.transactionStatus === TransactionStatus.PENDING
+  ) {
+    // Kho/ghế của EXPIRED đã được giải phóng bởi cleanup.
+    // Với thất bại đã xác nhận, cập nhật DB mà KHÔNG giải phóng lần hai.
+    return input.paymentSuccessful ? "LATE_SUCCESS" : "RECORD_FAILURE";
+  }
+
+  // Cac trang thai khong dong nhat can doi soat.
   if (
     input.orderStatus !== OrderStatus.PENDING ||
     input.transactionStatus !== TransactionStatus.PENDING
@@ -56,10 +76,9 @@ export function decideVnpayIpn(input: IpnDecisionInput): IpnDecision {
     return "MANUAL_REVIEW";
   }
 
-  // Khách có thể đã thanh toán sau khi ghế hết hạn.
-  // Không tự cấp vé cho đơn hết hạn.
+  // Don PENDING nhung da qua han (chua bi don).
   if (input.orderExpired) {
-    return "MANUAL_REVIEW";
+    return input.paymentSuccessful ? "LATE_SUCCESS" : "RECORD_FAILURE";
   }
 
   return input.paymentSuccessful ? "APPLY_SUCCESS" : "RECORD_FAILURE";
