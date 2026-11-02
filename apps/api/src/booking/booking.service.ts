@@ -402,7 +402,8 @@ export class BookingService {
               success: false,
               error: {
                 code: "INSUFFICIENT_TICKET_CAPACITY",
-                message: "Số lượng ghế trống không còn đủ để giữ chỗ theo yêu cầu",
+                message:
+                  "Số lượng ghế trống không còn đủ để giữ chỗ theo yêu cầu",
                 timestamp: new Date().toISOString(),
               },
             });

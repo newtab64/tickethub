@@ -94,7 +94,11 @@ export function DatePicker({
     if (startDayOfWeek === -1) startDayOfWeek = 6;
 
     const totalDays = lastDayOfMonth.getDate();
-    const days: Array<{ day: number; dateString: string; isCurrentMonth: boolean }> = [];
+    const days: Array<{
+      day: number;
+      dateString: string;
+      isCurrentMonth: boolean;
+    }> = [];
 
     // Previous month filler days
     const prevMonthLastDay = new Date(year, month, 0).getDate();
@@ -134,11 +138,15 @@ export function DatePicker({
   }, [viewDate]);
 
   const handlePrevMonth = () => {
-    setNavMonthDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+    setNavMonthDate(
+      new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1),
+    );
   };
 
   const handleNextMonth = () => {
-    setNavMonthDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1));
+    setNavMonthDate(
+      new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1),
+    );
   };
 
   const handleSelectDay = (dateStr: string) => {
@@ -148,7 +156,10 @@ export function DatePicker({
   };
 
   return (
-    <div className={`relative inline-block w-full ${className}`} ref={containerRef}>
+    <div
+      className={`relative inline-block w-full ${className}`}
+      ref={containerRef}
+    >
       <button
         type="button"
         id={id}
@@ -248,8 +259,8 @@ export function DatePicker({
                     isSelected
                       ? "bg-primary text-primary-foreground font-bold shadow-2xs"
                       : item.isCurrentMonth
-                      ? "text-foreground hover:bg-secondary"
-                      : "text-muted-foreground/40 hover:bg-secondary/40"
+                        ? "text-foreground hover:bg-secondary"
+                        : "text-muted-foreground/40 hover:bg-secondary/40"
                   } ${
                     isDisabled
                       ? "opacity-30 pointer-events-none cursor-not-allowed"
@@ -344,7 +355,7 @@ export function TimePicker({
   useEffect(() => {
     if (isOpen && listRef.current && value) {
       const selectedEl = listRef.current.querySelector<HTMLElement>(
-        `[data-time="${value}"]`
+        `[data-time="${value}"]`,
       );
       if (selectedEl) {
         selectedEl.scrollIntoView({ block: "center" });
@@ -353,7 +364,10 @@ export function TimePicker({
   }, [isOpen, value]);
 
   return (
-    <div className={`relative inline-block w-full ${className}`} ref={containerRef}>
+    <div
+      className={`relative inline-block w-full ${className}`}
+      ref={containerRef}
+    >
       <button
         type="button"
         id={id}
@@ -369,7 +383,9 @@ export function TimePicker({
         }`}
       >
         <span className="truncate tabular-nums">
-          {value || <span className="text-muted-foreground">{placeholder}</span>}
+          {value || (
+            <span className="text-muted-foreground">{placeholder}</span>
+          )}
         </span>
         <div className="flex items-center gap-1.5 shrink-0 text-muted-foreground">
           {value && !disabled && (

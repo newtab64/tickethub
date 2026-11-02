@@ -5,7 +5,13 @@ import { inArray, eq } from "drizzle-orm";
 
 import { EventStatus, SeatStatus } from "@tickethub/shared";
 import { db } from "../src/database/db";
-import { events, ticketTypes, seats, organizerProfiles, users } from "../src/database/schema";
+import {
+  events,
+  ticketTypes,
+  seats,
+  organizerProfiles,
+  users,
+} from "../src/database/schema";
 import { EventReadCacheService } from "../src/events/event-read-cache.service";
 import { EventsService } from "../src/events/events.service";
 import { env } from "../src/config/env.config";
@@ -71,7 +77,8 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
         organizerId,
         title: "Su Kien Thu Nghiem Cache Ton Kho",
         slug: `cache-event-${stamp}`,
-        description: "Su kien danh cho kiem thu Redis Cache so do ghe va ton kho",
+        description:
+          "Su kien danh cho kiem thu Redis Cache so do ghe va ton kho",
         city: "Hà Nội",
         category: "CONCERT",
         bannerUrl: "https://cdn.tickethub.vn/cache-banner.webp",
@@ -159,10 +166,7 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
       await db
         .delete(ticketTypes)
         .where(
-          inArray(ticketTypes.id, [
-            seatedTicketTypeId,
-            standingTicketTypeId,
-          ]),
+          inArray(ticketTypes.id, [seatedTicketTypeId, standingTicketTypeId]),
         );
     }
     if (testEventId) {
@@ -205,7 +209,10 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
       await redis.set(cacheKey, JSON.stringify(customPayload), "EX", 60);
 
       const res = await cacheService.getSeatMap(testEventId);
-      assert.equal((res as any).cachedMarker, "from-redis-test");
+      assert.equal(
+        (res as unknown as { cachedMarker?: string }).cachedMarker,
+        "from-redis-test",
+      );
     });
   });
 

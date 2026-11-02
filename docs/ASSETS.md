@@ -5,6 +5,7 @@ Tài liệu ghi nhận nguồn gốc, giấy phép và thông số kỹ thuật 
 ## 1. Hình ảnh bảng điều khiển xác thực (Auth Panel Images)
 
 ### 1.1. `auth-buyer` (Dùng cho Trang Đăng ký vai trò Người mua vé và Trang Đăng nhập)
+
 - **Tập tin:**
   - `apps/web/public/images/auth/auth-buyer.webp` (40.7 KB, 1200x900)
   - `apps/web/public/images/auth/auth-buyer.avif` (67.1 KB, 1200x900)
@@ -15,6 +16,7 @@ Tài liệu ghi nhận nguồn gốc, giấy phép và thông số kỹ thuật 
 - **Giấy phép:** [Unsplash License](https://unsplash.com/license) (Miễn phí sử dụng thương mại và phi thương mại, không bắt buộc ghi công, không chuyển nhượng độc quyền).
 
 ### 1.2. `auth-organizer` (Dùng cho Trang Đăng ký vai trò Ban tổ chức)
+
 - **Tập tin:**
   - `apps/web/public/images/auth/auth-organizer.webp` (161.1 KB, 1600x900)
   - `apps/web/public/images/auth/auth-organizer.avif` (149.0 KB, 1600x900)

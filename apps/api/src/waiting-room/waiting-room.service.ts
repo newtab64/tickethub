@@ -6,7 +6,7 @@ import { db } from "../database/db";
 import { events } from "../database/schema";
 import { REDIS_CLIENT } from "../database/redis.module";
 import { env } from "../config/env.config";
-import {EventStatus } from "@tickethub/shared";
+import { EventStatus } from "@tickethub/shared";
 export interface WaitingRoomStatus {
   status: "ADMITTED" | "QUEUED";
   admissionToken?: string;

@@ -276,3 +276,25 @@ sequenceDiagram
 
 - Cloudflare áp dụng tường lửa ứng dụng (WAF) và Turnstile CAPTCHA để hạn chế lưu lượng truy cập từ bot tự động.
 - API áp dụng rate limiting theo địa chỉ IP và tài khoản người dùng trên các endpoint nhạy cảm như đăng nhập, giữ chỗ và tạo thanh toán.
+
+### Cơ chế an toàn giao dịch và Khóa hàng đồng thời (Atomic Row-level Locking)
+
+Để triệt tiêu hoàn toàn nguy cơ bán trùng vé (double booking) và tranh chấp bế tắc (deadlock) trong các sự kiện có lưu lượng truy cập cao:
+
+- **Nguyên tắc khóa:** Mọi thao tác giữ chỗ vé đều được thực thi bên trong một cơ sở dữ liệu transaction của PostgreSQL.
+- **Thứ tự khóa bắt buộc:** Khi khóa nhiều hàng ghế đồng thời, câu lệnh SQL bắt buộc phải sắp xếp danh sách mã định danh tăng dần:
+  ```sql
+  SELECT id, status, version FROM seats
+  WHERE id = ANY($1)
+  ORDER BY id ASC
+  FOR UPDATE;
+  ```
+  Việc khóa theo thứ tự `id ASC` nhất quán giữa mọi luồng xử lý đảm bảo không bao giờ xảy ra tình trạng khóa chéo (cyclic wait) gây deadlock trong PostgreSQL.
+
+### Mô hình Transactional Outbox Pattern cho Tác vụ Phi đồng bộ
+
+Hệ thống tuân thủ nghiêm ngặt nguyên lý Transactional Outbox nhằm đảm bảo tính nhất quán cuối cùng (Eventual Consistency):
+
+- Không bao giờ gọi trực tiếp các dịch vụ mạng bên thứ ba (gửi email SMTP, dịch vụ SMS, cổng thanh toán bên ngoài) bên trong database transaction của đơn hàng.
+- Khi đơn hàng hoàn tất hoặc sự kiện được phê duyệt, một bản ghi sự kiện sẽ được chèn vào bảng `outbox` ngay trong cùng transaction của đơn hàng.
+- Bộ điều phối Outbox Dispatcher định kỳ quét các bản ghi chưa xử lý (`status = 'PENDING'`), đẩy vào hàng đợi BullMQ (Redis) và gửi thông báo qua BullMQ Email Worker. Nếu có lỗi mạng, tác vụ sẽ tự động kích hoạt cơ chế thử lại (retry với exponential backoff) mà không làm ảnh hưởng đến dữ liệu nghiệp vụ chính.

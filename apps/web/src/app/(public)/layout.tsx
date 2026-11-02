@@ -1,7 +1,6 @@
 // apps/web/src/app/(public)/layout.tsx
 import Link from "next/link";
 import { ShieldCheck, Clock, RefreshCcw, Globe } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
 import { PublicHeader } from "@/components/layout/public-header";
 
 export default function PublicLayout({

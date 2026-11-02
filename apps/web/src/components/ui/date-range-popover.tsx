@@ -44,8 +44,8 @@ export function DateRangePopover({
     ? fromDate && toDate
       ? `${formatDateVi(fromDate)} - ${formatDateVi(toDate)}`
       : fromDate
-      ? `Từ ${formatDateVi(fromDate)}`
-      : `Đến ${formatDateVi(toDate)}`
+        ? `Từ ${formatDateVi(fromDate)}`
+        : `Đến ${formatDateVi(toDate)}`
     : "Khoảng ngày";
 
   const handleApply = () => {

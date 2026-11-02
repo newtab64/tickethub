@@ -1,3 +1,4 @@
+import type { HttpErrorLike } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { JwtService } from "@nestjs/jwt";
@@ -374,7 +375,7 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
             ],
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "MISSING_ADMISSION_TOKEN");
           return true;
         },
@@ -499,7 +500,7 @@ describe("W03-BE1: Waiting Room (UC03) & Atomic Seat Hold (UC04) Verification", 
             items: [{ ticketTypeId: standingTicketTypeId, quantity: 3 }],
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(
             err.response?.error?.code,
             "INSUFFICIENT_TICKET_CAPACITY",

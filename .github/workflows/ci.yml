@@ -53,13 +53,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: "22"
           cache: pnpm
@@ -72,6 +72,24 @@ jobs:
 
       - name: Check lint
         run: pnpm lint
+
+      - name: Check lint (web)
+        run: pnpm --filter @tickethub/web lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=high
+
+      - name: Check format
+        run: pnpm format:check
+
+      - name: Check drizzle schema has no pending migration
+        run: |
+          pnpm --filter @tickethub/api db:generate
+          git diff --exit-code -- apps/api/drizzle
+          test -z "$(git ls-files --others --exclude-standard -- apps/api/drizzle)"
 
       - name: Run database migrations and seed
         run: |
@@ -110,7 +128,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

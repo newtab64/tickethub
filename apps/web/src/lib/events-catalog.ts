@@ -33,7 +33,8 @@ export const EVENTS: EventItem[] = [
     doorsOpenTime: "17:00",
     dateWindow: "WEEKEND",
     venue: "Vạn Phúc City",
-    venueAddress: "Khu đô thị Vạn Phúc, Quốc lộ 13, TP. Thủ Đức, TP. Hồ Chí Minh",
+    venueAddress:
+      "Khu đô thị Vạn Phúc, Quốc lộ 13, TP. Thủ Đức, TP. Hồ Chí Minh",
     city: "TP. Hồ Chí Minh",
     cityCode: "HCM",
     fromPrice: "800.000 ₫+",
@@ -96,7 +97,8 @@ export const EVENTS: EventItem[] = [
     doorsOpenTime: "17:30",
     dateWindow: "NOV",
     venue: "SVĐ Quân Khu 7",
-    venueAddress: "202 Hoàng Văn Thụ, Phường 9, Quận Phú Nhuận, TP. Hồ Chí Minh",
+    venueAddress:
+      "202 Hoàng Văn Thụ, Phường 9, Quận Phú Nhuận, TP. Hồ Chí Minh",
     city: "TP. Hồ Chí Minh",
     cityCode: "HCM",
     fromPrice: "500.000 ₫+",
@@ -239,7 +241,8 @@ export const EVENTS: EventItem[] = [
     doorsOpenTime: "16:30",
     dateWindow: "NOV",
     venue: "Vạn Phúc City",
-    venueAddress: "Khu đô thị Vạn Phúc, Quốc lộ 13, TP. Thủ Đức, TP. Hồ Chí Minh",
+    venueAddress:
+      "Khu đô thị Vạn Phúc, Quốc lộ 13, TP. Thủ Đức, TP. Hồ Chí Minh",
     city: "TP. Hồ Chí Minh",
     cityCode: "HCM",
     fromPrice: "850.000 ₫+",
@@ -414,7 +417,8 @@ export const EVENTS: EventItem[] = [
     doorsOpenTime: "17:15",
     dateWindow: "DEC",
     venue: "Nhà hát Thành phố",
-    venueAddress: "07 Công Trường Lam Sơn, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+    venueAddress:
+      "07 Công Trường Lam Sơn, Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh",
     city: "TP. Hồ Chí Minh",
     cityCode: "HCM",
     fromPrice: "700.000 ₫+",
@@ -433,7 +437,6 @@ export function formatVnd(amount: number): string {
 export function getEventById(id: string): EventItem | undefined {
   return EVENTS.find((ev) => ev.id === id);
 }
-
 
 import { VenueMapKey } from "./venue-svg.generated";
 
@@ -496,7 +499,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 2,
         dealScore: 10,
         dealLabel: "Tuyệt vời",
-        features: ["2 vé ngồi cạnh nhau", "Gói VIP & Quà lưu niệm", "Lối vào ưu tiên"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Gói VIP & Quà lưu niệm",
+          "Lối vào ưu tiên",
+        ],
         viewFromSeatUrl: "/images/venues/view-concert-red.jpg",
         isLastTickets: true,
       },
@@ -512,7 +519,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 4,
         dealScore: 9,
         dealLabel: "Rất tốt",
-        features: ["2 vé ngồi cạnh nhau", "Tầm nhìn trực diện sân khấu", "Quà tặng lightstick"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Tầm nhìn trực diện sân khấu",
+          "Quà tặng lightstick",
+        ],
         viewFromSeatUrl: "/images/venues/view-concert-red.jpg",
       },
       {
@@ -527,7 +538,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 2,
         dealScore: 9,
         dealLabel: "Rất tốt",
-        features: ["2 vé ngồi cạnh nhau", "Tầm nhìn không bị chắn", "Vòng tay check-in VIP"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Tầm nhìn không bị chắn",
+          "Vòng tay check-in VIP",
+        ],
         viewFromSeatUrl: "/images/venues/view-concert-red.jpg",
         isLastTickets: true,
       },
@@ -542,7 +557,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 6,
         dealScore: 10,
         dealLabel: "Tuyệt vời",
-        features: ["Khu vực đứng sát sàn diễn", "Tầm nhìn trực diện nghệ sĩ", "Tự do di chuyển"],
+        features: [
+          "Khu vực đứng sát sàn diễn",
+          "Tầm nhìn trực diện nghệ sĩ",
+          "Tự do di chuyển",
+        ],
         viewFromSeatUrl: "/images/venues/view-concert-red.jpg",
         isStanding: true,
       },
@@ -902,7 +921,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 2,
         dealScore: 10,
         dealLabel: "Tuyệt vời",
-        features: ["2 vé ngồi cạnh nhau", "Ghế có mái che", "Tầm nhìn vạch giữa sân"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Ghế có mái che",
+          "Tầm nhìn vạch giữa sân",
+        ],
         viewFromSeatUrl: "/images/venues/view-stadium-wide.jpg",
         isLastTickets: true,
       },
@@ -1028,7 +1051,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 2,
         dealScore: 10,
         dealLabel: "Tuyệt vời",
-        features: ["2 vé ngồi cạnh nhau", "Sát đường biên cầu thủ", "Phục vụ đồ uống tận nơi"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Sát đường biên cầu thủ",
+          "Phục vụ đồ uống tận nơi",
+        ],
         viewFromSeatUrl: "/images/venues/view-arena-1.jpg",
         isLastTickets: true,
       },
@@ -1044,7 +1071,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 2,
         dealScore: 10,
         dealLabel: "Tuyệt vời",
-        features: ["2 vé ngồi cạnh nhau", "Sát đường biên cầu thủ", "Phục vụ đồ uống tận nơi"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Sát đường biên cầu thủ",
+          "Phục vụ đồ uống tận nơi",
+        ],
         viewFromSeatUrl: "/images/venues/view-arena-1.jpg",
       },
       {
@@ -1059,7 +1090,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 4,
         dealScore: 9,
         dealLabel: "Rất tốt",
-        features: ["2 vé ngồi cạnh nhau", "Lối vào sảnh VIP riêng", "Ghế đệm êm ái"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Lối vào sảnh VIP riêng",
+          "Ghế đệm êm ái",
+        ],
         viewFromSeatUrl: "/images/venues/view-arena-2.jpg",
       },
       {
@@ -1074,7 +1109,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
         availableTickets: 4,
         dealScore: 9,
         dealLabel: "Rất tốt",
-        features: ["2 vé ngồi cạnh nhau", "Lối vào sảnh VIP riêng", "Ghế đệm êm ái"],
+        features: [
+          "2 vé ngồi cạnh nhau",
+          "Lối vào sảnh VIP riêng",
+          "Ghế đệm êm ái",
+        ],
         viewFromSeatUrl: "/images/venues/view-arena-2.jpg",
       },
       {
@@ -1154,7 +1193,11 @@ export function getEventListings(event: EventItem): TicketListing[] {
       availableTickets: 2,
       dealScore: 10,
       dealLabel: "Tuyệt vời",
-      features: ["2 vé ngồi cạnh nhau", "Hàng đầu sát sân khấu", "Âm thanh thính phòng tốt nhất"],
+      features: [
+        "2 vé ngồi cạnh nhau",
+        "Hàng đầu sát sân khấu",
+        "Âm thanh thính phòng tốt nhất",
+      ],
       viewFromSeatUrl: "/images/venues/view-concert-red.jpg",
       isLastTickets: true,
     },

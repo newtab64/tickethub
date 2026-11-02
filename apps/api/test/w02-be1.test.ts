@@ -1,3 +1,5 @@
+import type { ExecutionContext } from "@nestjs/common";
+import type { HttpErrorLike } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { JwtService } from "@nestjs/jwt";
@@ -91,7 +93,10 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
       });
 
       assert.ok(outboxEvent, "Phải tìm thấy sự kiện outbox");
-      assert.equal((outboxEvent.payload as any).email, testUserEmail);
+      assert.equal(
+        (outboxEvent.payload as { email?: string }).email,
+        testUserEmail,
+      );
     });
 
     it("Phải từ chối đăng ký trùng email với lỗi EMAIL_ALREADY_EXISTS", async () => {
@@ -104,7 +109,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             role: UserRole.BUYER,
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "EMAIL_ALREADY_EXISTS");
           return true;
         },
@@ -119,7 +124,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             password: "Password123!",
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "EMAIL_NOT_VERIFIED");
           return true;
         },
@@ -148,7 +153,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
               password: "WrongPassword",
             });
           },
-          (err: any) => {
+          (err: HttpErrorLike) => {
             assert.equal(err.response?.error?.code, "INVALID_CREDENTIALS");
             return true;
           },
@@ -163,7 +168,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             password: "WrongPassword",
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "ACCOUNT_LOCKED");
           return true;
         },
@@ -177,7 +182,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             password: "Password123!",
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "ACCOUNT_LOCKED");
           return true;
         },
@@ -201,7 +206,6 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
       assert.equal(res.expiresIn, 900);
       assert.equal(res.user.email, testUserEmail);
 
-      validAccessToken = res.accessToken;
       validRefreshToken = res.refreshToken;
     });
 
@@ -228,7 +232,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             user: { userId: createdUserId, role: UserRole.BUYER },
           }),
         }),
-      } as any;
+      } as unknown as ExecutionContext;
 
       reflector.getAllAndOverride = () => [UserRole.ORGANIZER, UserRole.ADMIN];
 
@@ -236,7 +240,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
         () => {
           rolesGuard.canActivate(mockContext);
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "FORBIDDEN_RESOURCE");
           return true;
         },
@@ -252,7 +256,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             user: { userId: createdUserId, role: UserRole.ORGANIZER },
           }),
         }),
-      } as any;
+      } as unknown as ExecutionContext;
 
       reflector.getAllAndOverride = () => [UserRole.ORGANIZER, UserRole.ADMIN];
 
@@ -271,13 +275,13 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             user: { userId: createdUserId, role: UserRole.ORGANIZER },
           }),
         }),
-      } as any;
+      } as unknown as ExecutionContext;
 
       assert.throws(
         () => {
           rolesGuard.canActivate(orgContext);
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "FORBIDDEN_RESOURCE");
           return true;
         },
@@ -291,13 +295,13 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             user: { userId: createdUserId, role: UserRole.ADMIN },
           }),
         }),
-      } as any;
+      } as unknown as ExecutionContext;
 
       assert.throws(
         () => {
           rolesGuard.canActivate(adminContext);
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "FORBIDDEN_RESOURCE");
           return true;
         },
@@ -315,7 +319,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             user: { userId: createdUserId, role: UserRole.BUYER },
           }),
         }),
-      } as any;
+      } as unknown as ExecutionContext;
 
       const allowed = rolesGuard.canActivate(buyerContext);
       assert.equal(allowed, true);
@@ -434,7 +438,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             version: 999, // Sai version
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "CONCURRENT_MODIFICATION");
           return true;
         },
@@ -476,7 +480,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             version: submitRes.version!,
           });
         },
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.response?.error?.code, "EVENT_CANNOT_BE_EDITED");
           return true;
         },
