@@ -4,13 +4,13 @@ import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Search,
   MapPin,
   Calendar,
   ChevronDown,
   Navigation,
-  X,
 } from "lucide-react";
+
+import { SearchAutocompleteBar } from "@/components/search/search-autocomplete-bar";
 import {
   EVENTS,
   type CategoryCode,
@@ -123,7 +123,6 @@ function EventGridCard({
 }
 
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryCode>("ALL");
   const [selectedCity, setSelectedCity] = useState<"ALL" | "HCM" | "HN" | "DN">(
     "HCM",
@@ -197,17 +196,10 @@ export default function HomePage() {
       if (selectedDate !== "ALL" && ev.dateWindow !== selectedDate) {
         return false;
       }
-      if (searchQuery.trim() !== "") {
-        const q = searchQuery.toLowerCase();
-        return (
-          ev.title.toLowerCase().includes(q) ||
-          ev.venue.toLowerCase().includes(q) ||
-          ev.city.toLowerCase().includes(q)
-        );
-      }
+  
       return true;
     });
-  }, [selectedCategory, selectedDate, searchQuery]);
+  }, [selectedCategory, selectedDate]);
 
   const trendingEvents = useMemo(() => {
     const list = filteredPool.filter((e) => e.trendingOrder);
@@ -237,30 +229,11 @@ export default function HomePage() {
     <div className="bg-white">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         {/* 1. Centered Floating Pill Search Bar on Pure White Background */}
+        {/* 1. Home Search with Autocomplete */}
         <div className="pt-2 pb-8">
-          <div className="max-w-[760px] mx-auto">
-            <div className="relative flex items-center bg-white rounded-full h-[50px] px-5 border border-[#e2e6e8] shadow-[0_4px_16px_rgba(0,0,0,0.08)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-              <Search className="size-4.5 text-primary shrink-0 mr-3" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm sự kiện, nghệ sĩ, đội bóng và địa điểm"
-                aria-label="Tìm sự kiện, nghệ sĩ, đội bóng và địa điểm"
-                className="w-full bg-transparent text-[14px] text-[#141d23] placeholder:text-[#606970] focus:outline-none"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  aria-label="Xóa tìm kiếm"
-                  className="p-1 text-[#606970] hover:text-[#141d23]"
-                >
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
-          </div>
+          <SearchAutocompleteBar
+            placeholder="Tìm sự kiện, nghệ sĩ, đội bóng và địa điểm"
+          />
         </div>
 
         {/* 2. Featured Events Portrait Row */}
