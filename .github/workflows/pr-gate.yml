@@ -1,0 +1,178 @@
+name: PR Strict Gate
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - unstable
+      - stable
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  gate-check:
+    name: Check PR Checklist and Commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run PR Gate Validation
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { validatePullRequest } = await import('${{ github.workspace }}/scripts/pr-gate-check.mjs');
+            const { auditDocParity } = await import('${{ github.workspace }}/scripts/audit-doc-parity.mjs');
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const COMMENT_MARKER = '<!-- tickethub-pr-gate-marker -->';
+
+            // Retrieve PR commit list
+            const commitList = await github.paginate(github.rest.pulls.listCommits, {
+              owner,
+              repo,
+              pull_number: pr.number,
+            });
+
+            const commits = commitList.map((c) => ({
+              message: c.commit.message,
+              sha: c.sha,
+            }));
+
+            // Retrieve PR changed files
+            const changedFilesData = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pr.number,
+            });
+            const changedFiles = changedFilesData.map((f) => f.filename);
+
+            // Audit documentation parity
+            let docParity = null;
+            try {
+              docParity = auditDocParity({
+                schemaDir: '${{ github.workspace }}/apps/api/src/database/schema',
+                controllersDir: '${{ github.workspace }}/apps/api/src',
+                erdPath: '${{ github.workspace }}/docs/ERD.md',
+                apiContractPath: '${{ github.workspace }}/docs/API_CONTRACT.md',
+              });
+            } catch (parityErr) {
+              console.log('Notice: Could not run doc parity check:', parityErr.message);
+            }
+
+            const result = validatePullRequest({
+              title: pr.title,
+              body: pr.body || '',
+              commits,
+              docParity,
+              changedFiles,
+            });
+
+            // Helper to post or update sticky comment
+            async function upsertStickyComment(bodyContent) {
+              const fullBody = `${COMMENT_MARKER}\n${bodyContent}`;
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner,
+                repo,
+                issue_number: pr.number,
+              });
+              const existing = comments.find((c) => c.body && c.body.includes(COMMENT_MARKER));
+              if (existing) {
+                await github.rest.issues.updateComment({
+                  owner,
+                  repo,
+                  comment_id: existing.id,
+                  body: fullBody,
+                });
+              } else {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body: fullBody,
+                });
+              }
+            }
+
+            if (!result.valid) {
+              console.log('PR Strict Gate failed. Errors:', result.errors);
+
+              // Update labels
+              if (result.labelsToAdd.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: result.labelsToAdd,
+                });
+              }
+
+              const commentLines = [
+                '### Thong bao kiem soat Pull Request (PR Strict Gate)',
+                '',
+                'Pull Request chua vuot qua cong kiem soat vi cac ly do sau:',
+                '',
+                ...result.errors.map((err) => `- ${err}`),
+                '',
+                '---',
+                '**Huong dan khac phuc:**',
+                '1. Chinh sua mo ta PR va tich du toan bo cac muc bat buoc trong checklist.',
+                '2. Neu commit sai quy chuan hoac chua emoji hay em-dash, vui long sua commit va force push.',
+                '3. Neu co thay doi giao dien tai apps/web, bat buoc dinh kem hinh anh hoac video minh chung tai Muc 6.',
+                '4. Khong duoc phep chinh sua ha tang kiem duyet gate hoac workflow kiem soat.',
+              ];
+
+              await upsertStickyComment(commentLines.join('\n'));
+              core.setFailed('PR Gate Check khong dat yeu cau: ' + result.errors.join('; '));
+            } else {
+              console.log('PR Strict Gate passed successfully.');
+
+              // Remove stale violation labels
+              for (const label of result.labelsToRemove) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    name: label,
+                  });
+                } catch {
+                  // Ignore if label does not exist
+                }
+              }
+
+              // Update soft warning labels if needed
+              if (result.warnings && result.warnings.length > 0 && result.labelsToAdd.includes('needs-doc-update')) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: ['needs-doc-update'],
+                });
+              }
+
+              const successLines = [
+                '### Thong bao kiem soat Pull Request (PR Strict Gate)',
+                '',
+                'Pull Request da vuot qua tat ca cac tieu chi kiem soat gate thanh cong.',
+              ];
+
+              if (result.warnings && result.warnings.length > 0) {
+                successLines.push('', '**Canh bao dong bo tai lieu (Soft Warning):**', ...result.warnings.map((w) => `- ${w}`));
+              }
+
+              await upsertStickyComment(successLines.join('\n'));
+            }

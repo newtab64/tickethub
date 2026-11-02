@@ -1,10 +1,16 @@
+import type { HttpErrorLike } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { inArray, eq } from "drizzle-orm";
 
 import { EventStatus } from "@tickethub/shared";
 import { db } from "../src/database/db";
-import { events, ticketTypes, organizerProfiles, users } from "../src/database/schema";
+import {
+  events,
+  ticketTypes,
+  organizerProfiles,
+  users,
+} from "../src/database/schema";
 import { SearchService } from "../src/search/search.service";
 import { SearchController } from "../src/search/search.controller";
 
@@ -67,7 +73,8 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
         organizerId,
         title: "Đêm Nhạc Trịnh Công Sơn Hà Nội",
         slug: `dem-nhac-trinh-${stamp}`,
-        description: "Đêm nhạc tưởng nhớ nhạc sĩ Trịnh Công Sơn với các tuyệt phẩm bất hủ tại Nhà hát Lớn",
+        description:
+          "Đêm nhạc tưởng nhớ nhạc sĩ Trịnh Công Sơn với các tuyệt phẩm bất hủ tại Nhà hát Lớn",
         city: "Hà Nội",
         category: "CONCERT",
         bannerUrl: "https://cdn.tickethub.vn/banner1.webp",
@@ -117,7 +124,8 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
         organizerId,
         title: "Hội Thảo Công Nghệ Trí Tuệ Nhân Tạo AI",
         slug: `hoi-thao-ai-${stamp}`,
-        description: "Diễn đàn kết nối doanh nghiệp và chuyên gia công nghệ tại Đà Nẵng",
+        description:
+          "Diễn đàn kết nối doanh nghiệp và chuyên gia công nghệ tại Đà Nẵng",
         city: "Đà Nẵng",
         category: "CONFERENCE",
         bannerUrl: "https://cdn.tickethub.vn/banner2.webp",
@@ -207,7 +215,9 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
 
   after(async () => {
     if (createdEventIds.length > 0) {
-      await db.delete(ticketTypes).where(inArray(ticketTypes.eventId, createdEventIds));
+      await db
+        .delete(ticketTypes)
+        .where(inArray(ticketTypes.eventId, createdEventIds));
       await db.delete(events).where(inArray(events.id, createdEventIds));
     }
   });
@@ -348,7 +358,10 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
       // Cac item trang 2 khong duoc trung voi trang 1
       const page1Ids = new Set(page1.items.map((i) => i.id));
       for (const item of page2.items) {
-        assert.ok(!page1Ids.has(item.id), "Bản ghi trang 2 không được trùng lặp với trang 1");
+        assert.ok(
+          !page1Ids.has(item.id),
+          "Bản ghi trang 2 không được trùng lặp với trang 1",
+        );
       }
     });
 
@@ -370,7 +383,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
           minPrice: "500000",
           maxPrice: "200000",
         }),
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.status, 400);
           assert.equal(err.response.error.code, "VALIDATION_ERROR");
           return true;
@@ -384,7 +397,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
           fromDate: "2026-11-20T00:00:00.000Z",
           toDate: "2026-11-10T00:00:00.000Z",
         }),
-        (err: any) => {
+        (err: HttpErrorLike) => {
           assert.equal(err.status, 400);
           assert.equal(err.response.error.code, "VALIDATION_ERROR");
           return true;
@@ -420,7 +433,9 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
       }
 
       const avgDuration = totalDuration / iterations;
-      console.log(`[Benchmark] Thoi gian tim kiem trung binh: ${avgDuration.toFixed(2)}ms`);
+      console.log(
+        `[Benchmark] Thoi gian tim kiem trung binh: ${avgDuration.toFixed(2)}ms`,
+      );
       assert.ok(
         avgDuration < 200,
         `Thời gian tìm kiếm trung bình (${avgDuration.toFixed(2)}ms) phải nhỏ hơn 200ms theo Duty Roster`,

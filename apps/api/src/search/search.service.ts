@@ -13,10 +13,7 @@ import {
   type SQL,
 } from "drizzle-orm";
 
-import {
-  EventStatus,
-  type SearchQuery,
-} from "@tickethub/shared";
+import { EventStatus, type SearchQuery } from "@tickethub/shared";
 
 import { db } from "../database/db";
 import { events } from "../database/schema";

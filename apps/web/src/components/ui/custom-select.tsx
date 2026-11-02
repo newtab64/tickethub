@@ -59,7 +59,12 @@ export function CustomSelect({
     if (disabled) return;
 
     if (!isOpen) {
-      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (
+        e.key === "Enter" ||
+        e.key === " " ||
+        e.key === "ArrowDown" ||
+        e.key === "ArrowUp"
+      ) {
         e.preventDefault();
         setIsOpen(true);
         const idx = options.findIndex((opt) => opt.value === value);

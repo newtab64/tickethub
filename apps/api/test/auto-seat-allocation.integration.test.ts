@@ -1,3 +1,4 @@
+import type { HttpErrorLike } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import Redis from "ioredis";
@@ -230,7 +231,7 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
         ticketTypeId: concurrencyTicketTypeId,
         zoneName: "Khu Concurrency",
         rowLabel: "D",
-        seatNumber: (idx + 1 < 10 ? `0${idx + 1}` : `${idx + 1}`),
+        seatNumber: idx + 1 < 10 ? `0${idx + 1}` : `${idx + 1}`,
         status: SeatStatus.AVAILABLE,
       })),
     );
@@ -253,7 +254,9 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
 
       if (orderRows.length > 0) {
         const orderIds = orderRows.map((o) => o.id);
-        await db.delete(orderItems).where(inArray(orderItems.orderId, orderIds));
+        await db
+          .delete(orderItems)
+          .where(inArray(orderItems.orderId, orderIds));
         await db.delete(orders).where(inArray(orders.id, orderIds));
       }
 
@@ -283,7 +286,11 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
 
     assert.ok(res.orderId, "Phai tao orderId");
     assert.equal(res.heldSeats.length, 2, "Phai giu dung 2 ghe");
-    assert.equal(res.allocatedSeats.length, 2, "Phai tra ve thong tin 2 ghe da phan bo");
+    assert.equal(
+      res.allocatedSeats.length,
+      2,
+      "Phai tra ve thong tin 2 ghe da phan bo",
+    );
 
     // Kiem tra 2 ghe phan bo la cung hang va lien tiep
     const [s1, s2] = res.allocatedSeats;
@@ -349,7 +356,7 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
           ],
         });
       },
-      (err: any) => {
+      (err: HttpErrorLike) => {
         assert.equal(err.response?.error?.code, "INSUFFICIENT_TICKET_CAPACITY");
         return true;
       },
@@ -388,7 +395,11 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
     assert.equal(allAssignedSeatIds.length, 10);
     // Tat ca 10 ghe phai hoan toan duy nhat (khong trung lap)
     const uniqueIds = new Set(allAssignedSeatIds);
-    assert.equal(uniqueIds.size, 10, "Tat ca 10 ghe duoc phan bo phai khong trung lap");
+    assert.equal(
+      uniqueIds.size,
+      10,
+      "Tat ca 10 ghe duoc phan bo phai khong trung lap",
+    );
 
     // Kiem tra trong DB: tat ca 10 ghe deu o trang thai HELD
     const dbSeats = await db.query.seats.findMany({

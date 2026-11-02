@@ -118,7 +118,7 @@ export class WaitingRoomMaintenanceTask
     }
 
     // Don nguoi xep hang da ngat ket noi
-    const queuedUsers = await this.redis.zrange(queueKey, 0, -1);
+    const queuedUsers = await this.redis.zrange(queueKey, 0, "-1");
 
     for (const userId of queuedUsers) {
       const alive = await this.redis.exists(hbPrefix + userId);

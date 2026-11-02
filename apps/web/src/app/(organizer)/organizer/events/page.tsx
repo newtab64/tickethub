@@ -1,6 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef, Suspense, useCallback } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useRef,
+  Suspense,
+  useCallback,
+} from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
@@ -125,9 +132,11 @@ function OrganizerEventsContent() {
   // Dev preview switcher for state verification
   const queryPreview = searchParams.get("preview");
   const [previewState, setPreviewState] = useState<PreviewState>(
-    queryPreview === "LOADING" || queryPreview === "EMPTY" || queryPreview === "ERROR"
+    queryPreview === "LOADING" ||
+      queryPreview === "EMPTY" ||
+      queryPreview === "ERROR"
       ? queryPreview
-      : "NORMAL"
+      : "NORMAL",
   );
   const isDev = process.env.NODE_ENV === "development" || Boolean(queryPreview);
 
@@ -148,7 +157,7 @@ function OrganizerEventsContent() {
       });
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    [searchParams, router, pathname]
+    [searchParams, router, pathname],
   );
 
   // Sync external search input after typing debounce
@@ -188,13 +197,13 @@ function OrganizerEventsContent() {
     const upcomingCount = all.filter(
       (e) =>
         e.status === EventStatus.PUBLISHED &&
-        new Date(e.startTime).getTime() >= nowMs
+        new Date(e.startTime).getTime() >= nowMs,
     ).length;
     const actionRequiredCount = all.filter(
       (e) =>
         e.status === EventStatus.DRAFT ||
         e.status === EventStatus.PENDING_APPROVAL ||
-        e.status === EventStatus.SUSPENDED
+        e.status === EventStatus.SUSPENDED,
     ).length;
 
     return {
@@ -219,7 +228,7 @@ function OrganizerEventsContent() {
         (e) =>
           e.title.toLowerCase().includes(q) ||
           e.venueName.toLowerCase().includes(q) ||
-          e.city.toLowerCase().includes(q)
+          e.city.toLowerCase().includes(q),
       );
     }
 
@@ -229,7 +238,7 @@ function OrganizerEventsContent() {
         (e) =>
           e.status === EventStatus.DRAFT ||
           e.status === EventStatus.PENDING_APPROVAL ||
-          e.status === EventStatus.SUSPENDED
+          e.status === EventStatus.SUSPENDED,
       );
     } else if (selectedStatus !== "ALL") {
       list = list.filter((e) => e.status === selectedStatus);
@@ -266,10 +275,14 @@ function OrganizerEventsContent() {
           if (aIsEndedOrPast !== bIsEndedOrPast) {
             return aIsEndedOrPast ? 1 : -1;
           }
-          return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+          return (
+            new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
+          );
         }
         case "date_desc":
-          return new Date(b.startTime).getTime() - new Date(a.startTime).getTime();
+          return (
+            new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+          );
         case "title_asc":
           return a.title.localeCompare(b.title, "vi");
         case "revenue_desc":
@@ -303,7 +316,9 @@ function OrganizerEventsContent() {
   }, [filteredEvents, currentPage]);
 
   // Handle Summary Strip Filter Click
-  const handleSummaryStripClick = (type: "SOLD" | "REVENUE" | "UPCOMING" | "ACTION") => {
+  const handleSummaryStripClick = (
+    type: "SOLD" | "REVENUE" | "UPCOMING" | "ACTION",
+  ) => {
     setCurrentPage(1);
     switch (type) {
       case "SOLD":
@@ -568,8 +583,9 @@ function OrganizerEventsContent() {
                 Trạng thái:{" "}
                 {selectedStatus === "ACTION_REQUIRED"
                   ? "Cần xử lý"
-                  : STATUS_SELECT_OPTIONS.find((s) => s.value === selectedStatus)?.label ||
-                    selectedStatus}
+                  : STATUS_SELECT_OPTIONS.find(
+                      (s) => s.value === selectedStatus,
+                    )?.label || selectedStatus}
                 <button
                   type="button"
                   onClick={() => {
@@ -635,7 +651,11 @@ function OrganizerEventsContent() {
       <div className="bg-background rounded-lg border border-border overflow-hidden">
         {/* Loading Skeleton State */}
         {previewState === "LOADING" && (
-          <div className="p-6 space-y-4" role="status" aria-label="Đang tải dữ liệu sự kiện">
+          <div
+            className="p-6 space-y-4"
+            role="status"
+            aria-label="Đang tải dữ liệu sự kiện"
+          >
             <div className="h-4 bg-secondary rounded w-48 animate-pulse" />
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -693,51 +713,57 @@ function OrganizerEventsContent() {
         )}
 
         {/* Empty List State (Zero events in account) */}
-        {previewState === "NORMAL" && filteredEvents.length === 0 && !hasActiveFilters && (
-          <div className="p-12 text-center space-y-3">
-            <div className="size-12 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
-              <Calendar className="size-6" />
+        {previewState === "NORMAL" &&
+          filteredEvents.length === 0 &&
+          !hasActiveFilters && (
+            <div className="p-12 text-center space-y-3">
+              <div className="size-12 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
+                <Calendar className="size-6" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-base font-bold text-foreground">
+                  Chưa có sự kiện nào
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Bạn chưa khởi tạo sự kiện nào trên TicketHub. Hãy bắt đầu bằng
+                  cách tạo sự kiện đầu tiên.
+                </p>
+              </div>
+              <Link
+                href="/organizer/events/new"
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
+              >
+                Tạo sự kiện ngay
+              </Link>
             </div>
-            <div className="space-y-1 max-w-sm mx-auto">
-              <h3 className="text-base font-bold text-foreground">
-                Chưa có sự kiện nào
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Bạn chưa khởi tạo sự kiện nào trên TicketHub. Hãy bắt đầu bằng cách tạo sự kiện đầu tiên.
-              </p>
-            </div>
-            <Link
-              href="/organizer/events/new"
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors"
-            >
-              Tạo sự kiện ngay
-            </Link>
-          </div>
-        )}
+          )}
 
         {/* No Results State (Filters produced empty result) */}
-        {previewState === "NORMAL" && filteredEvents.length === 0 && hasActiveFilters && (
-          <div className="p-12 text-center space-y-3">
-            <div className="size-12 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
-              <Search className="size-6" />
+        {previewState === "NORMAL" &&
+          filteredEvents.length === 0 &&
+          hasActiveFilters && (
+            <div className="p-12 text-center space-y-3">
+              <div className="size-12 rounded-full bg-secondary flex items-center justify-center mx-auto text-muted-foreground">
+                <Search className="size-6" />
+              </div>
+              <div className="space-y-1 max-w-sm mx-auto">
+                <h3 className="text-base font-bold text-foreground">
+                  Không tìm thấy sự kiện phù hợp
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Không có sự kiện nào khớp với các bộ lọc bạn đã chọn. Vui lòng
+                  thử từ khóa khác hoặc xóa bộ lọc.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md border border-border bg-background text-xs font-semibold text-foreground hover:bg-secondary transition-colors cursor-pointer"
+              >
+                Xóa tất cả bộ lọc
+              </button>
             </div>
-            <div className="space-y-1 max-w-sm mx-auto">
-              <h3 className="text-base font-bold text-foreground">
-                Không tìm thấy sự kiện phù hợp
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Không có sự kiện nào khớp với các bộ lọc bạn đã chọn. Vui lòng thử từ khóa khác hoặc xóa bộ lọc.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleClearFilters}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-md border border-border bg-background text-xs font-semibold text-foreground hover:bg-secondary transition-colors cursor-pointer"
-            >
-              Xóa tất cả bộ lọc
-            </button>
-          </div>
-        )}
+          )}
 
         {/* Normal Data Table (P0: fits container at 1280px & 1440px; sticky columns below 1024px) */}
         {previewState === "NORMAL" && paginatedEvents.length > 0 && (
@@ -793,7 +819,9 @@ function OrganizerEventsContent() {
                     event.ticketsTotal > 0
                       ? Math.min(
                           100,
-                          Math.round((event.ticketsSold / event.ticketsTotal) * 100)
+                          Math.round(
+                            (event.ticketsSold / event.ticketsTotal) * 100,
+                          ),
                         )
                       : 0;
 
@@ -855,7 +883,8 @@ function OrganizerEventsContent() {
                       <td className="py-3.5 px-4">
                         <div className="space-y-1">
                           <div className="text-xs font-medium text-foreground tabular-nums whitespace-nowrap">
-                            {formatNumberVi(event.ticketsSold)} / {formatNumberVi(event.ticketsTotal)}
+                            {formatNumberVi(event.ticketsSold)} /{" "}
+                            {formatNumberVi(event.ticketsTotal)}
                           </div>
                           <div className="flex items-center gap-2">
                             <div
@@ -908,7 +937,7 @@ function OrganizerEventsContent() {
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveMenuId((curr) =>
-                                curr === event.id ? null : event.id
+                                curr === event.id ? null : event.id,
                               );
                             }}
                             className="size-8 rounded-md border border-border bg-background hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -977,7 +1006,9 @@ function OrganizerEventsContent() {
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setActiveMenuId(null);
-                                    router.push(`/organizer/events/new?edit=${event.id}`);
+                                    router.push(
+                                      `/organizer/events/new?edit=${event.id}`,
+                                    );
                                   }}
                                   className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-secondary text-foreground transition-colors cursor-pointer"
                                 >
@@ -1021,7 +1052,8 @@ function OrganizerEventsContent() {
                               )}
 
                               {(event.status === EventStatus.PUBLISHED ||
-                                event.status === EventStatus.PENDING_APPROVAL) && (
+                                event.status ===
+                                  EventStatus.PENDING_APPROVAL) && (
                                 <div className="border-t border-border mt-1 pt-1">
                                   <button
                                     type="button"

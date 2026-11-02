@@ -15,8 +15,8 @@ test("Reject invalid or negative amount", () => {
   assert.equal(toVnpayAmount("abc"), null);
   assert.equal(parseVndAmount(null), null);
   assert.equal(parseVndAmount(undefined), null);
-  assert.equal(parseVndAmount(150000 as any), null);
-  assert.equal(parseVndAmount({} as any), null);
+  assert.equal(parseVndAmount(150000), null);
+  assert.equal(parseVndAmount({}), null);
 });
 
 test("Reject zero payment amount", () => {
