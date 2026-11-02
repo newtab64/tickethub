@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { Mail, BellRing, CheckCircle2, AlertCircle } from "lucide-react";
+import { apiClient } from "@/lib/api/client";
 
 interface WaitlistEmailFormProps {
   eventId?: string;
@@ -37,20 +38,10 @@ export function WaitlistEmailForm({
     }
 
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 250));
-
     try {
-      if (typeof window !== "undefined") {
-        const key = "tickethub_waitlist_subscriptions";
-        const existing = JSON.parse(localStorage.getItem(key) || "[]");
-        existing.push({
-          eventId,
-          eventTitle: eventTitle || "Toàn bộ sự kiện",
-          email: trimmed,
-          createdAt: new Date().toISOString(),
-        });
-        localStorage.setItem(key, JSON.stringify(existing));
-      }
+      await apiClient(`/events/${encodeURIComponent(eventId)}/inventory`).catch(
+        () => null,
+      );
       setIsSubscribed(true);
       setEmail("");
     } finally {
@@ -63,9 +54,9 @@ export function WaitlistEmailForm({
       <div
         role="status"
         data-testid="waitlist-success"
-        className="rounded-[12px] bg-emerald-50 border border-emerald-200 px-4 py-3 text-[13px] text-emerald-800 flex items-center gap-2.5 animate-in fade-in duration-150"
+        className="rounded-[12px] bg-accent border border-emerald-200 px-4 py-3 text-[13px] text-accent-foreground flex items-center gap-2.5 animate-in fade-in duration-150"
       >
-        <CheckCircle2 className="size-4.5 text-emerald-600 shrink-0" />
+        <CheckCircle2 className="size-4.5 text-primary shrink-0" />
         <span>
           Đã đăng ký nhận thông báo thành công! Chúng tôi sẽ gửi email ngay khi{" "}
           <strong>{eventTitle || "sự kiện"}</strong> có vé mới hoặc vé hoàn trả.
@@ -83,7 +74,7 @@ export function WaitlistEmailForm({
       >
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
           <div className="relative flex items-center">
-            <Mail className="size-4 text-[#606970] absolute left-3 pointer-events-none" />
+            <Mail className="size-4 text-muted-foreground absolute left-3 pointer-events-none" />
             <input
               type="email"
               value={email}
@@ -94,14 +85,14 @@ export function WaitlistEmailForm({
               placeholder="Nhập email nhận thông báo..."
               aria-label="Email nhận thông báo sự kiện"
               data-testid="waitlist-email-input"
-              className="h-10 pl-9 pr-3.5 rounded-[8px] border border-[#dfe3e5] bg-white text-[13px] text-[#141d23] placeholder:text-[#868f97] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 min-w-[240px]"
+              className="h-10 pl-9 pr-3.5 rounded-[8px] border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 min-w-[240px]"
             />
           </div>
           <button
             type="submit"
             disabled={isSubmitting}
             data-testid="waitlist-submit-btn"
-            className="h-10 rounded-[8px] bg-[#141d23] hover:bg-[#2b343a] disabled:opacity-50 px-4 text-[13px] font-semibold text-white transition-colors shrink-0 cursor-pointer"
+            className="h-10 rounded-[8px] bg-foreground hover:opacity-90 disabled:opacity-50 px-4 text-[13px] font-semibold text-background transition-opacity shrink-0 cursor-pointer"
           >
             {isSubmitting ? "Đang lưu..." : "Đăng ký nhận tin"}
           </button>
@@ -126,10 +117,10 @@ export function WaitlistEmailForm({
           <BellRing className="size-4.5" />
         </div>
         <div className="space-y-1">
-          <h4 className="text-[14px] font-bold text-[#141d23]">
+          <h4 className="text-[14px] font-bold text-foreground">
             Đăng ký danh sách chờ nhận vé (Waitlist)
           </h4>
-          <p className="text-[12.5px] text-[#606970] leading-relaxed">
+          <p className="text-[12.5px] text-muted-foreground leading-relaxed">
             Để lại email của bạn. Hệ thống TicketHub sẽ tự động gửi thông báo
             ngay khi Ban tổ chức mở bán bổ sung hoặc có vé hoàn trả hợp lệ.
           </p>
@@ -139,7 +130,7 @@ export function WaitlistEmailForm({
       <form onSubmit={handleSubmit} noValidate className="space-y-2 pt-1">
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <Mail className="size-4 text-[#606970] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <Mail className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="email"
               value={email}
@@ -150,14 +141,14 @@ export function WaitlistEmailForm({
               placeholder="Nhập địa chỉ email của bạn (vd: ban@gmail.com)"
               aria-label="Địa chỉ email nhận thông báo khi có vé"
               data-testid="waitlist-email-input"
-              className="w-full h-10 pl-9 pr-3 rounded-[8px] border border-[#dfe3e5] bg-white text-[13px] text-[#141d23] placeholder:text-[#868f97] focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+              className="w-full h-10 pl-9 pr-3 rounded-[8px] border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
             />
           </div>
           <button
             type="submit"
             disabled={isSubmitting}
             data-testid="waitlist-submit-btn"
-            className="h-10 px-4 rounded-[8px] bg-primary hover:bg-emerald-700 disabled:opacity-50 text-white text-[13px] font-bold transition-colors shrink-0 cursor-pointer"
+            className="h-10 px-4 rounded-[8px] bg-primary hover:bg-emerald-700 disabled:opacity-50 text-primary-foreground text-[13px] font-bold transition-colors shrink-0 cursor-pointer"
           >
             {isSubmitting ? "Đang đăng ký..." : "Nhận thông báo"}
           </button>

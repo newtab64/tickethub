@@ -29,7 +29,6 @@ export function SearchAutocompleteBar({
     setQuery(defaultValue);
   }, [defaultValue]);
 
-  // Đóng dropdown gợi ý khi click ra ngoài
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -43,7 +42,6 @@ export function SearchAutocompleteBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Lọc tối đa 5 gợi ý nhỏ khớp từ khóa (hỗ trợ cả có dấu và không dấu)
   const suggestions: EventItem[] = useMemo(() => {
     const trimmed = query.trim();
     if (!trimmed) return [];
@@ -93,14 +91,10 @@ export function SearchAutocompleteBar({
 
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActiveIndex((prev) =>
-        prev < suggestions.length - 1 ? prev + 1 : -1,
-      );
+      setActiveIndex((prev) => (prev < suggestions.length - 1 ? prev + 1 : -1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setActiveIndex((prev) =>
-        prev > -1 ? prev - 1 : suggestions.length - 1,
-      );
+      setActiveIndex((prev) => (prev > -1 ? prev - 1 : suggestions.length - 1));
     }
   };
 
@@ -109,7 +103,7 @@ export function SearchAutocompleteBar({
       <form
         onSubmit={handleFormSubmit}
         role="search"
-        className="relative flex items-center bg-white rounded-full h-[50px] px-5 border border-[#e2e6e8] shadow-[0_4px_16px_rgba(0,0,0,0.08)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all"
+        className="relative flex items-center bg-background rounded-full h-[50px] px-5 border border-border shadow-[0_4px_16px_rgba(0,0,0,0.08)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all"
       >
         <Search className="size-4.5 text-primary shrink-0 mr-3" />
         <input
@@ -130,7 +124,7 @@ export function SearchAutocompleteBar({
           aria-expanded={isOpen}
           aria-controls="search-suggestions-listbox"
           data-testid="search-keyword-input"
-          className="w-full bg-transparent text-[14px] text-[#141d23] placeholder:text-[#606970] focus:outline-none"
+          className="w-full bg-transparent text-[14px] text-foreground placeholder:text-muted-foreground focus:outline-none"
         />
         {query && (
           <button
@@ -141,36 +135,35 @@ export function SearchAutocompleteBar({
               if (onSubmitSearch) onSubmitSearch("");
             }}
             aria-label="Xóa tìm kiếm"
-            className="p-1 text-[#606970] hover:text-[#141d23] cursor-pointer"
+            className="p-1 text-muted-foreground hover:text-foreground cursor-pointer"
           >
             <X className="size-4" />
           </button>
         )}
       </form>
 
-      {/* Dropdown gợi ý nhỏ gọn khi người dùng đang gõ */}
       {isOpen && query.trim().length > 0 && (
         <div
           id="search-suggestions-listbox"
           role="listbox"
           data-testid="search-suggestions-dropdown"
-          className="absolute left-0 right-0 mt-2 rounded-[16px] border border-[#dfe3e5] bg-white shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+          className="absolute left-0 right-0 mt-2 rounded-[16px] border border-border bg-background shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         >
-          <div className="px-4 py-2 bg-[#f8fafc] border-b border-[#eff1f2] flex items-center justify-between text-[11.5px] font-semibold text-[#606970]">
+          <div className="px-4 py-2 bg-muted border-b border-secondary flex items-center justify-between text-[11.5px] font-semibold text-muted-foreground">
             <span>Gợi ý nhanh cho &ldquo;{query.trim()}&rdquo;</span>
             <span>Nhấn Enter để tìm tất cả</span>
           </div>
 
           {suggestions.length === 0 ? (
-            <div className="p-4 text-center text-[13px] text-[#606970]">
+            <div className="p-4 text-center text-[13px] text-muted-foreground">
               Không có gợi ý nhanh trùng khớp. Nhấn{" "}
-              <kbd className="px-1.5 py-0.5 rounded bg-[#eff1f2] text-[#141d23] font-mono text-[11px]">
+              <kbd className="px-1.5 py-0.5 rounded bg-secondary text-foreground font-mono text-[11px]">
                 Enter
               </kbd>{" "}
               để tìm kiếm nâng cao trên toàn hệ thống.
             </div>
           ) : (
-            <ul className="divide-y divide-[#f0f2f3]">
+            <ul className="divide-y divide-secondary">
               {suggestions.map((ev, idx) => {
                 const isHighlighted = idx === activeIndex;
                 return (
@@ -180,20 +173,20 @@ export function SearchAutocompleteBar({
                       onClick={() => setIsOpen(false)}
                       data-testid="search-suggestion-item"
                       className={`flex items-center justify-between gap-3 px-4 py-2.5 transition-colors ${
-                        isHighlighted ? "bg-emerald-50/70" : "hover:bg-[#f8fafc]"
+                        isHighlighted ? "bg-emerald-50/70" : "hover:bg-muted"
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
                         <img
                           src={ev.image}
                           alt={ev.title}
-                          className="size-10 rounded-[8px] object-cover shrink-0 border border-[#dfe3e5]"
+                          className="size-10 rounded-[8px] object-cover shrink-0 border border-border"
                         />
                         <div className="min-w-0">
-                          <p className="text-[13.5px] font-bold text-[#141d23] truncate">
+                          <p className="text-[13.5px] font-bold text-foreground truncate">
                             {ev.title}
                           </p>
-                          <div className="flex items-center gap-2 text-[11.5px] text-[#606970] truncate">
+                          <div className="flex items-center gap-2 text-[11.5px] text-muted-foreground truncate">
                             <span className="inline-flex items-center gap-1">
                               <Calendar className="size-3" />
                               {ev.dateRange}
@@ -219,12 +212,11 @@ export function SearchAutocompleteBar({
             </ul>
           )}
 
-          {/* Footer chuyển tới trang /search */}
           <button
             type="button"
             onClick={() => triggerNavigateToSearch(query)}
             data-testid="search-view-all-results-btn"
-            className="w-full px-4 py-2.5 bg-[#f8fafc] hover:bg-emerald-50/60 border-t border-[#dfe3e5] text-[13px] font-bold text-primary flex items-center justify-between transition-colors cursor-pointer"
+            className="w-full px-4 py-2.5 bg-muted hover:bg-emerald-50/60 border-t border-border text-[13px] font-bold text-primary flex items-center justify-between transition-colors cursor-pointer"
           >
             <span>
               Xem tất cả kết quả tìm kiếm cho &ldquo;{query.trim()}&rdquo;

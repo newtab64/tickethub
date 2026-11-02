@@ -61,7 +61,9 @@ export const waitingRoomApi = {
   /**
    * POST /api/v1/waiting-room/:eventId/heartbeat (Chu kỳ 15s theo đặc tả BE2)
    */
-  sendHeartbeat: async (eventId: string): Promise<WaitingRoomStatusResponse> => {
+  sendHeartbeat: async (
+    eventId: string,
+  ): Promise<WaitingRoomStatusResponse> => {
     const result = await apiClient<WaitingRoomStatusResponse>(
       `/waiting-room/${encodeURIComponent(eventId)}/heartbeat`,
       { method: "POST" },

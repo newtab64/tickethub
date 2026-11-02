@@ -48,7 +48,7 @@ const PRICE_RANGES = [
   { id: "UNDER_500K", label: "Dưới 500.000 ₫", minPrice: 0, maxPrice: 500000 },
   {
     id: "500K_TO_800K",
-    label: "500.000 ₫ – 800.000 ₫",
+    label: "500.000 ₫ - 800.000 ₫",
     minPrice: 500000,
     maxPrice: 800000,
   },
@@ -75,14 +75,13 @@ function FavoriteHeartIcon({ isSaved }: { isSaved: boolean }) {
         fillRule="evenodd"
         clipRule="evenodd"
         d="m8.869 4.893.754.867a.5.5 0 0 0 .754 0l.754-.867c.46-.528 1.944-1.932 3.992-1.16A3.616 3.616 0 0 1 17.1 8.789c-.948 1.874-2.965 4.466-7.101 7.39-4.136-2.924-6.154-5.517-7.101-7.39a3.617 3.617 0 0 1 1.979-5.055c2.047-.772 3.53.632 3.99 1.16"
-        fill={isSaved ? "#059669" : "#000"}
-        fillOpacity={isSaved ? 1 : 0.38}
+        className={isSaved ? "fill-primary" : "fill-black/40"}
       />
       <path
         fillRule="evenodd"
         clipRule="evenodd"
         d="M4.348 2.33C1.383 3.447.202 6.778 1.56 9.465 2.714 11.745 5.14 14.737 10 18c4.86-3.264 7.286-6.255 8.44-8.535 1.358-2.687.177-6.018-2.788-7.135-1.947-.735-3.52-.11-4.53.584A6 6 0 0 0 10 3.908a6 6 0 0 0-1.123-.994c-1.01-.694-2.582-1.319-4.529-.584m4.52 2.563.755.867a.5.5 0 0 0 .754 0l.754-.867c.46-.528 1.944-1.932 3.992-1.16A3.616 3.616 0 0 1 17.1 8.789c-.948 1.874-2.965 4.466-7.101 7.39-4.136-2.924-6.154-5.517-7.101-7.39a3.617 3.617 0 0 1 1.979-5.055c2.048-.772 3.53.632 3.99 1.16"
-        fill="#fff"
+        className="fill-white"
       />
     </svg>
   );
@@ -99,7 +98,7 @@ function EventGridCard({
 }) {
   return (
     <div className="group relative flex flex-col" data-testid="event-card">
-      <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-[#eff1f2]">
+      <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-secondary">
         <Link href={`/events/${event.id}`} className="block h-full w-full">
           <img
             src={event.image}
@@ -120,13 +119,13 @@ function EventGridCard({
       </div>
 
       <Link href={`/events/${event.id}`} className="pt-2 flex flex-col">
-        <h3 className="text-[14px] font-bold leading-[1.35] text-[#141d23] truncate group-hover:text-primary transition-colors">
+        <h3 className="text-[14px] font-bold leading-[1.35] text-foreground truncate group-hover:text-primary transition-colors">
           {event.title}
         </h3>
-        <p className="text-[12px] leading-[1.4] text-[#606970] truncate">
+        <p className="text-[12px] leading-[1.4] text-muted-foreground truncate">
           {event.dateRange}
         </p>
-        <p className="text-[14px] font-bold leading-[1.4] text-[#141d23] pt-0.5">
+        <p className="text-[14px] font-bold leading-[1.4] text-foreground pt-0.5">
           {event.fromPrice}
         </p>
       </Link>
@@ -221,14 +220,12 @@ export function HomeDiscoveryClient({
           ? "Tháng 11"
           : "Tháng 12";
 
-  // 4 Sự kiện nổi bật cố định
   const popularMarqueeEvents = useMemo(() => {
     return EVENTS.filter((e) => e.featuredOrder).sort(
       (a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99),
     );
   }, []);
 
-  // Pool lọc theo các nút pill bên dưới (không bị ảnh hưởng khi đang gõ ô tìm kiếm)
   const filteredPool = useMemo(() => {
     return EVENTS.filter((ev) => {
       if (selectedCategory !== "ALL" && ev.category !== selectedCategory) {
@@ -287,18 +284,16 @@ export function HomeDiscoveryClient({
   }, [filteredPool]);
 
   return (
-    <div className="bg-white">
+    <div className="bg-background">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-        {/* 1. Thanh Tìm kiếm kèm Gợi ý Nhỏ (Nhấn Enter sẽ sang trang /search) */}
         <div className="pt-2 pb-8">
           <SearchAutocompleteBar />
         </div>
 
-        {/* 2. Sự kiện nổi bật (Portrait Row) */}
         <section aria-labelledby="heading-popular" className="pb-6">
           <h2
             id="heading-popular"
-            className="text-[19px] font-bold tracking-[-0.01em] text-[#141d23] mb-4"
+            className="text-[19px] font-bold tracking-[-0.01em] text-foreground mb-4"
           >
             Sự kiện nổi bật
           </h2>
@@ -309,7 +304,7 @@ export function HomeDiscoveryClient({
               return (
                 <div
                   key={ev.id}
-                  className="group relative aspect-[286/352] w-full overflow-hidden rounded-[16px] bg-[#141d23]"
+                  className="group relative aspect-[286/352] w-full overflow-hidden rounded-[16px] bg-foreground"
                 >
                   <Link
                     href={`/events/${ev.id}`}
@@ -349,13 +344,12 @@ export function HomeDiscoveryClient({
           </div>
         </section>
 
-        {/* 3. Thanh Bộ lọc Nhanh tại Trang chủ */}
         <div className="py-3 mb-7 flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={() => setSelectedCity("HCM")}
             aria-label="Vị trí của tôi"
-            className="size-9 rounded-[8px] bg-primary hover:bg-emerald-700 text-white flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+            className="size-9 rounded-[8px] bg-primary hover:bg-emerald-700 text-primary-foreground flex items-center justify-center transition-colors shrink-0 cursor-pointer"
           >
             <Navigation className="size-4 fill-current" />
           </button>
@@ -377,12 +371,12 @@ export function HomeDiscoveryClient({
             className={`h-9 px-3 rounded-[8px] text-[13px] inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
               selectedDate !== "ALL"
                 ? "border-[1.5px] border-primary bg-emerald-50/50 text-primary font-semibold"
-                : "border border-[#dfe3e5] bg-white text-[#141d23] font-medium hover:border-[#868f97]"
+                : "border border-border bg-background text-foreground font-medium hover:border-foreground/40"
             }`}
           >
-            <Calendar className="size-3.5 text-[#606970]" />
+            <Calendar className="size-3.5 text-muted-foreground" />
             <span>{dateButtonLabel}</span>
-            <ChevronDown className="size-3.5 text-[#606970]" />
+            <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
 
           <button
@@ -392,17 +386,17 @@ export function HomeDiscoveryClient({
             className={`h-9 px-3 rounded-[8px] text-[13px] inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
               selectedPriceRange !== "ALL"
                 ? "border-[1.5px] border-primary bg-emerald-50/50 text-primary font-semibold"
-                : "border border-[#dfe3e5] bg-white text-[#141d23] font-medium hover:border-[#868f97]"
+                : "border border-border bg-background text-foreground font-medium hover:border-foreground/40"
             }`}
           >
-            <Banknote className="size-3.5 text-[#606970]" />
+            <Banknote className="size-3.5 text-muted-foreground" />
             <span>{currentPriceObj.label}</span>
-            <ChevronDown className="size-3.5 text-[#606970]" />
+            <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
 
           <span
             aria-hidden="true"
-            className="h-5 w-px bg-[#dfe3e5] mx-1.5 hidden sm:inline-block"
+            className="h-5 w-px bg-border mx-1.5 hidden sm:inline-block"
           />
 
           {(
@@ -423,7 +417,7 @@ export function HomeDiscoveryClient({
                 className={`h-9 px-3.5 rounded-[8px] text-[13px] transition-colors cursor-pointer ${
                   isActive
                     ? "border-[1.5px] border-primary bg-emerald-50/50 text-primary font-semibold"
-                    : "border border-[#dfe3e5] bg-white text-[#141d23] font-medium hover:border-[#868f97]"
+                    : "border border-border bg-background text-foreground font-medium hover:border-foreground/40"
                 }`}
               >
                 {genre.label}
@@ -432,14 +426,13 @@ export function HomeDiscoveryClient({
           })}
         </div>
 
-        {/* 4. Sự kiện thịnh hành tại địa điểm */}
         <div className="space-y-12">
           {trendingEvents.length > 0 && (
             <section aria-labelledby="heading-trending">
               <div className="flex items-center justify-between mb-4">
                 <h2
                   id="heading-trending"
-                  className="text-[19px] font-bold tracking-[-0.01em] text-[#141d23]"
+                  className="text-[19px] font-bold tracking-[-0.01em] text-foreground"
                 >
                   Sự kiện thịnh hành tại {cityButtonLabel}
                 </h2>
@@ -468,7 +461,7 @@ export function HomeDiscoveryClient({
                     type="button"
                     onClick={() => setTrendingLimit((prev) => prev + 4)}
                     data-testid="cursor-load-more-btn"
-                    className="h-10 px-6 rounded-full border border-[#dfe3e5] bg-white hover:border-primary hover:bg-emerald-50/40 text-[13px] font-bold text-[#141d23] inline-flex items-center gap-2 transition-all shadow-2xs cursor-pointer"
+                    className="h-10 px-6 rounded-full border border-border bg-background hover:border-primary hover:bg-emerald-50/40 text-[13px] font-bold text-foreground inline-flex items-center gap-2 transition-all shadow-2xs cursor-pointer"
                   >
                     <Sparkles className="size-4 text-primary" />
                     <span>Xem thêm sự kiện</span>
@@ -478,11 +471,10 @@ export function HomeDiscoveryClient({
             </section>
           )}
 
-          {/* 5. Danh mục phổ biến */}
           <section aria-labelledby="heading-categories">
             <h2
               id="heading-categories"
-              className="text-[19px] font-bold tracking-[-0.01em] text-[#141d23] mb-4"
+              className="text-[19px] font-bold tracking-[-0.01em] text-foreground mb-4"
             >
               Danh mục phổ biến
             </h2>
@@ -495,7 +487,7 @@ export function HomeDiscoveryClient({
                   onClick={() =>
                     router.push(`/search?category=${cat.category}`)
                   }
-                  className="group relative aspect-[16/10] w-full overflow-hidden rounded-[14px] bg-[#141d23] text-left cursor-pointer"
+                  className="group relative aspect-[16/10] w-full overflow-hidden rounded-[14px] bg-foreground text-left cursor-pointer"
                 >
                   <img
                     src={cat.image}
@@ -512,13 +504,12 @@ export function HomeDiscoveryClient({
             </div>
           </section>
 
-          {/* 6. Hòa nhạc */}
           {concertEvents.length > 0 && (
             <section aria-labelledby="heading-concerts">
               <div className="flex items-center justify-between mb-4">
                 <h2
                   id="heading-concerts"
-                  className="text-[19px] font-bold tracking-[-0.01em] text-[#141d23]"
+                  className="text-[19px] font-bold tracking-[-0.01em] text-foreground"
                 >
                   Hòa nhạc
                 </h2>
@@ -543,13 +534,12 @@ export function HomeDiscoveryClient({
             </section>
           )}
 
-          {/* 7. Thể thao */}
           {sportEvents.length > 0 && (
             <section aria-labelledby="heading-sports">
               <div className="flex items-center justify-between mb-4">
                 <h2
                   id="heading-sports"
-                  className="text-[19px] font-bold tracking-[-0.01em] text-[#141d23]"
+                  className="text-[19px] font-bold tracking-[-0.01em] text-foreground"
                 >
                   Thể thao
                 </h2>
@@ -574,13 +564,12 @@ export function HomeDiscoveryClient({
             </section>
           )}
 
-          {/* 8. Sân khấu & Hài kịch */}
           {theaterEvents.length > 0 && (
             <section aria-labelledby="heading-theater">
               <div className="flex items-center justify-between mb-4">
                 <h2
                   id="heading-theater"
-                  className="text-[19px] font-bold tracking-[-0.01em] text-[#141d23]"
+                  className="text-[19px] font-bold tracking-[-0.01em] text-foreground"
                 >
                   Sân khấu &amp; Hài kịch
                 </h2>
@@ -605,31 +594,30 @@ export function HomeDiscoveryClient({
             </section>
           )}
 
-          {/* 9. Form Đăng ký Nhận Thông báo Email */}
-          <div className="rounded-[12px] border border-[#dfe3e5] bg-white px-6 py-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+          <div className="rounded-[12px] border border-border bg-background px-6 py-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center -space-x-3 shrink-0">
                 <img
                   src="/images/events/vn/ha-anh-tuan.jpg"
                   alt=""
-                  className="size-11 rounded-full object-cover border-2 border-white"
+                  className="size-11 rounded-full object-cover border-2 border-background"
                 />
                 <img
                   src="/images/events/vn/my-tam.jpg"
                   alt=""
-                  className="size-11 rounded-full object-cover border-2 border-white"
+                  className="size-11 rounded-full object-cover border-2 border-background"
                 />
                 <img
                   src="/images/events/vn/soobin.jpg"
                   alt=""
-                  className="size-11 rounded-full object-cover border-2 border-white"
+                  className="size-11 rounded-full object-cover border-2 border-background"
                 />
               </div>
               <div>
-                <p className="text-[15px] sm:text-[16px] font-bold text-[#141d23]">
+                <p className="text-[15px] sm:text-[16px] font-bold text-foreground">
                   Nhận thông báo ngay khi nghệ sĩ yêu thích của bạn mở bán vé
                 </p>
-                <p className="text-[12.5px] text-[#606970]">
+                <p className="text-[12.5px] text-muted-foreground">
                   Cập nhật sớm nhất lịch mở bán và vé bổ sung qua email của bạn.
                 </p>
               </div>

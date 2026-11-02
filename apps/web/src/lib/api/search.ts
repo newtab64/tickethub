@@ -42,26 +42,36 @@ export function removeVietnameseTones(str: string): string {
     .trim();
 }
 
-function mapBackendEventToCatalogItem(raw: Record<string, any>): EventItem {
+function mapBackendEventToCatalogItem(raw: Record<string, unknown>): EventItem {
   const ticketTypes = Array.isArray(raw.ticketTypes) ? raw.ticketTypes : [];
   const prices = ticketTypes
-    .map((t: any) => Number(t.price))
+    .map((t: unknown) => {
+      if (t && typeof t === "object" && "price" in t) {
+        return Number((t as { price?: unknown }).price);
+      }
+      return Number.NaN;
+    })
     .filter((p: number) => !Number.isNaN(p) && p >= 0);
   const minPrice = prices.length > 0 ? Math.min(...prices) : 500000;
 
-  const startDate = raw.startTime ? new Date(raw.startTime) : new Date();
+  const startTimeRaw =
+    typeof raw.startTime === "string" || typeof raw.startTime === "number"
+      ? raw.startTime
+      : null;
+  const startDate = startTimeRaw ? new Date(startTimeRaw) : new Date();
   const day = String(startDate.getDate()).padStart(2, "0");
   const month = startDate.getMonth() + 1;
   const hours = String(startDate.getHours()).padStart(2, "0");
   const mins = String(startDate.getMinutes()).padStart(2, "0");
 
   const cityStr = String(raw.city || "TP. Hồ Chí Minh");
-  const cityCode: "HCM" | "HN" | "DN" =
-    removeVietnameseTones(cityStr).includes("ha noi")
-      ? "HN"
-      : removeVietnameseTones(cityStr).includes("da nang")
-        ? "DN"
-        : "HCM";
+  const cityCode: "HCM" | "HN" | "DN" = removeVietnameseTones(cityStr).includes(
+    "ha noi",
+  )
+    ? "HN"
+    : removeVietnameseTones(cityStr).includes("da nang")
+      ? "DN"
+      : "HCM";
 
   const rawCat = String(raw.category || "CONCERT").toUpperCase();
   const category: Exclude<CategoryCode, "ALL"> =
@@ -97,7 +107,6 @@ export function filterCatalogEventsWithCursor(
   const limit = params.limit ?? 6;
   const qNorm = params.keyword ? removeVietnameseTones(params.keyword) : "";
 
-  // Gộp sự kiện từ DB (nếu có) và EVENTS catalog mà không trùng ID
   const seenIds = new Set<string>();
   const combinedPool: EventItem[] = [];
   for (const item of [...extraEvents, ...EVENTS]) {
@@ -132,11 +141,6 @@ export function filterCatalogEventsWithCursor(
       return false;
     }
     if (params.maxPrice !== undefined && ev.minPriceNumber > params.maxPrice) {
-      return false;
-    } else if (
-      params.maxPrice !== undefined &&
-      ev.minPriceNumber > params.maxPrice
-    ) {
       return false;
     }
 
@@ -209,13 +213,12 @@ export const searchApi = {
     let dbItems: EventItem[] = [];
     try {
       const data = await apiClient<{
-        items: Record<string, any>[];
+        items: Record<string, unknown>[];
         nextCursor: string | null;
         hasMore: boolean;
       }>(`/search/events?${query.toString()}`);
 
       if (data && Array.isArray(data.items)) {
-        // Nếu DB trả về nhiều sự kiện và có sẵn hasMore, dùng trực tiếp
         if (data.items.length >= (params.limit ?? 6) || data.hasMore) {
           return {
             items: data.items.map(mapBackendEventToCatalogItem),
@@ -226,10 +229,9 @@ export const searchApi = {
         dbItems = data.items.map(mapBackendEventToCatalogItem);
       }
     } catch {
-      // Bỏ qua lỗi mạng nếu API chưa bật
+      // Bỏ qua nếu API chưa phản hồi
     }
 
-    // Kết hợp DB items + Catalog items để phân trang Cursor luôn hoạt động ổn định
     return filterCatalogEventsWithCursor(params, dbItems);
   },
 };

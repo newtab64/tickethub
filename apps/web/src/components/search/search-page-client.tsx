@@ -28,7 +28,7 @@ const PRICE_RANGES = [
   { id: "UNDER_500K", label: "Dưới 500.000 ₫", minPrice: 0, maxPrice: 500000 },
   {
     id: "500K_TO_800K",
-    label: "500.000 ₫ – 800.000 ₫",
+    label: "500.000 ₫ - 800.000 ₫",
     minPrice: 500000,
     maxPrice: 800000,
   },
@@ -72,7 +72,6 @@ export function SearchPageClient({
   const [fromDate, setFromDate] = useState<string>(initialFromDate);
   const [toDate, setToDate] = useState<string>(initialToDate);
 
-  // Đặt PAGE_LIMIT = 6 để luôn thấy rõ phân trang Cursor (Xem thêm sự kiện)
   const PAGE_LIMIT = 6;
 
   const currentPriceObj = useMemo(
@@ -140,7 +139,6 @@ export function SearchPageClient({
     };
   }, [filterParams, initialPage]);
 
-  // Đồng bộ các bộ lọc lên URL của trang /search
   useEffect(() => {
     const params = new URLSearchParams(urlSearchParams.toString());
     if (keyword.trim()) params.set("q", keyword.trim());
@@ -236,11 +234,10 @@ export function SearchPageClient({
           : "Toàn quốc";
 
   return (
-    <div className="bg-white min-h-[75vh]">
+    <div className="bg-background min-h-[75vh]">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Top Breadcrumb + Search Input */}
         <div className="space-y-4">
-          <div className="flex items-center gap-2 text-[13px] text-[#606970]">
+          <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 hover:text-primary font-medium transition-colors"
@@ -249,7 +246,7 @@ export function SearchPageClient({
               <span>Trang chủ</span>
             </Link>
             <span>/</span>
-            <span className="text-[#141d23] font-semibold">
+            <span className="text-foreground font-semibold">
               Tìm kiếm sự kiện
             </span>
           </div>
@@ -260,9 +257,8 @@ export function SearchPageClient({
           />
         </div>
 
-        {/* Bộ lọc đa tiêu chí: Địa điểm, Khoảng ngày, Khoảng giá, Thể loại */}
-        <div className="py-3 border-y border-[#eff1f2] flex flex-wrap items-center gap-2.5">
-          <div className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-[#141d23] mr-1">
+        <div className="py-3 border-y border-secondary flex flex-wrap items-center gap-2.5">
+          <div className="inline-flex items-center gap-1.5 text-[12.5px] font-bold text-foreground mr-1">
             <SlidersHorizontal className="size-3.5 text-primary" />
             <span>Bộ lọc:</span>
           </div>
@@ -295,17 +291,17 @@ export function SearchPageClient({
             className={`h-9 px-3 rounded-[8px] text-[13px] inline-flex items-center gap-1.5 transition-colors cursor-pointer ${
               selectedPriceRange !== "ALL"
                 ? "border-[1.5px] border-primary bg-emerald-50/50 text-primary font-semibold"
-                : "border border-[#dfe3e5] bg-white text-[#141d23] font-medium hover:border-[#868f97]"
+                : "border border-border bg-background text-foreground font-medium hover:border-foreground/40"
             }`}
           >
-            <Banknote className="size-3.5 text-[#606970]" />
+            <Banknote className="size-3.5 text-muted-foreground" />
             <span>{currentPriceObj.label}</span>
-            <ChevronDown className="size-3.5 text-[#606970]" />
+            <ChevronDown className="size-3.5 text-muted-foreground" />
           </button>
 
           <span
             aria-hidden="true"
-            className="h-5 w-px bg-[#dfe3e5] mx-1 hidden sm:inline-block"
+            className="h-5 w-px bg-border mx-1 hidden sm:inline-block"
           />
 
           {(
@@ -326,7 +322,7 @@ export function SearchPageClient({
                 className={`h-9 px-3.5 rounded-[8px] text-[13px] transition-colors cursor-pointer ${
                   isActive
                     ? "border-[1.5px] border-primary bg-emerald-50/50 text-primary font-semibold"
-                    : "border border-[#dfe3e5] bg-white text-[#141d23] font-medium hover:border-[#868f97]"
+                    : "border border-border bg-background text-foreground font-medium hover:border-foreground/40"
                 }`}
               >
                 {genre.label}
@@ -338,47 +334,45 @@ export function SearchPageClient({
             type="button"
             onClick={handleResetFilters}
             data-testid="reset-filters-btn"
-            className="h-9 px-3 rounded-[8px] text-[12.5px] font-semibold text-[#606970] hover:text-[#141d23] hover:bg-[#f5f7f8] inline-flex items-center gap-1.5 transition-colors cursor-pointer ml-auto"
+            className="h-9 px-3 rounded-[8px] text-[12.5px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center gap-1.5 transition-colors cursor-pointer ml-auto"
           >
             <RotateCcw className="size-3.5" />
             <span>Đặt lại</span>
           </button>
         </div>
 
-        {/* Tiêu đề Kết quả Tìm kiếm */}
         <div className="flex items-center justify-between">
           <div>
             <h1
               data-testid="search-results-heading"
-              className="text-[20px] sm:text-[22px] font-extrabold text-[#141d23]"
+              className="text-[20px] sm:text-[22px] font-extrabold text-foreground"
             >
               {keyword.trim()
                 ? `Kết quả tìm kiếm cho "${keyword.trim()}"`
                 : "Khám phá & Tìm kiếm sự kiện"}
             </h1>
-            <p className="text-[13px] text-[#606970] mt-0.5">
+            <p className="text-[13px] text-muted-foreground mt-0.5">
               Hiển thị {items.length} / {totalFiltered} sự kiện phù hợp
             </p>
           </div>
         </div>
 
-        {/* Lưới sự kiện + Nút Phân trang Cursor */}
         {items.length === 0 ? (
           <div
             data-testid="empty-search-state"
-            className="rounded-[16px] border border-[#dfe3e5] bg-[#f8fafc] p-12 text-center space-y-3"
+            className="rounded-[16px] border border-border bg-muted p-12 text-center space-y-3"
           >
-            <h2 className="text-[16px] font-bold text-[#141d23]">
+            <h2 className="text-[16px] font-bold text-foreground">
               Không tìm thấy sự kiện nào khớp với tiêu chí của bạn
             </h2>
-            <p className="text-[13px] text-[#606970] max-w-md mx-auto">
+            <p className="text-[13px] text-muted-foreground max-w-md mx-auto">
               Hãy thử xóa bộ lọc khoảng giá, chọn &ldquo;Toàn quốc&rdquo; hoặc
               tìm kiếm bằng từ khóa khác.
             </p>
             <button
               type="button"
               onClick={handleResetFilters}
-              className="px-4 py-2 rounded-[8px] bg-primary text-white text-[13px] font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-[8px] bg-primary text-primary-foreground text-[13px] font-bold hover:bg-emerald-700 transition-colors cursor-pointer"
             >
               Đặt lại toàn bộ bộ lọc
             </button>
@@ -392,7 +386,7 @@ export function SearchPageClient({
                   data-testid="search-result-card"
                   className="group relative flex flex-col"
                 >
-                  <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-[#eff1f2]">
+                  <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-secondary">
                     <Link
                       href={`/events/${ev.id}`}
                       className="block h-full w-full"
@@ -410,10 +404,10 @@ export function SearchPageClient({
                     href={`/events/${ev.id}`}
                     className="pt-2.5 flex flex-col"
                   >
-                    <h3 className="text-[14px] font-bold leading-[1.35] text-[#141d23] truncate group-hover:text-primary transition-colors">
+                    <h3 className="text-[14px] font-bold leading-[1.35] text-foreground truncate group-hover:text-primary transition-colors">
                       {ev.title}
                     </h3>
-                    <p className="text-[12px] leading-[1.4] text-[#606970] truncate mt-0.5">
+                    <p className="text-[12px] leading-[1.4] text-muted-foreground truncate mt-0.5">
                       {ev.dateRange} • {ev.venue}, {ev.city}
                     </p>
                     <p className="text-[14px] font-bold leading-[1.4] text-primary pt-1">
@@ -431,7 +425,7 @@ export function SearchPageClient({
                   onClick={handleLoadMoreCursor}
                   disabled={isLoadingMore}
                   data-testid="cursor-load-more-btn"
-                  className="h-10 px-6 rounded-full border border-[#dfe3e5] bg-white hover:border-primary hover:bg-emerald-50/40 text-[13px] font-bold text-[#141d23] inline-flex items-center gap-2 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+                  className="h-10 px-6 rounded-full border border-border bg-background hover:border-primary hover:bg-emerald-50/40 text-[13px] font-bold text-foreground inline-flex items-center gap-2 transition-all shadow-2xs cursor-pointer disabled:opacity-50"
                 >
                   {isLoadingMore ? (
                     <>

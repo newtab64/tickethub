@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   Timer,
   Users,
@@ -15,13 +15,9 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { EVENTS, getEventById } from "@/lib/events-catalog";
-import {
-  waitingRoomApi,
-  saveAdmissionToken,
-} from "@/lib/api/waiting-room";
+import { waitingRoomApi, saveAdmissionToken } from "@/lib/api/waiting-room";
 
 function WaitingRoomWorkspace() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const eventId =
     searchParams.get("eventId") || "evt-anh-trai-vuot-ngan-chong-gai";
@@ -32,7 +28,6 @@ function WaitingRoomWorkspace() {
 
   const event = getEventById(eventId) ?? EVENTS[0]!;
 
-  // Khởi tạo mặc định là QUEUED để hiển thị ngay Số thứ tự & Thời gian chờ
   const [status, setStatus] = useState<"QUEUED" | "ADMITTED">("QUEUED");
   const [queuePosition, setQueuePosition] = useState<number>(startingPos);
   const [initialPosition, setInitialPosition] = useState<number>(startingPos);
@@ -44,7 +39,6 @@ function WaitingRoomWorkspace() {
   const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string>("Vừa xong");
   const isUsingRealApiRef = useRef<boolean>(false);
 
-  // 1. Tham gia hàng chờ (Nếu URL truyền sẵn initialPos để mô phỏng/test hàng chờ thì giữ ở trạng thái QUEUED)
   useEffect(() => {
     if (rawInitialPos !== null) {
       isUsingRealApiRef.current = false;
@@ -82,7 +76,6 @@ function WaitingRoomWorkspace() {
     };
   }, [eventId, rawInitialPos, startingPos]);
 
-  // 2. Kết nối Heartbeat / Polling cập nhật tiến độ
   useEffect(() => {
     if (status !== "QUEUED") return;
 
@@ -158,15 +151,15 @@ function WaitingRoomWorkspace() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] bg-[#f8fafc] py-10 px-4 flex items-center justify-center">
-      <div className="w-full max-w-[540px] bg-white rounded-[20px] border border-[#dfe3e5] shadow-lg overflow-hidden">
-        <div className="relative h-32 bg-[#141d23] overflow-hidden">
+    <div className="min-h-[calc(100vh-120px)] bg-muted py-10 px-4 flex items-center justify-center">
+      <div className="w-full max-w-[540px] bg-background rounded-[20px] border border-border shadow-lg overflow-hidden">
+        <div className="relative h-32 bg-foreground overflow-hidden">
           <img
             src={event.image}
             alt={event.title}
             className="w-full h-full object-cover opacity-45"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#141d23] via-[#141d23]/50 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
           <div className="absolute bottom-3.5 left-5 right-5 text-white">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-bold mb-1">
               <Radio className="size-3 animate-pulse" />
@@ -182,10 +175,10 @@ function WaitingRoomWorkspace() {
           {status !== "ADMITTED" ? (
             <>
               <div className="text-center space-y-1.5">
-                <h2 className="text-[19px] font-extrabold text-[#141d23]">
+                <h2 className="text-[19px] font-extrabold text-foreground">
                   Bạn đang trong hàng chờ mua vé
                 </h2>
-                <p className="text-[13px] text-[#606970] leading-relaxed">
+                <p className="text-[13px] text-muted-foreground leading-relaxed">
                   Lượng khán giả truy cập sự kiện đang rất cao. Hệ thống tự động
                   duy trì kết nối (Heartbeat 15s) và sẽ chuyển bạn vào sơ đồ ghế
                   ngay khi đến lượt.
@@ -193,21 +186,21 @@ function WaitingRoomWorkspace() {
               </div>
 
               <div className="grid grid-cols-2 gap-3.5">
-                <div className="rounded-[14px] bg-[#f8fafc] border border-[#dfe3e5] p-4 text-center space-y-1">
-                  <div className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[#606970]">
+                <div className="rounded-[14px] bg-muted border border-border p-4 text-center space-y-1">
+                  <div className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
                     <Users className="size-4 text-primary" />
                     <span>Số thứ tự của bạn</span>
                   </div>
                   <div
                     data-testid="queue-position-value"
-                    className="text-[28px] font-extrabold text-[#141d23] font-mono tabular-nums"
+                    className="text-[28px] font-extrabold text-foreground font-mono tabular-nums"
                   >
                     #{queuePosition.toLocaleString("vi-VN")}
                   </div>
                 </div>
 
-                <div className="rounded-[14px] bg-[#f8fafc] border border-[#dfe3e5] p-4 text-center space-y-1">
-                  <div className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-[#606970]">
+                <div className="rounded-[14px] bg-muted border border-border p-4 text-center space-y-1">
+                  <div className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
                     <Timer className="size-4 text-primary" />
                     <span>Thời gian ước tính</span>
                   </div>
@@ -222,7 +215,7 @@ function WaitingRoomWorkspace() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[12px] font-semibold">
-                  <span className="text-[#606970] flex items-center gap-1.5">
+                  <span className="text-muted-foreground flex items-center gap-1.5">
                     <RefreshCw className="size-3.5 text-primary animate-spin" />
                     Đang cập nhật tiến độ hàng chờ...
                   </span>
@@ -233,13 +226,13 @@ function WaitingRoomWorkspace() {
                     {progressPercent}%
                   </span>
                 </div>
-                <div className="h-2.5 w-full rounded-full bg-[#eff1f2] overflow-hidden">
+                <div className="h-2.5 w-full rounded-full bg-secondary overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
                     style={{ width: `${progressPercent}%` }}
                   />
                 </div>
-                <div className="flex items-center justify-between text-[11px] text-[#868f97] pt-0.5">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
                   <span>Mã phiên: {queueId}</span>
                   <span>Đồng bộ lúc: {lastHeartbeatAt}</span>
                 </div>
@@ -269,10 +262,10 @@ function WaitingRoomWorkspace() {
                   <Sparkles className="size-3.5" />
                   Đã cấp quyền truy cập (Admission Token)
                 </span>
-                <h2 className="text-[20px] font-extrabold text-[#141d23]">
+                <h2 className="text-[20px] font-extrabold text-foreground">
                   Đã đến lượt của bạn!
                 </h2>
-                <p className="text-[13px] text-[#606970]">
+                <p className="text-[13px] text-muted-foreground">
                   Bạn đã được cấp quyền vào sơ đồ chọn chỗ ngồi của sự kiện.
                 </p>
               </div>
@@ -282,7 +275,7 @@ function WaitingRoomWorkspace() {
                   <Link
                     href={`/events/${eventId}?modal=false`}
                     data-testid="enter-booking-now-btn"
-                    className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-[10px] bg-primary hover:bg-emerald-700 text-white text-[14px] font-bold transition-colors shadow-xs"
+                    className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-[10px] bg-primary hover:bg-emerald-700 text-primary-foreground text-[14px] font-bold transition-colors shadow-xs"
                   >
                     <span>Vào chọn ghế ngay</span>
                     <ArrowRight className="size-4" />
@@ -301,7 +294,7 @@ export default function WaitingRoomPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-[70vh] flex items-center justify-center text-sm text-[#606970]">
+        <div className="min-h-[70vh] flex items-center justify-center text-sm text-muted-foreground">
           Đang kết nối phòng chờ sự kiện...
         </div>
       }

@@ -13,6 +13,14 @@ type SearchParamsPromise = Promise<{
   toDate?: string;
 }>;
 
+type CityCode = "ALL" | "HCM" | "HN" | "DN";
+
+const VALID_CITIES: readonly CityCode[] = ["ALL", "HCM", "HN", "DN"];
+
+function isValidCity(city?: string): city is CityCode {
+  return Boolean(city && VALID_CITIES.includes(city as CityCode));
+}
+
 export async function generateMetadata({
   searchParams,
 }: {
@@ -50,15 +58,14 @@ export default async function SearchPage({
     ? (resolved.category as CategoryCode)
     : "ALL";
 
-  const validCities = ["ALL", "HCM", "HN", "DN"] as const;
-  const initialCity = validCities.includes(resolved.city as any)
-    ? (resolved.city as "ALL" | "HCM" | "HN" | "DN")
+  const initialCity: CityCode = isValidCity(resolved.city)
+    ? resolved.city
     : "ALL";
 
   return (
     <Suspense
       fallback={
-        <div className="max-w-[1200px] mx-auto px-6 py-12 text-sm text-[#606970]">
+        <div className="max-w-[1200px] mx-auto px-6 py-12 text-sm text-muted-foreground">
           Đang tải kết quả tìm kiếm...
         </div>
       }

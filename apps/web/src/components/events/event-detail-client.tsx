@@ -427,7 +427,9 @@ export function EventSplitView({ event }: { event: EventItem }) {
                   </strong>
                 </span>
               ) : (
-                <span>Tất cả các khu vực ({filteredListings.length} hạng vé)</span>
+                <span>
+                  Tất cả các khu vực ({filteredListings.length} hạng vé)
+                </span>
               )}
             </div>
 
