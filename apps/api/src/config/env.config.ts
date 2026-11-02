@@ -30,6 +30,10 @@ export const EnvSchema = z
       .string()
       .url()
       .default("https://sandbox.vnpayment.vn/paymentv2/vpcpay.html"),
+    VNPAY_QUERYDR_URL: z
+      .string()
+      .url()
+      .default("https://sandbox.vnpayment.vn/merchant_webapi/api/transaction"),
     VNPAY_RETURN_URL: z
       .string()
       .url()

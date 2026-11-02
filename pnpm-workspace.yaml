@@ -8,5 +8,3 @@ allowBuilds:
   esbuild: true
   msgpackr-extract: true
   unrs-resolver: false
-overrides:
-  fastify: '>=5.12.7'

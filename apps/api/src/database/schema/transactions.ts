@@ -5,6 +5,7 @@ import {
   numeric,
   timestamp,
   jsonb,
+  text,
 } from "drizzle-orm/pg-core";
 import { TransactionStatus, PaymentProvider } from "@tickethub/shared";
 import { orders } from "./orders";
@@ -20,6 +21,11 @@ export const transactions = pgTable("transactions", {
   transactionRef: varchar("transaction_ref", { length: 100 })
     .notNull()
     .unique(),
+  vnpCreateDate: varchar("vnp_create_date", {
+    length: 14,
+  }),
+
+  paymentUrl: text("payment_url"),
   providerTxNumber: varchar("provider_tx_number", { length: 100 }),
   amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
   responseCode: varchar("response_code", { length: 10 }),

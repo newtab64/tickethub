@@ -1,9 +1,8 @@
-import type { HttpErrorLike } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { inArray, eq } from "drizzle-orm";
 
-import { EventStatus } from "@tickethub/shared";
+import { EventStatus, UserStatus } from "@tickethub/shared";
 import { db } from "../src/database/db";
 import {
   events,
@@ -43,7 +42,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
             fullName: "Ban To Chuc Search Test",
             passwordHash: "test-hash",
             role: "ORGANIZER",
-            status: "VERIFIED",
+            status: UserStatus.ACTIVE,
           })
           .returning();
         user = u;
@@ -54,11 +53,13 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
         .values({
           userId: user!.id,
           organizationName: "Cong ty To Chuc Su Kien Search Test",
-          taxId: "0109999888",
-          businessRegistrationUrl: "https://example.com/license.pdf",
+          taxCode: "0109999888",
+          businessLicenseUrl: "https://example.com/license.pdf",
+          representativeName: "Nguyen Van A",
           status: "VERIFIED",
         })
         .returning();
+
       orgProfile = p;
     }
     organizerId = orgProfile.id;
@@ -383,7 +384,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
           minPrice: "500000",
           maxPrice: "200000",
         }),
-        (err: HttpErrorLike) => {
+        (err: any) => {
           assert.equal(err.status, 400);
           assert.equal(err.response.error.code, "VALIDATION_ERROR");
           return true;
@@ -397,7 +398,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
           fromDate: "2026-11-20T00:00:00.000Z",
           toDate: "2026-11-10T00:00:00.000Z",
         }),
-        (err: HttpErrorLike) => {
+        (err: any) => {
           assert.equal(err.status, 400);
           assert.equal(err.response.error.code, "VALIDATION_ERROR");
           return true;

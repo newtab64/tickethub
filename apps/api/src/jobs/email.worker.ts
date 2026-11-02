@@ -1,19 +1,24 @@
-import { Worker } from "bullmq";
+import { Worker, UnrecoverableError } from "bullmq";
 import IORedis from "ioredis";
 import { isDeepStrictEqual } from "node:util";
 import { and, eq } from "drizzle-orm";
-import { OutboxStatus } from "@tickethub/shared";
+import { OrderStatus, OutboxStatus, TicketStatus } from "@tickethub/shared";
 
 import { env } from "../config/env.config";
 import { db, sqlClient } from "../database/db";
-import { outbox } from "../database/schema";
+import { outbox, orders, users, tickets } from "../database/schema";
 
-import { sendRegistrationEmail, sendReviewEmail } from "./email.sender";
+import {
+  sendRegistrationEmail,
+  sendReviewEmail,
+  sendOrderPaidEmail,
+} from "./email.sender";
 
 import {
   EMAIL_QUEUE_NAME,
   REVIEW_EVENT_TYPES,
   UserRegisteredPayloadSchema,
+  OrderPaidPayloadSchema,
   parseReviewPayload,
 } from "./email.types";
 
@@ -24,6 +29,15 @@ const connection = new IORedis(env.REDIS_URL, {
   maxRetriesPerRequest: null,
 });
 
+const MODE = process.env.EMAIL_WORKER_MODE;
+if (!MODE && env.NODE_ENV === "production") {
+  throw new UnrecoverableError("EMAIL_WORKER_MODE must be set in production");
+}
+const WORKER_MODE = MODE ?? "mock";
+if (!["mock", "live-test", "live"].includes(WORKER_MODE)) {
+  throw new UnrecoverableError(`Unsupported mode: ${WORKER_MODE}`);
+}
+
 const worker = new Worker<EmailJobData>(
   EMAIL_QUEUE_NAME,
 
@@ -31,18 +45,23 @@ const worker = new Worker<EmailJobData>(
     const { outboxId, eventType } = job.data;
 
     const isRegistration = eventType === "USER_REGISTERED";
+    const isOrderPaid = eventType === "ORDER_PAID";
 
     // 1. Kiểm tra loại công việc
     if (isRegistration) {
       if (job.name !== "user-registered") {
-        throw new Error("Invalid registration job");
+        throw new UnrecoverableError("Invalid registration job");
+      }
+    } else if (isOrderPaid) {
+      if (job.name !== "order-paid") {
+        throw new UnrecoverableError("Invalid ORDER_PAID job");
       }
     } else {
       if (
         job.name !== "admin-review" ||
         !REVIEW_EVENT_TYPES.includes(eventType as ReviewEventType)
       ) {
-        throw new Error(`Unsupported job: ${job.name}`);
+        throw new UnrecoverableError(`Unsupported job: ${job.name}`);
       }
     }
 
@@ -61,7 +80,13 @@ const worker = new Worker<EmailJobData>(
       .limit(1);
 
     if (!event || event.eventType !== eventType) {
-      throw new Error("Matching Outbox event not found");
+      throw new UnrecoverableError("Matching Outbox event not found");
+    }
+
+    if (event.status === OutboxStatus.COMPLETED) {
+      console.log("[Email Worker] Already completed");
+
+      return { alreadyCompleted: true };
     }
 
     // 3. Kiểm tra payload
@@ -69,30 +94,29 @@ const worker = new Worker<EmailJobData>(
 
     const jobPayload = isRegistration
       ? UserRegisteredPayloadSchema.parse(job.data.payload)
-      : parseReviewPayload(reviewType, job.data.payload);
+      : isOrderPaid
+        ? OrderPaidPayloadSchema.parse(job.data.payload)
+        : parseReviewPayload(reviewType, job.data.payload);
 
     const storedPayload = isRegistration
       ? UserRegisteredPayloadSchema.parse(event.payload)
-      : parseReviewPayload(reviewType, event.payload);
+      : isOrderPaid
+        ? OrderPaidPayloadSchema.parse(event.payload)
+        : parseReviewPayload(reviewType, event.payload);
 
     // Không sử dụng dữ liệu Redis nếu khác PostgreSQL
     if (!isDeepStrictEqual(jobPayload, storedPayload)) {
-      throw new Error("Job payload does not match Outbox");
+      throw new UnrecoverableError("Job payload does not match Outbox");
     }
 
     // 4. Chống xử lý lại sự kiện hoàn thành
-    if (event.status === OutboxStatus.COMPLETED) {
-      console.log("[Email Worker] Already completed");
-
-      return { alreadyCompleted: true };
-    }
 
     if (event.status !== OutboxStatus.PROCESSING) {
-      throw new Error(`Unexpected Outbox status: ${event.status}`);
+      throw new UnrecoverableError(`Unexpected Outbox status: ${event.status}`);
     }
 
     // 5. Kiểm tra chế độ gửi email
-    const mode = process.env.EMAIL_WORKER_MODE ?? "mock";
+    const mode = WORKER_MODE;
 
     if (mode === "mock") {
       console.log("[Email Worker] Mock only - no email sent");
@@ -102,18 +126,92 @@ const worker = new Worker<EmailJobData>(
       return { simulated: true };
     }
 
+    // ORDER_PAID Outbox stores only userId; fetch recipient from PostgreSQL.
+    let recipientEmail: string;
+    let ticketCodes: string[] = [];
+    if (isOrderPaid) {
+      const payload = OrderPaidPayloadSchema.parse(storedPayload);
+      const [[order], [user], orderTickets] = await Promise.all([
+        db
+          .select({ userId: orders.userId, status: orders.status })
+          .from(orders)
+          .where(eq(orders.id, payload.orderId))
+          .limit(1),
+        db
+          .select({ email: users.email })
+          .from(users)
+          .where(eq(users.id, payload.userId))
+          .limit(1),
+        db
+          .select({
+            id: tickets.id,
+            status: tickets.status,
+            userId: tickets.userId,
+            ticketCode: tickets.ticketCode,
+          })
+          .from(tickets)
+          .where(eq(tickets.orderId, payload.orderId)),
+      ]);
+      if (
+        !order ||
+        !user ||
+        order.userId !== payload.userId ||
+        order.status !== OrderStatus.PAID ||
+        orderTickets.length !== payload.ticketIds.length ||
+        orderTickets.some(
+          (t) =>
+            (t.status !== TicketStatus.SOLD &&
+              t.status !== TicketStatus.CHECKED_IN) ||
+            t.userId !== payload.userId ||
+            !payload.ticketIds.includes(t.id),
+        )
+      ) {
+        throw new UnrecoverableError(
+          "ORDER_PAID outbox does not match confirmed tickets",
+        );
+      }
+      recipientEmail = user.email;
+      ticketCodes = orderTickets.map((t) => t.ticketCode);
+    } else {
+      recipientEmail = (storedPayload as { email: string }).email;
+    }
+
     if (mode === "live-test") {
       const testEmail = process.env.TEST_EMAIL_TO?.trim().toLowerCase();
 
-      if (!testEmail || storedPayload.email.toLowerCase() !== testEmail) {
-        throw new Error("Recipient is not TEST_EMAIL_TO");
+      // Isolated W04 sandbox exception: redirect exactly ONE confirmed
+      // ORDER_PAID email to the Resend account's permitted testing inbox.
+      // The buyer's stored email, order, ticket and Outbox are NOT modified.
+      const redirectThisOrderOnly =
+        isOrderPaid &&
+        env.NODE_ENV === "test" &&
+        new URL(env.DATABASE_URL).pathname === "/tickethub_w04_test" &&
+        new URL(env.REDIS_URL).pathname === "/15" &&
+        process.env.ENABLE_ORDER_PAID_EMAIL_TEST === "true" &&
+        process.env.TEST_ORDER_PAID_OUTBOX_ID ===
+          "7a2df97c-7f7d-4540-a375-b46db47011b2" &&
+        event.id === "7a2df97c-7f7d-4540-a375-b46db47011b2" &&
+        OrderPaidPayloadSchema.parse(storedPayload).orderCode ===
+          "ORD-20261101-6219CE" &&
+        recipientEmail.trim().toLowerCase() === "baamntk@gmail.com" &&
+        testEmail === "nguyentuankhoi2603@gmail.com";
+
+      if (redirectThisOrderOnly) {
+        console.log(
+          `[Email Worker] TEST ONLY: redirect ORDER_PAID ${event.id} to TEST_EMAIL_TO`,
+        );
+        recipientEmail = testEmail!;
+      }
+
+      if (!testEmail || recipientEmail.toLowerCase() !== testEmail) {
+        throw new UnrecoverableError("Recipient is not TEST_EMAIL_TO");
       }
     } else if (mode === "live") {
       if (process.env.ENABLE_REAL_EMAIL !== "true") {
-        throw new Error("Real email sending is disabled");
+        throw new UnrecoverableError("Real email sending is disabled");
       }
     } else {
-      throw new Error(`Unsupported mode: ${mode}`);
+      throw new UnrecoverableError(`Unsupported mode: ${mode}`);
     }
 
     // 6. Gửi email theo loại event
@@ -123,6 +221,13 @@ const worker = new Worker<EmailJobData>(
       emailId = await sendRegistrationEmail(
         event.id,
         UserRegisteredPayloadSchema.parse(storedPayload),
+      );
+    } else if (isOrderPaid) {
+      emailId = await sendOrderPaidEmail(
+        event.id,
+        OrderPaidPayloadSchema.parse(storedPayload),
+        recipientEmail,
+        ticketCodes,
       );
     } else {
       emailId = await sendReviewEmail(
@@ -163,7 +268,8 @@ const worker = new Worker<EmailJobData>(
 
   {
     connection,
-    concurrency: 1,
+    concurrency: 3,
+    limiter: { max: 2, duration: 1000 },
   },
 );
 

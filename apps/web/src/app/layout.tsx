@@ -30,15 +30,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="vi"
-      className={`${inter.variable} ${jetbrainsMono.variable}`}
-      suppressHydrationWarning
-    >
-      <body
-        className="min-h-screen bg-white text-[#141d23] font-sans antialiased selection:bg-emerald-500/15 selection:text-emerald-700"
-        suppressHydrationWarning
-      >
+    <html lang="vi" className={`${inter.variable} ${jetbrainsMono.variable}`}>
+      <body className="min-h-screen bg-white text-[#141d23] font-sans antialiased selection:bg-emerald-500/15 selection:text-emerald-700">
         <QueryProvider>
           <SessionProvider>{children}</SessionProvider>
         </QueryProvider>

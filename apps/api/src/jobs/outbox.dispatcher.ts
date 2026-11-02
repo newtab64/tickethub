@@ -9,11 +9,13 @@ import {
   emailQueue,
   enqueueRegistrationEmail,
   enqueueReviewEmail,
+  enqueueOrderPaidEmail,
 } from "./email.queue";
 
 import {
   REVIEW_EVENT_TYPES,
   UserRegisteredPayloadSchema,
+  OrderPaidPayloadSchema,
   parseReviewPayload,
 } from "./email.types";
 
@@ -43,7 +45,7 @@ if (idArgs.length > 1) {
 }
 
 const targetOutboxId = idArgs[0]?.slice("--outbox-id=".length);
-
+const MAX_ENQUEUE_RETRIES = 5;
 async function main() {
   const testEmail = process.env.TEST_EMAIL_TO?.trim().toLowerCase();
 
@@ -135,6 +137,7 @@ async function main() {
           ? inArray(outbox.eventType, [...REVIEW_EVENT_TYPES])
           : inArray(outbox.eventType, [
               "USER_REGISTERED",
+              "ORDER_PAID",
               ...REVIEW_EVENT_TYPES,
             ]),
 
@@ -158,12 +161,13 @@ async function main() {
   for (const event of events) {
     try {
       const isRegistration = event.eventType === "USER_REGISTERED";
+      const isOrderPaid = event.eventType === "ORDER_PAID";
 
       const isReview = (REVIEW_EVENT_TYPES as readonly string[]).includes(
         event.eventType,
       );
 
-      if (!isRegistration && !isReview) {
+      if (!isRegistration && !isReview && !isOrderPaid) {
         throw new Error("Unsupported event type");
       }
 
@@ -173,6 +177,10 @@ async function main() {
 
       const reviewPayload = isReview
         ? parseReviewPayload(event.eventType as ReviewEventType, event.payload)
+        : null;
+
+      const orderPaidPayload = isOrderPaid
+        ? OrderPaidPayloadSchema.parse(event.payload)
         : null;
 
       // Chế độ đọc: không cập nhật dữ liệu
@@ -243,7 +251,9 @@ async function main() {
               event.eventType as ReviewEventType,
               reviewPayload!,
             )
-          : await enqueueRegistrationEmail(event.id, registrationPayload!);
+          : isOrderPaid
+            ? await enqueueOrderPaidEmail(event.id, orderPaidPayload!)
+            : await enqueueRegistrationEmail(event.id, registrationPayload!);
 
         console.log(`[Dispatcher] Enqueued: ${job.id}`);
       } catch (error) {
@@ -251,12 +261,15 @@ async function main() {
           error instanceof Error ? error.message : "Unknown error";
 
         // Chỉ trả lại PENDING khi enqueue thất bại
+
+        const nextRetry = event.retryCount + 1;
+        const giveUp = nextRetry >= MAX_ENQUEUE_RETRIES;
         await db
           .update(outbox)
           .set({
-            status: OutboxStatus.PENDING,
-            retryCount: event.retryCount + 1,
-            nextRetryAt: new Date(Date.now() + 30_000),
+            status: giveUp ? OutboxStatus.FAILED : OutboxStatus.PENDING,
+            retryCount: nextRetry,
+            nextRetryAt: new Date(Date.now() + 30_000 * 2 ** event.retryCount),
             errorMessage: message,
             updatedAt: new Date(),
           })

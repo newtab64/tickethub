@@ -67,6 +67,23 @@ export function parseReviewPayload(
   return parsed;
 }
 
+// W04: confirmation payload is persisted atomically with ORDER_PAID.
+// Email and ticket codes must be queried from PostgreSQL by the worker.
+export const OrderPaidPayloadSchema = z.object({
+  orderId: z.string().uuid(),
+  orderCode: z.string().min(1),
+  userId: z.string().uuid(),
+  eventId: z.string().uuid(),
+  transactionId: z.string().uuid(),
+  transactionRef: z.string().min(1),
+  provider: z.literal("VNPAY"),
+  amount: z.string().regex(/^\d+(?:\.\d{1,2})?$/),
+  ticketIds: z.array(z.string().uuid()).min(1),
+  paidAt: z.string().datetime({ offset: true }),
+});
+
+export type OrderPaidPayload = z.infer<typeof OrderPaidPayloadSchema>;
+
 // 7. Kiểu dữ liệu gửi vào BullMQ
 export type EmailJobData =
   | {
@@ -78,4 +95,9 @@ export type EmailJobData =
       outboxId: string;
       eventType: ReviewEventType;
       payload: ReviewNotificationPayload;
+    }
+  | {
+      outboxId: string;
+      eventType: "ORDER_PAID";
+      payload: OrderPaidPayload;
     };

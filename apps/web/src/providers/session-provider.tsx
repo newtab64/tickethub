@@ -59,11 +59,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    // Doc trang thai tu storage (he thong ngoai) sau khi mount, tranh setState dong bo trong effect
-    queueMicrotask(() => {
-      if (!cancelled) syncFromStorage();
-    });
+    syncFromStorage();
 
     const handleStorageChange = () => {
       syncFromStorage();
@@ -73,7 +69,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener(AUTH_CHANGE_EVENT, handleStorageChange);
 
     return () => {
-      cancelled = true;
       window.removeEventListener("storage", handleStorageChange);
       window.removeEventListener(AUTH_CHANGE_EVENT, handleStorageChange);
     };

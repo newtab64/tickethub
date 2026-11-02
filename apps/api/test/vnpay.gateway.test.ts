@@ -18,7 +18,7 @@ async function createGateway() {
   return new VnpayGateway();
 }
 
-function signCallback(params: Record<string, string>) {
+function signCallback(params: Record<string, string>): Record<string, string> {
   const query = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
@@ -52,7 +52,15 @@ test("VNPay creates a signed payment URL", async () => {
   });
 
   const url = new URL(result.paymentUrl);
+  const createDate = url.searchParams.get("vnp_CreateDate");
 
+  assert.match(createDate ?? "", /^\d{14}$/);
+
+  assert.equal(
+    result.vnpCreateDate,
+    createDate,
+    "Gateway must return original VNPay create date",
+  );
   assert.equal(result.transactionRef, "BE2TEST123");
   assert.equal(url.searchParams.get("vnp_Amount"), "15000000");
   assert.equal(url.searchParams.get("vnp_TxnRef"), "BE2TEST123");
@@ -112,7 +120,7 @@ test("VNPay accepts a valid signed callback", async () => {
   });
 
   const result = gateway.verifyCallback(callback);
-
+  assert.equal(result.amountVnd, 150000);
   assert.equal(result.verified, true);
   assert.equal(result.success, true);
   assert.equal(result.transactionRef, "BE2TEST123");
@@ -152,4 +160,194 @@ test("VNPay recognizes a signed failed payment", async () => {
 
   assert.equal(result.verified, true);
   assert.equal(result.success, false);
+});
+test("W04 QueryDR: creates a valid signed request", async () => {
+  const gateway = await createGateway();
+
+  const request = gateway.buildQueryDrRequest({
+    transactionRef: "BE2TEST123",
+    transactionDate: "20261029153000",
+    orderInfo: "TicketHub query transaction",
+    ipAddress: "127.0.0.1",
+  });
+
+  assert.equal(request.vnp_Command, "querydr");
+  assert.equal(request.vnp_Version, "2.1.0");
+  assert.equal(request.vnp_TxnRef, "BE2TEST123");
+  assert.equal(request.vnp_TransactionDate, "20261029153000");
+
+  assert.match(request.vnp_RequestId, /^[0-9a-f]{32}$/);
+  assert.match(request.vnp_SecureHash, /^[0-9a-f]{128}$/);
+  const signContent = [
+    request.vnp_RequestId,
+    request.vnp_Version,
+    request.vnp_Command,
+    request.vnp_TmnCode,
+    request.vnp_TxnRef,
+    request.vnp_TransactionDate,
+    request.vnp_CreateDate,
+    request.vnp_IpAddr,
+    request.vnp_OrderInfo,
+  ].join("|");
+
+  const expectedHash = createHmac("sha512", HASH_SECRET)
+    .update(signContent, "utf8")
+    .digest("hex");
+
+  assert.equal(request.vnp_SecureHash, expectedHash);
+});
+test("VNPay rejects a signed callback with invalid amount unit", async () => {
+  const gateway = await createGateway();
+
+  const callback = signCallback({
+    vnp_TmnCode: TMN_CODE,
+    vnp_TxnRef: "BE2TEST123",
+    vnp_Amount: "15000050", // không chia hết cho 100
+    vnp_ResponseCode: "00",
+    vnp_TransactionStatus: "00",
+  });
+
+  const result = gateway.verifyCallback(callback);
+
+  assert.equal(result.verified, false);
+  assert.equal(result.success, false);
+});
+test("W04 QueryDR sends HTTP POST JSON", async () => {
+  const gateway = await createGateway();
+
+  const originalFetch = globalThis.fetch;
+  let requestCount = 0;
+
+  globalThis.fetch = async (_url, options) => {
+    requestCount++;
+
+    assert.equal(options?.method, "POST");
+
+    const payload = JSON.parse(String(options?.body)) as Record<string, string>;
+
+    assert.equal(payload.vnp_Command, "querydr");
+
+    assert.equal(payload.vnp_TransactionDate, "20261030090000");
+
+    assert.match(payload.vnp_SecureHash, /^[0-9a-f]{128}$/);
+
+    return new Response(
+      JSON.stringify({
+        vnp_ResponseCode: "00",
+        vnp_TransactionStatus: "01",
+      }),
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+  };
+
+  try {
+    const result = await gateway.queryTransactionRaw({
+      transactionRef: "BE2TEST123",
+      transactionDate: "20261030090000",
+      orderInfo: "TicketHub QueryDR test",
+      ipAddress: "127.0.0.1",
+    });
+
+    assert.equal(requestCount, 1);
+    assert.ok(result);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+test("W04 QueryDR sends POST request", async () => {
+  const gateway = await createGateway();
+
+  const originalFetch = globalThis.fetch;
+  let requestCount = 0;
+
+  globalThis.fetch = async (_url, options) => {
+    requestCount++;
+
+    assert.equal(options?.method, "POST");
+
+    const payload = JSON.parse(String(options?.body)) as Record<string, string>;
+
+    assert.equal(payload.vnp_Command, "querydr");
+    assert.equal(payload.vnp_TxnRef, "BE2TEST123");
+    assert.equal(payload.vnp_TransactionDate, "20261030090000");
+
+    return new Response(
+      JSON.stringify({
+        vnp_ResponseCode: "00",
+        vnp_TransactionStatus: "01",
+      }),
+      { status: 200 },
+    );
+  };
+
+  try {
+    const result = await gateway.queryTransactionRaw({
+      transactionRef: "BE2TEST123",
+      transactionDate: "20261030090000",
+      orderInfo: "TicketHub QueryDR test",
+      ipAddress: "127.0.0.1",
+    });
+
+    assert.equal(requestCount, 1);
+    assert.ok(result);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+test("W04 QueryDR verifies a valid response", async () => {
+  const gateway = await createGateway();
+
+  const response: Record<string, string> = {
+    vnp_ResponseId: "RESP123",
+    vnp_Command: "querydr",
+    vnp_ResponseCode: "00",
+    vnp_Message: "Success",
+    vnp_TmnCode: TMN_CODE,
+    vnp_TxnRef: "BE2TEST123",
+    vnp_Amount: "15000000",
+    vnp_BankCode: "NCB",
+    vnp_PayDate: "20261030100000",
+    vnp_TransactionNo: "12345678",
+    vnp_TransactionType: "01",
+    vnp_TransactionStatus: "00",
+    vnp_OrderInfo: "TicketHub test payment",
+    vnp_PromotionCode: "",
+    vnp_PromotionAmount: "",
+  };
+
+  const signContent = [
+    response.vnp_ResponseId,
+    response.vnp_Command,
+    response.vnp_ResponseCode,
+    response.vnp_Message,
+    response.vnp_TmnCode,
+    response.vnp_TxnRef,
+    response.vnp_Amount,
+    response.vnp_BankCode,
+    response.vnp_PayDate,
+    response.vnp_TransactionNo,
+    response.vnp_TransactionType,
+    response.vnp_TransactionStatus,
+    response.vnp_OrderInfo,
+    response.vnp_PromotionCode,
+    response.vnp_PromotionAmount,
+  ].join("|");
+
+  response.vnp_SecureHash = createHmac("sha512", HASH_SECRET)
+    .update(signContent, "utf8")
+    .digest("hex");
+  assert.equal(gateway.verifyQueryDrResponse(response), true);
+
+  // Gia lap ke tan cong sua so tien
+  const tamperedResponse = {
+    ...response,
+    vnp_Amount: "99999999",
+  };
+
+  assert.equal(gateway.verifyQueryDrResponse(tamperedResponse), false);
 });

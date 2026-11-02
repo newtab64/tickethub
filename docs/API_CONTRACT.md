@@ -170,25 +170,6 @@ Thu hồi Refresh Token và xóa cookie phiên đăng nhập.
 
 - Response 200: `{ "success": true, "data": { "message": "Đăng xuất thành công" } }`
 
-#### `GET /api/v1/auth/me`
-
-Lấy thông tin người dùng đang đăng nhập thông qua Access Token Bearer.
-
-- Header: `Authorization: Bearer <accessToken>`
-- Response 200:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "id": "u-uuid",
-      "email": "user@tickethub.vn",
-      "fullName": "Nguyen Van A",
-      "role": "buyer",
-      "isVerified": true
-    }
-  }
-  ```
-
 ### Tìm kiếm và chi tiết sự kiện (`/events`)
 
 #### `GET /api/v1/events`
@@ -284,30 +265,7 @@ Lấy sơ đồ phân bố khu vực, hàng ghế và trạng thái chỗ ngồi
 }
 ```
 
-#### `GET /api/v1/events/:id/inventory`
-
-Lấy thông tin tồn kho và số lượng vé còn lại của từng hạng vé trong sự kiện.
-
-- Response 200:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "eventId": "e-uuid",
-      "ticketTypes": [
-        {
-          "id": "tt-uuid",
-          "name": "VIP",
-          "price": 2500000,
-          "totalCapacity": 100,
-          "availableCapacity": 42
-        }
-      ]
-    }
-  }
-  ```
-
-#### `GET /api/v1/events/:id/seats/stream` (SSE) [PLANNED]
+#### `GET /api/v1/events/:id/seats/stream` (SSE)
 
 Cập nhật trạng thái ghế theo thời gian thực.
 
@@ -322,9 +280,9 @@ Cập nhật trạng thái ghế theo thời gian thực.
 }
 ```
 
-### [PLANNED] Địa điểm chuẩn và Sơ đồ SVG (`/venues`)
+### Địa điểm chuẩn và Sơ đồ SVG (`/venues`)
 
-#### [PLANNED] `GET /api/v1/venues`
+#### `GET /api/v1/venues`
 
 Lấy danh mục các địa điểm tổ chức chuẩn (Curated Venues) đã được quản trị viên kiểm duyệt, hỗ trợ lọc theo 3 thành phố lớn, thể loại và tìm kiếm từ khóa.
 
@@ -373,13 +331,13 @@ Lấy danh mục các địa điểm tổ chức chuẩn (Curated Venues) đã �
 }
 ```
 
-#### [PLANNED] `GET /api/v1/venues/:id`
+#### `GET /api/v1/venues/:id`
 
 Lấy chi tiết một địa điểm chuẩn kèm tất cả cấu hình sơ đồ khán đài SVG và phân khu mặc định.
 
 - Response 200: Chi tiết địa điểm và danh sách các layout có sẵn (`layouts` kèm `defaultZones`).
 
-#### [PLANNED] `GET /api/v1/venues/:id/layouts`
+#### `GET /api/v1/venues/:id/layouts`
 
 Lấy danh sách các mẫu sơ đồ khán đài của địa điểm kèm danh sách `defaultZones` tương thích với `data-zone` trong tệp SVG.
 
@@ -442,11 +400,13 @@ Giữ chỗ vé trong thời hạn 5 phút với cơ chế tự động phân b�
 ```json
 {
   "eventId": "e1-uuid",
-  "items": [{ "ticketTypeId": "tt-vip-uuid", "quantity": 2 }]
+  "items": [
+    { "ticketTypeId": "tt-vip-uuid", "quantity": 2 }
+  ]
 }
 ```
 
-_Lưu ý: Hệ thống vẫn hỗ trợ tương thích trường hợp client chỉ định trực tiếp `seatId`:_
+*Lưu ý: Hệ thống vẫn hỗ trợ tương thích trường hợp client chỉ định trực tiếp `seatId`:*
 
 ```json
 {
@@ -502,73 +462,9 @@ Hủy giữ chỗ chủ động khi người dùng rời màn hình thanh toán.
 - Request body: `{ "orderId": "ord-uuid" }`
 - Response 200: `{ "success": true, "data": { "message": "Đã giải phóng ghế" } }`
 
-#### `GET /api/v1/booking/orders/:orderId`
+### Thanh toán (`/checkout`)
 
-Xem chi tiết đơn hàng giữ chỗ hiện tại và thời gian đếm ngược còn lại.
-
-- Header: `Authorization: Bearer <accessToken>`
-- Response 200:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "orderId": "ord-uuid",
-      "status": "PENDING",
-      "totalAmount": 5000000,
-      "expiresAt": "2026-10-14T09:35:00.000Z",
-      "items": [
-        {
-          "ticketTypeId": "tt-vip-uuid",
-          "quantity": 2,
-          "seats": ["VIP-A01", "VIP-A02"]
-        }
-      ]
-    }
-  }
-  ```
-
-### Thanh toán VNPay (`/payments`)
-
-#### `POST /api/v1/payments/orders/:orderId/vnpay`
-
-Khởi tạo giao dịch thanh toán VNPay và nhận URL chuyển hướng đến cổng thanh toán VNPay.
-
-- Header: `Authorization: Bearer <accessToken>`
-- Response 200:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "paymentUrl": "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html?..."
-    }
-  }
-  ```
-
-#### `GET /api/v1/payments/vnpay/ipn`
-
-Endpoint nhận webhook IPN (Instant Payment Notification) từ cổng thanh toán VNPay để cập nhật trạng thái đơn hàng thành công.
-
-- Tham số: Toàn bộ query params từ VNPay (`vnp_TxnRef`, `vnp_Amount`, `vnp_ResponseCode`, `vnp_SecureHash`, ...)
-- Response 200: `{"RspCode": "00", "Message": "Confirm Success"}`
-
-#### `GET /api/v1/internal/vnpay/ipn-preview`
-
-Endpoint nội bộ hỗ trợ quản trị viên và hệ thống xem trước quyết định xử lý IPN mà không thay đổi dữ liệu thật.
-
-- Response 200:
-  ```json
-  {
-    "success": true,
-    "data": {
-      "decision": "ACCEPT",
-      "orderId": "ord-uuid"
-    }
-  }
-  ```
-
-### [PLANNED] Thanh toán dự phòng (`/checkout`)
-
-#### [PLANNED] `POST /api/v1/checkout/create-payment`
+#### `POST /api/v1/checkout/create-payment`
 
 Khởi tạo giao dịch thanh toán và lấy URL cổng VNPay.
 
@@ -598,7 +494,7 @@ Khởi tạo giao dịch thanh toán và lấy URL cổng VNPay.
 }
 ```
 
-#### [PLANNED] `GET /api/v1/webhooks/vnpay/ipn`
+#### `GET /api/v1/webhooks/vnpay/ipn`
 
 Webhook tiếp nhận thông báo kết quả từ cổng VNPay.
 
@@ -608,16 +504,16 @@ Webhook tiếp nhận thông báo kết quả từ cổng VNPay.
   - Sai chữ ký: `{"RspCode": "97", "Message": "Invalid Signature"}`
   - Không tìm thấy đơn: `{"RspCode": "01", "Message": "Order not found"}`
 
-### [PLANNED] Vé điện tử và soát vé (`/tickets` và `/checkin`)
+### Vé điện tử và soát vé (`/tickets` và `/checkin`)
 
-#### [PLANNED] `GET /api/v1/tickets/my-tickets`
+#### `GET /api/v1/tickets/my-tickets`
 
 Lấy danh sách vé đã mua của người dùng đăng nhập.
 
 - Header: `Authorization: Bearer <accessToken>`
 - Response 200: Danh sách vé kèm thông tin sự kiện, vị trí ghế và trạng thái.
 
-#### [PLANNED] `GET /api/v1/tickets/:id/dynamic-qr`
+#### `GET /api/v1/tickets/:id/dynamic-qr`
 
 Lấy token mã QR động ký số bằng Ed25519 (hiệu lực 30 giây).
 
@@ -652,7 +548,7 @@ Nội dung giải mã của `qrToken` (Ed25519 JWS):
 }
 ```
 
-#### [PLANNED] `POST /api/v1/checkin/scan`
+#### `POST /api/v1/checkin/scan`
 
 Nhân viên soát vé quét mã QR tại cổng.
 
@@ -685,16 +581,16 @@ Nhân viên soát vé quét mã QR tại cổng.
 }
 ```
 
-#### [PLANNED] `POST /api/v1/checkin/manual-search`
+#### `POST /api/v1/checkin/manual-search`
 
 Tra cứu vé thủ công khi người mua không mở được mã QR.
 
 - Request body: `{ "eventId": "e1-uuid", "searchQuery": "0912345678" }`
 - Response 200: Danh sách vé phù hợp để nhân viên đối chiếu giấy tờ tùy thân.
 
-### [PLANNED] Hủy vé và hoàn tiền (`/refund`)
+### Hủy vé và hoàn tiền (`/refund`)
 
-#### [PLANNED] `POST /api/v1/refund/preview`
+#### `POST /api/v1/refund/preview`
 
 Tính trước số tiền hoàn lại theo chính sách trước khi xác nhận.
 
@@ -714,7 +610,7 @@ Tính trước số tiền hoàn lại theo chính sách trước khi xác nhậ
 }
 ```
 
-#### [PLANNED] `POST /api/v1/refund/request`
+#### `POST /api/v1/refund/request`
 
 Gửi yêu cầu hủy vé.
 
@@ -866,7 +762,7 @@ hoặc
 
 - Response 200: Trả về thông tin sự kiện đã cập nhật.
 
-#### [PLANNED] `POST /api/v1/admin/events/:id/kill-switch`
+#### `POST /api/v1/admin/events/:id/kill-switch`
 
 Kích hoạt dừng khẩn cấp sự kiện vi phạm.
 
@@ -874,19 +770,19 @@ Kích hoạt dừng khẩn cấp sự kiện vi phạm.
 - Request body: `{ "reason": "Phát hiện thông tin giả mạo" }`
 - Response 200: Sự kiện chuyển `SUSPENDED`, hủy các đơn đang giữ chỗ và giải tán hàng chờ.
 
-#### [PLANNED] `GET /api/v1/admin/reconciliations`
+#### `GET /api/v1/admin/reconciliations`
 
 Lấy danh sách đối soát giao dịch với dữ liệu VNPay.
 
 - Response 200: Danh sách giao dịch khớp và các bản ghi phát hiện chênh lệch.
 
-#### [PLANNED] `POST /api/v1/admin/payouts/:id/approve`
+#### `POST /api/v1/admin/payouts/:id/approve`
 
 Xác nhận phê duyệt lệnh chi trả tiền bán vé cho ban tổ chức.
 
 - Response 200: Lệnh chi trả chuyển trạng thái `PAID_OUT`.
 
-#### [PLANNED] `POST /api/v1/admin/venues`
+#### `POST /api/v1/admin/venues`
 
 Quản trị viên tạo mới hoặc nhập một địa điểm tổ chức chuẩn vào hệ thống.
 
@@ -920,7 +816,7 @@ Quản trị viên tạo mới hoặc nhập một địa điểm tổ chức ch
 }
 ```
 
-#### [PLANNED] `POST /api/v1/admin/venues/:id/layouts`
+#### `POST /api/v1/admin/venues/:id/layouts`
 
 Quản trị viên liên kết mẫu sơ đồ SVG đã chuẩn hóa (hoặc tải lên SVG mới) cho địa điểm tổ chức.
 
@@ -964,7 +860,7 @@ Quản trị viên liên kết mẫu sơ đồ SVG đã chuẩn hóa (hoặc t�
 }
 ```
 
-#### [PLANNED] `PUT /api/v1/admin/venues/:id`
+#### `PUT /api/v1/admin/venues/:id`
 
 Quản trị viên cập nhật thông tin địa điểm hoặc tạm ngưng khả dụng.
 
@@ -1037,81 +933,3 @@ Xác thực tính hợp lệ của tệp ảnh sau khi ban tổ chức hoàn t�
   }
 }
 ```
-
----
-
-### Quản lý sự kiện dành cho Ban tổ chức (`/organizer/events`)
-
-#### `POST /api/v1/organizer/events`
-
-Tạo sự kiện mới ở trạng thái bản nháp (`DRAFT`).
-
-- Header: `Authorization: Bearer <organizerToken>`
-- Request body: Schema `CreateEventRequestSchema` từ `@tickethub/shared`
-- Response 201: Dữ liệu sự kiện mới tạo
-
-#### `GET /api/v1/organizer/events`
-
-Lấy danh sách các sự kiện do ban tổ chức đang đăng nhập sở hữu.
-
-- Header: `Authorization: Bearer <organizerToken>`
-- Response 200: Danh sách sự kiện kèm tổng số lượng bản ghi
-
-#### `GET /api/v1/organizer/events/:id`
-
-Lấy thông tin chi tiết một sự kiện của ban tổ chức để chỉnh sửa.
-
-- Header: `Authorization: Bearer <organizerToken>`
-- Response 200: Chi tiết sự kiện
-
-#### `PUT /api/v1/organizer/events/:id`
-
-Cập nhật thông tin sự kiện ở trạng thái bản nháp kèm trường `version` kiểm soát xung đột dữ liệu đồng thời.
-
-- Header: `Authorization: Bearer <organizerToken>`
-- Response 200: Chi tiết sự kiện đã cập nhật
-
-#### `POST /api/v1/organizer/events/:id/seats/generate`
-
-Tạo danh sách ghế tự động theo cấu hình khu vực và hàng ghế của ban tổ chức.
-
-- Header: `Authorization: Bearer <organizerToken>`
-- Request body: Cấu hình phân khu và số hàng ghế (`GenerateSeatsDto`)
-- Response 200: Trạng thái khởi tạo ghế thành công
-
-#### `POST /api/v1/organizer/events/:id/submit`
-
-Ban tổ chức nộp sự kiện để quản trị viên phê duyệt (chuyển sang trạng thái `PENDING_APPROVAL`).
-
-- Header: `Authorization: Bearer <organizerToken>`
-- Response 200: Sự kiện chuyển trạng thái chờ duyệt
-
----
-
-### Tìm kiếm sự kiện nâng cao (`/search`)
-
-#### `GET /api/v1/search/events`
-
-Tìm kiếm sự kiện có áp dụng giới hạn tốc độ truy vấn (Rate Limit: 30 requests / phút).
-
-- Tham số truy vấn: `keyword`, `city`, `category`, `fromDate`, `toDate`, `page`, `limit`
-- Response 200: Danh sách kết quả tìm kiếm kèm thông tin phân trang
-
----
-
-### Kiểm tra sức khỏe hệ thống (`/health`)
-
-#### `GET /api/v1/health`
-
-Kiểm tra kết nối tới cơ sở dữ liệu PostgreSQL và máy chủ Redis Cache.
-
-- Response 200 (khi cả PostgreSQL và Redis đều hoạt động bình thường):
-  ```json
-  {
-    "status": "ok",
-    "checks": {
-      "database": "healthy",
-      "redis": "healthy"
-    }
-  }
-  ```

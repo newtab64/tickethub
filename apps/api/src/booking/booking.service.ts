@@ -16,6 +16,9 @@ import {
   ticketTypes,
   events,
   outbox,
+  transactions,
+  vouchers,
+  voucherRedemptions,
 } from "../database/schema";
 import {
   HoldSeatsRequest,
@@ -111,6 +114,9 @@ export class BookingService {
     dto: HoldSeatsRequest,
     admissionToken?: string,
   ) {
+    // Controller phải dùng HoldSeatsRequestSchema.safeParse() trước khi gọi service.
+    const voucherCode = dto.voucherCode?.trim().toUpperCase();
+
     const event = await db.query.events.findFirst({
       where: eq(events.id, dto.eventId),
     });
@@ -186,16 +192,21 @@ export class BookingService {
       });
     }
 
+    if (dto.items.length === 0) {
+      throw new BadRequestException("Đơn hàng phải có ít nhất một hạng vé");
+    }
     // Tải thông tin các hạng vé trước
     const allTicketTypeIds = Array.from(
       new Set(dto.items.map((i) => i.ticketTypeId)),
     );
+
     const ticketTypeRows = await db.query.ticketTypes.findMany({
       where: and(
         inArray(ticketTypes.id, allTicketTypeIds),
         eq(ticketTypes.eventId, dto.eventId),
       ),
     });
+
     const ttMap = new Map(ticketTypeRows.map((tt) => [tt.id, tt]));
 
     for (const item of dto.items) {
@@ -208,6 +219,37 @@ export class BookingService {
             timestamp: new Date().toISOString(),
           },
         });
+      }
+    }
+
+    // Bảo vệ giá từ DB, thời gian mở bán và hạn mức riêng từng hạng vé.
+    // Gom quantity theo ticketTypeId để tránh vượt maxPerOrder bằng nhiều items.
+    const quantityByTicketType = new Map<string, number>();
+    for (const item of dto.items) {
+      const quantity = item.quantity ?? 1;
+      quantityByTicketType.set(
+        item.ticketTypeId,
+        (quantityByTicketType.get(item.ticketTypeId) ?? 0) + quantity,
+      );
+    }
+
+    const checkTime = new Date();
+    for (const tt of ticketTypeRows) {
+      const price = Number(tt.price);
+      if (!Number.isSafeInteger(price) || price < 0) {
+        throw new BadRequestException("Giá vé phải là số nguyên VND hợp lệ");
+      }
+
+      if (checkTime < tt.saleStartTime || checkTime > tt.saleEndTime) {
+        throw new BadRequestException(
+          `Hạng vé ${tt.name} chưa mở bán hoặc đã kết thúc bán`,
+        );
+      }
+
+      if ((quantityByTicketType.get(tt.id) ?? 0) > tt.maxPerOrder) {
+        throw new BadRequestException(
+          `Hạng vé ${tt.name} vượt quá giới hạn ${tt.maxPerOrder} vé mỗi đơn`,
+        );
       }
     }
 
@@ -558,6 +600,132 @@ export class BookingService {
         });
       }
 
+      // Kiểm tra lại các hạng vé NGAY TRƯỚC KHI TẠO ĐƠN (trong transaction):
+      // nếu organizer đổi giá/thời gian bán khi đang chọn ghế, rollback toàn bộ.
+      const confirmedTypes = await tx
+        .select({
+          id: ticketTypes.id,
+          name: ticketTypes.name,
+          price: ticketTypes.price,
+          saleStartTime: ticketTypes.saleStartTime,
+          saleEndTime: ticketTypes.saleEndTime,
+          maxPerOrder: ticketTypes.maxPerOrder,
+        })
+        .from(ticketTypes)
+        .where(
+          and(
+            inArray(ticketTypes.id, allTicketTypeIds),
+            eq(ticketTypes.eventId, dto.eventId),
+          ),
+        )
+        .orderBy(asc(ticketTypes.id))
+        .for("update");
+
+      if (confirmedTypes.length !== allTicketTypeIds.length) {
+        throw new ConflictException("Hạng vé vừa thay đổi; vui lòng đặt lại");
+      }
+
+      const verifyTime = new Date();
+      for (const current of confirmedTypes) {
+        const original = ttMap.get(current.id);
+        if (!original || original.price !== current.price) {
+          throw new ConflictException("Giá vé vừa thay đổi; vui lòng đặt lại");
+        }
+        if (
+          verifyTime < current.saleStartTime ||
+          verifyTime > current.saleEndTime ||
+          (quantityByTicketType.get(current.id) ?? 0) > current.maxPerOrder
+        ) {
+          throw new ConflictException(
+            `Hạng vé ${current.name} không còn đủ điều kiện mở bán`,
+          );
+        }
+      }
+
+      if (!Number.isSafeInteger(totalAmount) || totalAmount < 0) {
+        throw new BadRequestException("Tổng tiền vé không hợp lệ");
+      }
+      const subtotalVnd = BigInt(totalAmount);
+      let discountVnd = 0n;
+      let voucherId: string | undefined;
+
+      if (voucherCode) {
+        const [voucher] = await tx
+          .select()
+          .from(vouchers)
+          .where(
+            and(
+              eq(vouchers.code, voucherCode),
+              eq(vouchers.eventId, dto.eventId),
+            ),
+          )
+          .for("update");
+
+        if (
+          !voucher ||
+          !voucher.isActive ||
+          now < voucher.startsAt ||
+          now > voucher.endsAt
+        ) {
+          throw new BadRequestException("Voucher không hợp lệ hoặc đã hết hạn");
+        }
+
+        const [usage] = await tx
+          .select({
+            count: sql<number>`count(*)::int`,
+          })
+          .from(voucherRedemptions)
+          .where(
+            and(
+              eq(voucherRedemptions.voucherId, voucher.id),
+              inArray(voucherRedemptions.status, ["RESERVED", "REDEEMED"]),
+            ),
+          );
+
+        if (
+          voucher.maxUses !== null &&
+          (usage?.count ?? 0) >= voucher.maxUses
+        ) {
+          throw new ConflictException("Voucher đã hết lượt sử dụng");
+        }
+
+        // Các giá trị numeric được quản lý theo VND,
+        // không cho phép phần lẻ khác 0.
+        const toVnd = (value: string): bigint => {
+          if (!/^\d+(?:\.0{1,2})?$/.test(value)) {
+            throw new BadRequestException("Cấu hình tiền voucher không hợp lệ");
+          }
+          return BigInt(value.split(".")[0]!);
+        };
+
+        if (subtotalVnd < toVnd(voucher.minOrderAmount)) {
+          throw new BadRequestException("Đơn hàng chưa đạt giá trị tối thiểu");
+        }
+
+        const value = toVnd(voucher.discountValue);
+
+        if (voucher.discountType === "PERCENT") {
+          if (value <= 0n || value > 100n) {
+            throw new BadRequestException("Phần trăm giảm giá không hợp lệ");
+          }
+
+          discountVnd = (subtotalVnd * value) / 100n;
+        } else {
+          discountVnd = value > subtotalVnd ? subtotalVnd : value;
+        }
+
+        voucherId = voucher.id;
+      }
+
+      // VNPay không xử lý giao dịch có số tiền bằng 0.
+      const finalVnd = subtotalVnd - discountVnd;
+
+      if (finalVnd <= 0n || finalVnd > 9_999_999_999n) {
+        throw new BadRequestException(
+          "Số tiền thanh toán không hợp lệ cho VNPay",
+        );
+      }
+
       // 4. Tạo bản ghi đơn hàng PENDING có hạn 5 phút
       const randomSuffix = crypto.randomBytes(3).toString("hex").toUpperCase();
       const orderCode = `ORD-${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, "0")}${now.getDate().toString().padStart(2, "0")}-${randomSuffix}`;
@@ -568,9 +736,10 @@ export class BookingService {
           orderCode,
           userId,
           eventId: dto.eventId,
-          totalAmount: totalAmount.toFixed(2),
-          discountAmount: "0.00",
-          finalAmount: totalAmount.toFixed(2),
+          totalAmount: `${subtotalVnd}.00`,
+          discountAmount: `${discountVnd}.00`,
+          finalAmount: `${finalVnd}.00`,
+          voucherCode: voucherCode ?? null,
           status: OrderStatus.PENDING,
           expiresAt: holdExpiresAt,
         })
@@ -578,6 +747,15 @@ export class BookingService {
 
       if (!newOrder) {
         throw new Error("Không thể tạo bản ghi đơn hàng");
+      }
+
+      // Lượt sử dụng giữ trong cùng transaction với đơn và ghế.
+      if (voucherId) {
+        await tx.insert(voucherRedemptions).values({
+          voucherId,
+          orderId: newOrder.id,
+          status: "RESERVED",
+        });
       }
 
       // 5. Gắn orderId vào các ghế đã giữ
@@ -617,7 +795,10 @@ export class BookingService {
           eventId: dto.eventId,
           heldSeats: allHeldSeatIds,
           allocatedSeats: allocatedSeatItems,
-          totalAmount,
+          totalAmount: totalAmount.toFixed(2),
+          discountAmount: `${discountVnd}.00`,
+          finalAmount: `${finalVnd}.00`,
+          voucherCode: voucherCode ?? null,
           expiresAt: holdExpiresAt.toISOString(),
         },
         status: OutboxStatus.PENDING,
@@ -629,8 +810,11 @@ export class BookingService {
         heldSeats: allHeldSeatIds,
         allocatedSeats: allocatedSeatItems,
         totalAmount,
+        discountAmount: Number(discountVnd),
+        finalAmount: Number(finalVnd),
         holdExpiresAt: holdExpiresAt.toISOString(),
         remainingSeconds: 300,
+        voucherCode: voucherCode ?? null,
       };
     });
 
@@ -641,62 +825,75 @@ export class BookingService {
   }
 
   async releaseHold(userId: string, orderId: string) {
-    const order = await db.query.orders.findFirst({
-      where: and(eq(orders.id, orderId), eq(orders.userId, userId)),
-      with: { items: true },
-    });
-
-    if (!order) {
-      throw new NotFoundException({
-        success: false,
-        error: {
-          code: "ORDER_NOT_FOUND",
-          message: "Không tìm thấy đơn hàng cần giải phóng",
-          timestamp: new Date().toISOString(),
-        },
-      });
-    }
-
-    if (order.status !== OrderStatus.PENDING) {
-      throw new BadRequestException({
-        success: false,
-        error: {
-          code: "ORDER_NOT_PENDING",
-          message: `Chỉ đơn hàng PENDING mới có thể hủy giữ chỗ (trạng thái: ${order.status})`,
-          timestamp: new Date().toISOString(),
-        },
-      });
-    }
-
+    // Cùng thứ tự khóa với PaymentService và PaymentSettlementService:
+    // khóa orders trước khi kiểm tra transactions và cập nhật tồn kho.
     const result = await db.transaction(async (tx) => {
-      // 1. Cập nhật đơn hàng thành CANCELLED
-      const updatedOrders = await tx
-        .update(orders)
-        .set({
-          status: OrderStatus.CANCELLED,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(orders.id, orderId),
-            eq(orders.userId, userId),
-            eq(orders.status, OrderStatus.PENDING),
-          ),
-        )
-        .returning({ id: orders.id });
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
+        .limit(1)
+        .for("update");
 
-      if (updatedOrders.length !== 1) {
-        throw new ConflictException({
+      if (!order) {
+        throw new NotFoundException({
           success: false,
           error: {
-            code: "ORDER_STATUS_CHANGED",
-            message: "Trạng thái đơn hàng đã thay đổi, không thể hủy giữ chỗ",
+            code: "ORDER_NOT_FOUND",
+            message: "Không tìm thấy đơn hàng cần giải phóng",
             timestamp: new Date().toISOString(),
           },
         });
       }
 
-      // 2. Trả ghế về AVAILABLE
+      if (order.status !== OrderStatus.PENDING) {
+        throw new BadRequestException({
+          success: false,
+          error: {
+            code: "ORDER_NOT_PENDING",
+            message: `Chỉ đơn hàng PENDING mới có thể hủy giữ chỗ (trạng thái: ${order.status})`,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }
+
+      // Chỉ cho hủy trực tiếp khi CHƯA khởi tạo thanh toán.
+      // Kể cả giao dịch FAILED vẫn phải xem xét/đối soát theo luồng thanh toán;
+      // không hủy/vứt lượt voucher từ đây nếu đã có transaction.
+      const [paymentAttempt] = await tx
+        .select({ id: transactions.id })
+        .from(transactions)
+        .where(eq(transactions.orderId, orderId))
+        .limit(1);
+
+      if (paymentAttempt) {
+        throw new ConflictException(
+          "Đơn hàng đã khởi tạo thanh toán VNPay, vui lòng chờ xác nhận hoặc đối soát trước khi hủy",
+        );
+      }
+
+      const items = await tx
+        .select({
+          seatId: orderItems.seatId,
+          ticketTypeId: orderItems.ticketTypeId,
+          quantity: orderItems.quantity,
+        })
+        .from(orderItems)
+        .where(eq(orderItems.orderId, orderId));
+
+      const now = new Date();
+      const updated = await tx
+        .update(orders)
+        .set({ status: OrderStatus.CANCELLED, updatedAt: now })
+        .where(
+          and(eq(orders.id, orderId), eq(orders.status, OrderStatus.PENDING)),
+        )
+        .returning({ id: orders.id });
+
+      if (updated.length !== 1) {
+        throw new ConflictException("Trạng thái đơn hàng đã thay đổi");
+      }
+
       await tx
         .update(seats)
         .set({
@@ -704,43 +901,57 @@ export class BookingService {
           holdOrderId: null,
           holdExpiresAt: null,
           version: sql`${seats.version} + 1`,
-          updatedAt: new Date(),
+          updatedAt: now,
         })
-        .where(eq(seats.holdOrderId, orderId));
+        .where(
+          and(
+            eq(seats.holdOrderId, orderId),
+            eq(seats.status, SeatStatus.HELD),
+          ),
+        );
 
-      // 3. Hoàn trả held_count cho khu đứng
-      for (const item of order.items) {
-        if (!item.seatId) {
+      // Hoàn trả held_count của khu vé đứng theo đúng số vé đã giữ.
+      for (const item of items) {
+        if (item.seatId === null) {
           await tx
             .update(ticketTypes)
             .set({
               heldCount: sql`GREATEST(0, ${ticketTypes.heldCount} - ${item.quantity})`,
-              updatedAt: new Date(),
+              updatedAt: now,
             })
             .where(eq(ticketTypes.id, item.ticketTypeId));
         }
       }
 
-      // 4. Ghi outbox
+      // Không cho voucher RESERVED tiếp tục chiếm lượt khi hủy trước thanh toán.
+      await tx
+        .update(voucherRedemptions)
+        .set({ status: "RELEASED" })
+        .where(
+          and(
+            eq(voucherRedemptions.orderId, orderId),
+            eq(voucherRedemptions.status, "RESERVED"),
+          ),
+        );
+
       await tx.insert(outbox).values({
         eventType: "ORDER_HOLD_RELEASED",
         payload: {
           orderId,
           userId,
-          releasedAt: new Date().toISOString(),
+          releasedAt: now.toISOString(),
         },
         status: OutboxStatus.PENDING,
       });
 
       return {
+        eventId: order.eventId,
         message: "Đã giải phóng ghế thành công",
       };
     });
 
-    // Sau khi huy giu ve thanh cong
-    await this.eventReadCacheService.invalidate(order.eventId);
-
-    return result;
+    await this.eventReadCacheService.invalidate(result.eventId);
+    return { message: result.message };
   }
 
   async getOrderById(userId: string, orderId: string) {
@@ -813,7 +1024,8 @@ export class BookingService {
         ]),
       );
       if (expiredOrders.length === 0) {
-        // Vẫn dọn các ghế rác nếu có trạng thái HELD mà quá hạn
+        // Chỉ dọn ghế HELD bị mồ côi; ghế có holdOrderId hợp lệ
+        // phải xử lý theo vòng đời đơn/đối soát thanh toán.
         await tx
           .update(seats)
           .set({
@@ -827,6 +1039,7 @@ export class BookingService {
             and(
               eq(seats.status, SeatStatus.HELD),
               lt(seats.holdExpiresAt, now),
+              sql`${seats.holdOrderId} IS NULL`,
             ),
           );
         return {
@@ -836,6 +1049,17 @@ export class BookingService {
       }
 
       const expiredOrderIds = expiredOrders.map((o) => o.id);
+
+      // Đơn có giao dịch VNPay phải giữ lượt voucher để đợi IPN/QueryDR
+      // (kể cả trường hợp trả tiền muộn rồi cần refund).
+      const paymentOrders = await tx
+        .selectDistinct({ orderId: transactions.orderId })
+        .from(transactions)
+        .where(inArray(transactions.orderId, expiredOrderIds));
+      const hasPayment = new Set(paymentOrders.map((t) => t.orderId));
+      const canReleaseVoucherOrderIds = expiredOrderIds.filter(
+        (id) => !hasPayment.has(id),
+      );
 
       // Cập nhật đơn hàng thành EXPIRED
       await tx
@@ -854,11 +1078,14 @@ export class BookingService {
           updatedAt: now,
         })
         .where(
-          or(
-            inArray(seats.holdOrderId, expiredOrderIds),
-            and(
-              eq(seats.status, SeatStatus.HELD),
-              lt(seats.holdExpiresAt, now),
+          and(
+            eq(seats.status, SeatStatus.HELD),
+            or(
+              inArray(seats.holdOrderId, expiredOrderIds),
+              and(
+                lt(seats.holdExpiresAt, now),
+                sql`${seats.holdOrderId} IS NULL`,
+              ),
             ),
           ),
         );
@@ -885,6 +1112,20 @@ export class BookingService {
             updatedAt: now,
           })
           .where(eq(ticketTypes.id, item.ticketTypeId));
+      }
+
+      // Chỉ giải phóng lượt voucher khi chưa từng khởi tạo thanh toán.
+      // Settlement của VNPay chịu trách nhiệm REDEEMED/RELEASED sau đối soát.
+      if (canReleaseVoucherOrderIds.length > 0) {
+        await tx
+          .update(voucherRedemptions)
+          .set({ status: "RELEASED" })
+          .where(
+            and(
+              inArray(voucherRedemptions.orderId, canReleaseVoucherOrderIds),
+              eq(voucherRedemptions.status, "RESERVED"),
+            ),
+          );
       }
 
       return {
