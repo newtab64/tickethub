@@ -3,12 +3,7 @@
 import { useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  MapPin,
-  Calendar,
-  ChevronDown,
-  Navigation,
-} from "lucide-react";
+import { MapPin, Calendar, ChevronDown, Navigation } from "lucide-react";
 
 import { SearchAutocompleteBar } from "@/components/search/search-autocomplete-bar";
 import {
@@ -196,7 +191,7 @@ export default function HomePage() {
       if (selectedDate !== "ALL" && ev.dateWindow !== selectedDate) {
         return false;
       }
-  
+
       return true;
     });
   }, [selectedCategory, selectedDate]);
@@ -231,9 +226,7 @@ export default function HomePage() {
         {/* 1. Centered Floating Pill Search Bar on Pure White Background */}
         {/* 1. Home Search with Autocomplete */}
         <div className="pt-2 pb-8">
-          <SearchAutocompleteBar
-            placeholder="Tìm sự kiện, nghệ sĩ, đội bóng và địa điểm"
-          />
+          <SearchAutocompleteBar placeholder="Tìm sự kiện, nghệ sĩ, đội bóng và địa điểm" />
         </div>
 
         {/* 2. Featured Events Portrait Row */}
