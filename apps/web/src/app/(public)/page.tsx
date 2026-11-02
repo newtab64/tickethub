@@ -121,10 +121,9 @@ function EventGridCard({
 
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] =
-    useState<CategoryCode>("ALL");
+  const [selectedCategory, setSelectedCategory] = useState<CategoryCode>("ALL");
   const [selectedCity, setSelectedCity] = useState<"ALL" | "HCM" | "HN" | "DN">(
-    "HCM"
+    "HCM",
   );
   const [selectedDate, setSelectedDate] = useState<
     "ALL" | "WEEKEND" | "NOV" | "DEC"
@@ -135,7 +134,7 @@ export default function HomePage() {
 
   const toggleSave = (id: string) => {
     setSavedIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
   };
 
@@ -182,7 +181,7 @@ export default function HomePage() {
   // Top 4 Popular Marquee Portrait Cards
   const popularMarqueeEvents = useMemo(() => {
     return EVENTS.filter((e) => e.featuredOrder).sort(
-      (a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99)
+      (a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99),
     );
   }, []);
 
@@ -218,7 +217,7 @@ export default function HomePage() {
         (e) =>
           (e.category === "CONCERT" || e.category === "FESTIVAL") &&
           !e.featuredOrder &&
-          !e.trendingOrder
+          !e.trendingOrder,
       )
       .slice(0, 4);
   }, [filteredPool]);

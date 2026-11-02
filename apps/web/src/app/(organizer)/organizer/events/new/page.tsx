@@ -37,7 +37,11 @@ import { CustomSelect, type SelectOption } from "@/components/ui/custom-select";
 import { DatePicker, TimePicker } from "@/components/ui/date-picker";
 import { ImagePlaceholder } from "@/components/ui/image-placeholder";
 
-const CITY_TABS: Array<{ id: VietnamCity | "ALL"; label: string; count: number }> = [
+const CITY_TABS: Array<{
+  id: VietnamCity | "ALL";
+  label: string;
+  count: number;
+}> = [
   { id: "ALL", label: "Tất cả", count: 11 },
   { id: "TP. Hồ Chí Minh", label: "TP. Hồ Chí Minh", count: 4 },
   { id: "Hà Nội", label: "Hà Nội", count: 4 },
@@ -96,7 +100,7 @@ function CreateEventWizardContent() {
 
   // Step 3: Zone Pricing & Capacity
   const [zones, setZones] = useState<CuratedZoneConfig[]>(
-    () => CURATED_LAYOUT_TEMPLATES["arena-t-stage"]?.defaultZones ?? []
+    () => CURATED_LAYOUT_TEMPLATES["arena-t-stage"]?.defaultZones ?? [],
   );
   const [hoveredZoneId, setHoveredZoneId] = useState<string | null>(null);
 
@@ -245,7 +249,10 @@ function CreateEventWizardContent() {
     if (startDate && startTime) {
       const startDateTime = new Date(`${startDate}T${startTime}`);
       const now = new Date();
-      if (!isNaN(startDateTime.getTime()) && startDateTime.getTime() < now.getTime()) {
+      if (
+        !isNaN(startDateTime.getTime()) &&
+        startDateTime.getTime() < now.getTime()
+      ) {
         errs.startDate = "Thời gian bắt đầu không được ở trong quá khứ.";
       }
     }
@@ -256,7 +263,8 @@ function CreateEventWizardContent() {
       const endDateTime = new Date(`${endDate}T${endTime}`);
       if (!isNaN(startDateTime.getTime()) && !isNaN(endDateTime.getTime())) {
         if (endDateTime.getTime() <= startDateTime.getTime()) {
-          errs.endDate = "Thời gian kết thúc phải diễn ra sau thời gian bắt đầu.";
+          errs.endDate =
+            "Thời gian kết thúc phải diễn ra sau thời gian bắt đầu.";
         }
       }
     }
@@ -266,7 +274,15 @@ function CreateEventWizardContent() {
     }
 
     return errs;
-  }, [title, category, startDate, startTime, endDate, endTime, selectedVenueId]);
+  }, [
+    title,
+    category,
+    startDate,
+    startTime,
+    endDate,
+    endTime,
+    selectedVenueId,
+  ]);
 
   const isValidStep1 =
     Boolean(title.trim().length >= 5) &&
@@ -282,14 +298,24 @@ function CreateEventWizardContent() {
     if (isValidStep1) return "";
     const missing: string[] = [];
     if (!selectedVenueId) missing.push("chọn địa điểm");
-    if (!title.trim() || title.trim().length < 5) missing.push("tên sự kiện (≥5 ký tự)");
+    if (!title.trim() || title.trim().length < 5)
+      missing.push("tên sự kiện (≥5 ký tự)");
     if (!category) missing.push("thể loại");
     if (!startDate || !startTime) missing.push("thời gian bắt đầu");
     if (errors.startDate) missing.push(errors.startDate);
     if (errors.endDate) missing.push(errors.endDate);
 
     return `Vui lòng hoàn thành: ${missing.join(", ")} để tiếp tục.`;
-  }, [isValidStep1, selectedVenueId, title, category, startDate, startTime, errors.startDate, errors.endDate]);
+  }, [
+    isValidStep1,
+    selectedVenueId,
+    title,
+    category,
+    startDate,
+    startTime,
+    errors.startDate,
+    errors.endDate,
+  ]);
 
   // Debounced Autosave to localStorage
   useEffect(() => {
@@ -332,14 +358,18 @@ function CreateEventWizardContent() {
   // Update Zone Price handler
   const handleZonePriceChange = (zoneId: string, newPrice: number) => {
     setZones((prev) =>
-      prev.map((z) => (z.zoneId === zoneId ? { ...z, price: Math.max(0, newPrice) } : z))
+      prev.map((z) =>
+        z.zoneId === zoneId ? { ...z, price: Math.max(0, newPrice) } : z,
+      ),
     );
   };
 
   // Update Zone Capacity handler
   const handleZoneCapacityChange = (zoneId: string, newCap: number) => {
     setZones((prev) =>
-      prev.map((z) => (z.zoneId === zoneId ? { ...z, capacity: Math.max(1, newCap) } : z))
+      prev.map((z) =>
+        z.zoneId === zoneId ? { ...z, capacity: Math.max(1, newCap) } : z,
+      ),
     );
   };
 
@@ -395,11 +425,11 @@ function CreateEventWizardContent() {
   // Computed summary for Step 4
   const totalEventCapacity = useMemo(
     () => zones.reduce((sum, z) => sum + z.capacity, 0),
-    [zones]
+    [zones],
   );
   const totalProjectedRevenue = useMemo(
     () => zones.reduce((sum, z) => sum + z.capacity * z.price, 0),
-    [zones]
+    [zones],
   );
 
   return (
@@ -451,7 +481,8 @@ function CreateEventWizardContent() {
               Tạo sự kiện
             </h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Thiết lập địa điểm, sơ đồ chỗ ngồi và cấu hình giá vé cho sự kiện mới.
+              Thiết lập địa điểm, sơ đồ chỗ ngồi và cấu hình giá vé cho sự kiện
+              mới.
             </p>
           </div>
 
@@ -496,8 +527,8 @@ function CreateEventWizardContent() {
                       isCurrent
                         ? "border-primary bg-background shadow-2xs"
                         : isCompleted
-                        ? "border-border bg-background hover:bg-secondary/40 cursor-pointer"
-                        : "border-border/80 bg-secondary/30 text-foreground cursor-not-allowed"
+                          ? "border-border bg-background hover:bg-secondary/40 cursor-pointer"
+                          : "border-border/80 bg-secondary/30 text-foreground cursor-not-allowed"
                     }`}
                   >
                     <div className="flex items-center gap-2 sm:gap-2.5">
@@ -506,8 +537,8 @@ function CreateEventWizardContent() {
                           isCompleted
                             ? "bg-primary text-primary-foreground"
                             : isCurrent
-                            ? "border-2 border-primary text-primary bg-background"
-                            : "bg-secondary text-foreground border border-border"
+                              ? "border-2 border-primary text-primary bg-background"
+                              : "bg-secondary text-foreground border border-border"
                         }`}
                       >
                         {isCompleted ? <Check className="size-3.5" /> : s.num}
@@ -521,8 +552,8 @@ function CreateEventWizardContent() {
                             isCurrent
                               ? "font-bold text-foreground"
                               : isCompleted
-                              ? "font-medium text-foreground"
-                              : "font-medium text-foreground/80"
+                                ? "font-medium text-foreground"
+                                : "font-medium text-foreground/80"
                           }`}
                         >
                           {s.title}
@@ -543,16 +574,14 @@ function CreateEventWizardContent() {
       {step === 1 && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Venue Picker (7 columns, compact horizontal cards) */}
-          <div
-            ref={venuePickerRef}
-            className="lg:col-span-7 space-y-4"
-          >
+          <div ref={venuePickerRef} className="lg:col-span-7 space-y-4">
             <div className="space-y-1">
               <h2 className="text-base font-bold text-foreground">
                 Chọn địa điểm
               </h2>
               <p className="text-xs text-muted-foreground">
-                Lựa chọn nhà thi đấu, sân vận động hoặc nhà hát đã chuẩn hóa sơ đồ.
+                Lựa chọn nhà thi đấu, sân vận động hoặc nhà hát đã chuẩn hóa sơ
+                đồ.
               </p>
             </div>
 
@@ -680,7 +709,8 @@ function CreateEventWizardContent() {
 
             {filteredVenues.length === 0 && (
               <div className="p-8 text-center border border-dashed border-border rounded-lg text-xs text-muted-foreground">
-                Không tìm thấy địa điểm nào phù hợp với từ khóa &quot;{venueSearch}&quot;.
+                Không tìm thấy địa điểm nào phù hợp với từ khóa &quot;
+                {venueSearch}&quot;.
               </div>
             )}
           </div>
@@ -744,7 +774,8 @@ function CreateEventWizardContent() {
                   </div>
                 ) : (
                   <div className="text-muted-foreground py-2 text-center text-xs">
-                    Chưa chọn địa điểm. Hãy nhấp vào một địa điểm ở cột bên trái.
+                    Chưa chọn địa điểm. Hãy nhấp vào một địa điểm ở cột bên
+                    trái.
                   </div>
                 )}
                 {touched.venue && errors.venue && (
@@ -808,7 +839,8 @@ function CreateEventWizardContent() {
                 {/* Thời gian bắt đầu (DatePicker dd/mm/yyyy & TimePicker 24h 15-min) */}
                 <div className="space-y-1.5">
                   <span className="block text-xs font-semibold text-foreground">
-                    Thời gian bắt đầu <span className="text-destructive">*</span>
+                    Thời gian bắt đầu{" "}
+                    <span className="text-destructive">*</span>
                   </span>
                   <div className="grid grid-cols-2 gap-2">
                     <DatePicker
@@ -841,11 +873,13 @@ function CreateEventWizardContent() {
                       {errors.startDate}
                     </p>
                   )}
-                  {touched.startTime && !errors.startDate && errors.startTime && (
-                    <p className="text-xs text-destructive font-medium">
-                      {errors.startTime}
-                    </p>
-                  )}
+                  {touched.startTime &&
+                    !errors.startDate &&
+                    errors.startTime && (
+                      <p className="text-xs text-destructive font-medium">
+                        {errors.startTime}
+                      </p>
+                    )}
                 </div>
 
                 {/* Thời gian kết thúc (Tùy chọn: DatePicker & TimePicker) */}
@@ -906,9 +940,13 @@ function CreateEventWizardContent() {
                       title,
                       category,
                       startTime:
-                        startDate && startTime ? `${startDate}T${startTime}:00Z` : "",
+                        startDate && startTime
+                          ? `${startDate}T${startTime}:00Z`
+                          : "",
                       endTime:
-                        endDate && endTime ? `${endDate}T${endTime}:00Z` : undefined,
+                        endDate && endTime
+                          ? `${endDate}T${endTime}:00Z`
+                          : undefined,
                       venueId: selectedVenue?.id,
                       venueName: selectedVenue?.name,
                       venueAddress: selectedVenue?.address,
@@ -946,8 +984,10 @@ function CreateEventWizardContent() {
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
                 Địa điểm:{" "}
-                <strong className="text-foreground">{selectedVenue.name}</strong> •{" "}
-                {selectedVenue.city}
+                <strong className="text-foreground">
+                  {selectedVenue.name}
+                </strong>{" "}
+                • {selectedVenue.city}
               </p>
             </div>
             <button
@@ -1052,11 +1092,15 @@ function CreateEventWizardContent() {
                 Cấu hình phân khu &amp; đơn giá
               </h2>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Thiết lập mức giá và số lượng vé cho từng khán đài. Rê chuột lên sơ đồ hoặc bảng để đối soát.
+                Thiết lập mức giá và số lượng vé cho từng khán đài. Rê chuột lên
+                sơ đồ hoặc bảng để đối soát.
               </p>
             </div>
             <div className="text-xs text-muted-foreground">
-              Sơ đồ: <strong className="text-foreground">{currentLayoutTemplate.name}</strong>
+              Sơ đồ:{" "}
+              <strong className="text-foreground">
+                {currentLayoutTemplate.name}
+              </strong>
             </div>
           </div>
 
@@ -1076,9 +1120,14 @@ function CreateEventWizardContent() {
                   mapKey={selectedLayoutKey}
                   hoveredZoneId={hoveredZoneId}
                   onSelectZone={() => {}}
-                  onHoverZone={(zoneId: string | null) => setHoveredZoneId(zoneId)}
+                  onHoverZone={(zoneId: string | null) =>
+                    setHoveredZoneId(zoneId)
+                  }
                   zoneInfoMap={zones.reduce<
-                    Record<string, { name: string; minPrice: number; count: number }>
+                    Record<
+                      string,
+                      { name: string; minPrice: number; count: number }
+                    >
                   >((acc, z) => {
                     acc[z.zoneId] = {
                       name: z.name,
@@ -1145,7 +1194,7 @@ function CreateEventWizardContent() {
                               onChange={(e) =>
                                 handleZonePriceChange(
                                   zone.zoneId,
-                                  parseInt(e.target.value, 10) || 0
+                                  parseInt(e.target.value, 10) || 0,
                                 )
                               }
                               className="w-full h-8 px-2.5 rounded-md border border-input bg-background text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring tabular-nums"
@@ -1164,7 +1213,7 @@ function CreateEventWizardContent() {
                               onChange={(e) =>
                                 handleZoneCapacityChange(
                                   zone.zoneId,
-                                  parseInt(e.target.value, 10) || 10
+                                  parseInt(e.target.value, 10) || 10,
                                 )
                               }
                               className="w-24 h-8 px-2.5 rounded-md border border-input bg-background text-xs text-right text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring tabular-nums inline-block"
@@ -1183,13 +1232,17 @@ function CreateEventWizardContent() {
               {/* Financial Summary (Base UI font, tabular-nums) */}
               <div className="p-3.5 rounded-lg border border-border bg-background flex items-center justify-between text-xs">
                 <div>
-                  <span className="text-muted-foreground">Tổng số vé phát hành:</span>{" "}
+                  <span className="text-muted-foreground">
+                    Tổng số vé phát hành:
+                  </span>{" "}
                   <strong className="text-foreground tabular-nums font-semibold">
                     {formatNumberVi(totalEventCapacity)}
                   </strong>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Doanh thu dự kiến:</span>{" "}
+                  <span className="text-muted-foreground">
+                    Doanh thu dự kiến:
+                  </span>{" "}
                   <strong className="text-foreground tabular-nums font-bold">
                     {formatVnd(totalProjectedRevenue)}
                   </strong>
@@ -1231,33 +1284,46 @@ function CreateEventWizardContent() {
               Xem trước và xuất bản sự kiện
             </h2>
             <p className="text-xs text-muted-foreground">
-              Vui lòng rà soát lại thông tin trước khi phát hành sự kiện lên TicketHub.
+              Vui lòng rà soát lại thông tin trước khi phát hành sự kiện lên
+              TicketHub.
             </p>
           </div>
 
           <div className="rounded-lg border border-border bg-background p-6 space-y-5 shadow-2xs">
             {/* Header info */}
             <div className="space-y-1 pb-4 border-b border-border">
-              <span className="text-xs font-semibold text-primary">{category}</span>
+              <span className="text-xs font-semibold text-primary">
+                {category}
+              </span>
               <h3 className="text-lg font-bold text-foreground">{title}</h3>
               <p className="text-xs text-muted-foreground tabular-nums">
                 Thời gian: {formatDateTimeVi(`${startDate}T${startTime}`)}
-                {endDate && endTime && ` - ${formatDateTimeVi(`${endDate}T${endTime}`)}`}
+                {endDate &&
+                  endTime &&
+                  ` - ${formatDateTimeVi(`${endDate}T${endTime}`)}`}
               </p>
             </div>
 
             {/* Venue & Layout */}
             <div className="grid grid-cols-2 gap-4 text-xs pb-4 border-b border-border">
               <div>
-                <span className="text-muted-foreground block text-[11px]">Địa điểm</span>
-                <strong className="text-foreground text-xs">{selectedVenue.name}</strong>
+                <span className="text-muted-foreground block text-[11px]">
+                  Địa điểm
+                </span>
+                <strong className="text-foreground text-xs">
+                  {selectedVenue.name}
+                </strong>
                 <p className="text-muted-foreground text-[11.5px] mt-0.5">
                   {selectedVenue.address}
                 </p>
               </div>
               <div>
-                <span className="text-muted-foreground block text-[11px]">Sơ đồ chỗ ngồi</span>
-                <strong className="text-foreground text-xs">{currentLayoutTemplate.name}</strong>
+                <span className="text-muted-foreground block text-[11px]">
+                  Sơ đồ chỗ ngồi
+                </span>
+                <strong className="text-foreground text-xs">
+                  {currentLayoutTemplate.name}
+                </strong>
                 <p className="text-muted-foreground text-[11.5px] mt-0.5">
                   {currentLayoutTemplate.categoryName}
                 </p>

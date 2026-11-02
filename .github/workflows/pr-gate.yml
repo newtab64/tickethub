@@ -1,0 +1,221 @@
+name: PR Strict Gate
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+    branches:
+      - unstable
+      - stable
+
+permissions:
+  pull-requests: write
+  issues: write
+  actions: write
+  contents: read
+
+jobs:
+  gate-check:
+    name: Check PR Checklist and Commits
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.base.ref }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Run PR Gate Validation
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { validatePullRequest } = await import('${{ github.workspace }}/scripts/pr-gate-check.mjs');
+            const { auditDocParity } = await import('${{ github.workspace }}/scripts/audit-doc-parity.mjs');
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Lay danh sach commits cua PR
+            const commitList = await github.paginate(github.rest.pulls.listCommits, {
+              owner,
+              repo,
+              pull_number: pr.number,
+            });
+
+            const commits = commitList.map((c) => ({
+              message: c.commit.message,
+              sha: c.sha,
+            }));
+
+            // Lay danh sach files thay doi cua PR
+            const changedFilesData = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number: pr.number,
+            });
+            const changedFiles = changedFilesData.map((f) => f.filename);
+
+            // Kiem tra doi soat tai lieu (Semantic Doc Parity)
+            let docParity = null;
+            try {
+              docParity = auditDocParity({
+                schemaDir: '${{ github.workspace }}/apps/api/src/database/schema',
+                controllersDir: '${{ github.workspace }}/apps/api/src',
+                erdPath: '${{ github.workspace }}/docs/ERD.md',
+                apiContractPath: '${{ github.workspace }}/docs/API_CONTRACT.md',
+              });
+            } catch (parityErr) {
+              console.log('Notice: Could not run doc parity check:', parityErr.message);
+            }
+
+            const result = validatePullRequest({
+              title: pr.title,
+              body: pr.body || '',
+              commits,
+              docParity,
+              changedFiles,
+            });
+
+            if (!result.valid) {
+              console.log('PR Strict Gate failed. Errors:', result.errors);
+
+              // 1. Huy tien trinh ci.yml dang chay hoac cho chay tren commit nay de tiet kiem tai nguyen
+              try {
+                const runs = await github.rest.actions.listWorkflowRuns({
+                  owner,
+                  repo,
+                  workflow_id: 'ci.yml',
+                });
+                for (const run of runs.data.workflow_runs) {
+                  if (
+                    run.head_sha === pr.head.sha &&
+                    (run.status === 'in_progress' || run.status === 'queued')
+                  ) {
+                    console.log(`Cancelling CI run ${run.id} (${run.status}) for commit ${pr.head.sha}`);
+                    await github.rest.actions.cancelWorkflowRun({
+                      owner,
+                      repo,
+                      run_id: run.id,
+                    });
+                  }
+                }
+              } catch (cancelError) {
+                console.log('Notice: Could not cancel CI run:', cancelError.message);
+              }
+
+              // 2. Gan label bao loi
+              if (result.labelsToAdd.length > 0) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  labels: result.labelsToAdd,
+                });
+              }
+
+              // 3. Dang comment huong dan sua loi
+              const commentLines = [
+                '### Thông báo kiểm soát Pull Request (PR Strict Gate)',
+                '',
+                'Pull Request này chưa vượt qua cổng kiểm soát sơ loại vì các lý do sau:',
+                '',
+                ...result.errors.map((err) => `- ${err}`),
+                '',
+                '---',
+                '**Hướng dẫn khắc phục:**',
+                '1. Chỉnh sửa mô tả PR và tích đủ toàn bộ các mục bắt buộc trong checklist.',
+                '2. Nếu commit sai quy chuẩn hoặc chứa emoji/em-dash, vui lòng reword và `git push --force`.',
+                '3. Nếu có thay đổi giao diện tại apps/web, bắt buộc đính kèm hình ảnh hoặc video minh chứng tại Mục 6.',
+                '4. Không được phép chỉnh sửa hạ tầng kiểm duyệt gate hoặc workflow kiểm soát.',
+                '5. Khi đã hoàn tất, PR sẽ tự động được kiểm tra lại và mở lại nếu đạt chuẩn.',
+                '',
+                '> Pull Request đã được tạm thời đóng tự động để bảo vệ tài nguyên CI.',
+              ];
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: commentLines.join('\n'),
+              });
+
+              // 4. Dong PR
+              if (pr.state !== 'closed') {
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  state: 'closed',
+                });
+              }
+
+              core.setFailed('PR Gate Check không đạt yêu cầu: ' + result.errors.join('; '));
+            } else {
+              console.log('PR Strict Gate passed successfully.');
+
+              // Go bo cac label vi pham cu neu co
+              for (const label of result.labelsToRemove) {
+                try {
+                  await github.rest.issues.removeLabel({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    name: label,
+                  });
+                } catch {
+                  // Bo qua neu label chua ton tai
+                }
+              }
+
+              // Canh bao mem ve tai lieu neu co
+              if (result.warnings && result.warnings.length > 0) {
+                if (result.labelsToAdd.includes('needs-doc-update')) {
+                  await github.rest.issues.addLabels({
+                    owner,
+                    repo,
+                    issue_number: pr.number,
+                    labels: ['needs-doc-update'],
+                  });
+                }
+
+                const warningComment = [
+                  '### Cảnh báo lệch hợp đồng tài liệu (Doc Parity Soft Warning)',
+                  '',
+                  'Hệ thống phát hiện một số thay đổi mã nguồn chưa được phản ánh trong tài liệu kiến trúc:',
+                  '',
+                  ...result.warnings.map((w) => `- ${w}`),
+                  '',
+                  '> Lưu ý: Đây là cảnh báo mềm để hỗ trợ tác giả và reviewer duy trì tài liệu đồng bộ.',
+                ];
+
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body: warningComment.join('\n'),
+                });
+              }
+
+              // Neu PR dang bi dong truoc do va vua duoc sua hop le, tu dong mo lai
+              if (pr.state === 'closed') {
+                await github.rest.pulls.update({
+                  owner,
+                  repo,
+                  pull_number: pr.number,
+                  state: 'open',
+                });
+
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: pr.number,
+                  body: '### Thông báo PR Strict Gate: Pull Request đã được kiểm tra lại và hợp lệ. Hệ thống đã tự động mở lại PR để tiếp tục quy trình CI.',
+                });
+              }
+            }

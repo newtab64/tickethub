@@ -30,8 +30,12 @@ function MyTicketsContent() {
   const orderCode = searchParams.get("order") ?? "ORD-88412";
   const zoneName = searchParams.get("zone") ?? "VIP BẠC";
   const rowLabel = searchParams.get("row") ?? "Hàng 12";
-  const quantity = Math.max(1, parseInt(searchParams.get("qty") ?? "2", 10) || 2);
-  const unitPrice = parseInt(searchParams.get("price") ?? "1800000", 10) || 1800000;
+  const quantity = Math.max(
+    1,
+    parseInt(searchParams.get("qty") ?? "2", 10) || 2,
+  );
+  const unitPrice =
+    parseInt(searchParams.get("price") ?? "1800000", 10) || 1800000;
   const totalPrice = unitPrice * quantity;
 
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
@@ -102,7 +106,8 @@ function MyTicketsContent() {
         <div className="p-6 sm:p-7 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 text-primary text-[12px] font-bold">
-              <CheckCircle2 className="size-3.5" /> Vé hợp lệ • Đã thanh toán qua VNPay
+              <CheckCircle2 className="size-3.5" /> Vé hợp lệ • Đã thanh toán
+              qua VNPay
             </span>
             <span className="text-[12px] font-mono font-bold text-muted-foreground">
               MÃ ĐƠN #{orderCode}
@@ -121,10 +126,12 @@ function MyTicketsContent() {
               </h2>
               <div className="flex flex-wrap items-center gap-4 text-[13px] text-muted-foreground pt-0.5">
                 <span className="inline-flex items-center gap-1.5">
-                  <Calendar className="size-4 text-primary" /> {activeEvent.fullDateTime}
+                  <Calendar className="size-4 text-primary" />{" "}
+                  {activeEvent.fullDateTime}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="size-4 text-primary" /> {activeEvent.venue}, {activeEvent.city}
+                  <MapPin className="size-4 text-primary" /> {activeEvent.venue}
+                  , {activeEvent.city}
                 </span>
               </div>
             </div>
@@ -174,7 +181,11 @@ function MyTicketsContent() {
           <div className="flex items-center gap-3">
             <div className="size-11 rounded-[10px] bg-background border border-border flex items-center justify-center text-foreground shrink-0 overflow-hidden">
               {qrDataUrl ? (
-                <img src={qrDataUrl} alt="Mã QR" className="size-10 object-contain" />
+                <img
+                  src={qrDataUrl}
+                  alt="Mã QR"
+                  className="size-10 object-contain"
+                />
               ) : (
                 <QrCode className="size-6 text-foreground" />
               )}
@@ -213,7 +224,8 @@ function MyTicketsContent() {
 
             <div className="text-center space-y-1 mb-4">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-primary text-[11px] font-bold">
-                <ShieldCheck className="size-3.5" /> Vé điện tử chính hãng • Đã xác thực
+                <ShieldCheck className="size-3.5" /> Vé điện tử chính hãng • Đã
+                xác thực
               </span>
               <h3 className="text-[17px] font-extrabold text-slate-900 pt-1">
                 {activeEvent.title}
@@ -250,7 +262,9 @@ function MyTicketsContent() {
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Địa điểm:</span>
-                <span className="font-medium text-slate-700">{activeEvent.venue}</span>
+                <span className="font-medium text-slate-700">
+                  {activeEvent.venue}
+                </span>
               </div>
             </div>
 
@@ -283,7 +297,13 @@ function MyTicketsContent() {
 
 export default function MyTicketsPage() {
   return (
-    <Suspense fallback={<div className="py-12 text-sm text-muted-foreground">Đang tải vé...</div>}>
+    <Suspense
+      fallback={
+        <div className="py-12 text-sm text-muted-foreground">
+          Đang tải vé...
+        </div>
+      }
+    >
       <MyTicketsContent />
     </Suspense>
   );
