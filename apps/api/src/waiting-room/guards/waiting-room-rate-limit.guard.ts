@@ -63,6 +63,11 @@ export class WaitingRoomRateLimitGuard implements CanActivate {
     let count: number;
 
     try {
+      // Neu dang disconnect/reconnect, tra 503 ngay; khong doi offline queue.
+      if (this.redis.status !== "ready") {
+        throw new Error("Redis is not ready");
+      }
+
       // EVAL dam bao INCR va EXPIRE la atomic
       const result = await this.redis.eval(RATE_LIMIT_SCRIPT, 1, key);
 
@@ -74,7 +79,13 @@ export class WaitingRoomRateLimitGuard implements CanActivate {
     } catch {
       // Waiting Room phu thuoc Redis.
       // Khong bo qua rate limit khi Redis loi.
-      throw new ServiceUnavailableException("Redis tam thoi khong kha dung");
+      throw new ServiceUnavailableException({
+        success: false,
+        error: {
+          code: "REDIS_UNAVAILABLE",
+          message: "Redis tam thoi khong kha dung",
+        },
+      });
     }
 
     if (count > maxRequests) {

@@ -12,6 +12,9 @@ import { EventStatus } from "@tickethub/shared";
 import { db } from "../database/db";
 import { events } from "../database/schema";
 import { REDIS_CLIENT } from "../database/redis.module";
+import { isEventSoldOut } from "./waiting-room-inventory";
+import { clearDisabledWaitingRoom } from "./waiting-room-cleanup";
+import { findActivePendingOrder } from "./waiting-room-pending-order";
 
 const PROMOTE_SCRIPT = `
   local activeKey = KEYS[1]
@@ -99,6 +102,14 @@ export class WaitingRoomMaintenanceTask
       .limit(1);
 
     if (!event || !event.isWaitingRoomEnabled) {
+      // UC03-E6: the 5-second maintenance must clear orphaned queues even
+      // if no buyer calls join/heartbeat after the organizer disables it.
+      await clearDisabledWaitingRoom(this.redis, eventId);
+      return;
+    }
+
+    // Het ve: khong promote nguoi cho vao active nua.
+    if (await isEventSoldOut(eventId)) {
       return;
     }
 
@@ -113,7 +124,12 @@ export class WaitingRoomMaintenanceTask
       const alive = await this.redis.exists(hbPrefix + userId);
 
       if (!alive) {
-        await this.redis.srem(activeKey, userId);
+        // UC03 rule: a buyer holding an unexpired order still occupies
+        // their active slot even if they stopped sending heartbeats.
+        const pending = await findActivePendingOrder(userId, eventId);
+        if (!pending) {
+          await this.redis.srem(activeKey, userId);
+        }
       }
     }
 
