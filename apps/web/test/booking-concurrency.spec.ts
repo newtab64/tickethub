@@ -1,221 +1,144 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { execFileSync } from "node:child_process";
 
-const BASE = "http://localhost:4000/api/v1";
+const BASE = `${(process.env.API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "")}/api/v1`;
+const PASSWORD = process.env.PM_LOAD_BUYER_PASSWORD ?? "Password123!";
 
-type TestSeat = {
-  seatId: string;
-  eventId: string;
-  ticketTypeId: string;
+const FIXTURES = {
+  lastSeat: "pm-concurrency-one-seat",
+  freeZone: "pm-concurrency-hundred-seats",
+} as const;
+
+type Fixture = { eventId: string; ticketTypeId: string };
+type HoldResult = {
+  status: number;
+  token: string;
+  orderId?: string;
+  errorCode?: string;
+  allocatedSeatIds: string[];
+  responseBody: unknown;
 };
 
-function queryDB(query: string): string {
-  return execFileSync(
-    "docker",
-    [
-      "exec",
-      "tickethub-postgres",
-      "psql",
-      "-v",
-      "ON_ERROR_STOP=1",
-      "-U",
-      "tickethub",
-      "-d",
-      "tickethub_dev",
-      "-At",
-      "-c",
-      query,
-    ],
-    { encoding: "utf8" },
-  ).trim();
+type JsonObject = Record<string, unknown>;
+function object(value: unknown): JsonObject {
+  return value !== null && typeof value === "object" && !Array.isArray(value)
+    ? (value as JsonObject)
+    : {};
 }
 
-function getTestSeats(): TestSeat[] {
-  const rows = queryDB(`
-    SELECT s.id, s.event_id, s.ticket_type_id
-    FROM seats s
-    JOIN events e ON e.id = s.event_id
-    WHERE e.slug LIKE 'pm-load-2026-%'
-      AND e.is_waiting_room_enabled = false
-      AND e.status = 'PUBLISHED'
-      AND s.status = 'AVAILABLE'
-    ORDER BY e.slug, s.id
-    LIMIT 2;
-  `);
-
-  return rows
-    .split("\n")
-    .filter(Boolean)
-    .map((row) => {
-      const [seatId, eventId, ticketTypeId] = row.split("|");
-      return { seatId, eventId, ticketTypeId } as TestSeat;
-    });
+async function getFixture(request: APIRequestContext, slug: string): Promise<Fixture> {
+  const response = await request.get(`${BASE}/events/${slug}`);
+  expect(response.status(), `Fixture ${slug} not found. Run the PM seed against a dedicated test database.`).toBe(200);
+  const body = object(await response.json());
+  const data = object(body.data);
+  const ticketTypes = Array.isArray(data.ticketTypes)
+    ? data.ticketTypes
+    : Array.isArray(object(data.ticketTypes).items)
+      ? object(data.ticketTypes).items as unknown[]
+      : [];
+  const ticketType = object(ticketTypes[0]);
+  expect(typeof data.id, `Missing event id for ${slug}`).toBe("string");
+  expect(typeof ticketType.id, `GET /events/:slug must return ticketTypes with id for ${slug}`).toBe("string");
+  expect(ticketType.isSeated, `The fixture ${slug} must use a seated ticket type`).toBe(true);
+  return { eventId: data.id as string, ticketTypeId: ticketType.id as string };
 }
 
-async function loginUsers(
-  request: APIRequestContext,
-  count: number,
-): Promise<string[]> {
+async function loginUsers(request: APIRequestContext, count: number): Promise<string[]> {
   const tokens: string[] = [];
-
   for (let i = 1; i <= count; i++) {
     const email = `pm.load.buyer.${String(i).padStart(3, "0")}@example.test`;
-
     const response = await request.post(`${BASE}/auth/login`, {
-      data: {
-        email,
-        password: "Password123!",
-      },
+      data: { email, password: PASSWORD },
     });
-
-    expect(response.status(), `Không đăng nhập được ${email}`).toBe(200);
-
-    const body = await response.json();
-    tokens.push(body.data.accessToken);
+    expect(response.status(), `Failed login for ${email}; seed PM buyer accounts first`).toBe(200);
+    const data = object(object(await response.json()).data);
+    expect(typeof data.accessToken).toBe("string");
+    tokens.push(data.accessToken as string);
   }
-
   return tokens;
 }
 
-async function runConcurrencyTest(
+async function holdOne(
   request: APIRequestContext,
-  count: number,
-  seat: TestSeat,
-) {
-  const tokens = await loginUsers(request, count);
-
-  const results: Array<{
-    status: number;
-    orderId?: string;
-    error?: string;
-    duration: number;
-  }> = [];
-
-  const start = Date.now();
-
-  const responses = await Promise.all(
-    tokens.map(async (token) => {
-      const startedAt = Date.now();
-
-      try {
-        const response = await request.post(`${BASE}/booking/hold`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          data: {
-            eventId: seat.eventId,
-            items: [
-              {
-                ticketTypeId: seat.ticketTypeId,
-                seatId: seat.seatId,
-                quantity: 1,
-              },
-            ],
-          },
-          timeout: 60_000,
-        });
-
-        const body = await response.json();
-
-        return {
-          status: response.status(),
-          orderId: body.data?.orderId as string | undefined,
-          error: body.error?.code as string | undefined,
-          duration: Date.now() - startedAt,
-        };
-      } catch (error) {
-        return {
-          status: 0,
-          error: String(error),
-          duration: Date.now() - startedAt,
-        };
-      }
-    }),
-  );
-
-  results.push(...responses);
-
-  const elapsed = Date.now() - start;
-
-  const successful = results.filter(
-    (r) => r.status === 200 || r.status === 201,
-  );
-
-  const conflicts = results.filter((r) => r.status === 409);
-  const others = results.filter((r) => ![200, 201, 409].includes(r.status));
-
-  const winner = successful[0];
-
-  console.log(`\n=== LOAD TEST: ${count} REQUESTS ===`);
-  console.log("Seat ID:", seat.seatId);
-  console.log("Total:", results.length);
-  console.log("Successful:", successful.length);
-  console.log("Conflicts (409):", conflicts.length);
-  console.log("Other responses:", others.length);
-  console.log("Total elapsed:", elapsed, "ms");
-
-  const durations = results.map((r) => r.duration).sort((a, b) => a - b);
-  const percentile = (p: number) =>
-    durations[Math.ceil(p * durations.length) - 1];
-
-  console.log("P95 latency:", percentile(0.95), "ms");
-  console.log("P99 latency:", percentile(0.99), "ms");
-
-  if (others.length > 0) {
-    console.log("Unexpected:", others.slice(0, 10));
-  }
-
-  try {
-    const pendingOrders = Number(
-      queryDB(`
-      SELECT COUNT(*)
-      FROM order_items oi
-      JOIN orders o ON o.id = oi.order_id
-      WHERE oi.seat_id = '${seat.seatId}'
-        AND o.status = 'PENDING';
-    `),
-    );
-
-    console.log("Pending orders for seat:", pendingOrders);
-
-    expect(results.length).toBe(count);
-    expect(successful.length).toBe(1);
-    expect(conflicts.length).toBe(count - 1);
-    expect(others.length).toBe(0);
-    expect(pendingOrders).toBe(1);
-  } finally {
-    if (winner?.orderId) {
-      const release = await request.post(`${BASE}/booking/release`, {
-        headers: {
-          Authorization: `Bearer ${tokens[results.indexOf(winner)]}`,
-        },
-        data: { orderId: winner.orderId },
-      });
-
-      console.log("Cleanup release:", release.status());
-      expect(release.ok()).toBeTruthy();
-    }
-  }
+  token: string,
+  fixture: Fixture,
+): Promise<HoldResult> {
+  const response = await request.post(`${BASE}/booking/hold`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: {
+      eventId: fixture.eventId,
+      items: [{ ticketTypeId: fixture.ticketTypeId, quantity: 1 }],
+    },
+    timeout: 120_000,
+  });
+  const body = object(await response.json());
+  const data = object(body.data);
+  const error = object(body.error);
+  const seats = Array.isArray(data.allocatedSeats) ? data.allocatedSeats : [];
+  return {
+    status: response.status(),
+    token,
+    orderId: typeof data.orderId === "string" ? data.orderId : undefined,
+    errorCode: typeof error.code === "string" ? error.code : undefined,
+    allocatedSeatIds: seats.map((s: unknown) => object(s).id).filter((id): id is string => typeof id === "string"),
+    responseBody: body,
+  };
 }
 
-test.describe("Booking - Concurrency Load Test", () => {
+async function releaseOrders(request: APIRequestContext, results: HoldResult[]) {
+  const failures: string[] = [];
+  for (const result of results) {
+    if (!result.orderId) continue;
+    try {
+      const response = await request.post(`${BASE}/booking/release`, {
+        headers: { Authorization: `Bearer ${result.token}` },
+        data: { orderId: result.orderId },
+        timeout: 30_000,
+      });
+      if (response.status() !== 200) failures.push(`${result.orderId}: HTTP ${response.status()}`);
+    } catch (error) {
+      failures.push(`${result.orderId}: ${String(error)}`);
+    }
+  }
+  expect(failures, `Cleanup failed: ${failures.join("; ")}`).toEqual([]);
+}
+
+test.describe("Booking - Auto-Seat Allocation concurrency", () => {
   test.describe.configure({ mode: "serial" });
 
-  test("LOAD01 - 100 requests tranh một ghế", async ({ request }) => {
-    test.setTimeout(180_000);
-
-    const seats = getTestSeats();
-    expect(seats.length).toBeGreaterThanOrEqual(2);
-
-    await runConcurrencyTest(request, 100, seats[0]!);
+  test("LOAD01 - 100 requests compete for the last available seat", async ({ request }) => {
+    test.setTimeout(300_000);
+    const fixture = await getFixture(request, FIXTURES.lastSeat);
+    const tokens = await loginUsers(request, 100);
+    const results = await Promise.allSettled(tokens.map((token) => holdOne(request, token, fixture)));
+    const fulfilled = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    const winners = fulfilled.filter((r) => r.status === 201);
+    try {
+      expect(results.every((r) => r.status === "fulfilled"), "All requests must receive HTTP responses").toBe(true);
+      expect(winners, "Exactly one HTTP 201 winner").toHaveLength(1);
+      expect(fulfilled.filter((r) => r.status === 409 && r.errorCode === "INSUFFICIENT_TICKET_CAPACITY")).toHaveLength(99);
+      expect(winners[0]?.allocatedSeatIds).toHaveLength(1);
+      expect(winners[0]?.orderId).toBeTruthy();
+    } finally {
+      await releaseOrders(request, winners);
+    }
   });
 
-  test("LOAD02 - 200 requests tranh một ghế", async ({ request }) => {
-    test.setTimeout(180_000);
-
-    const seats = getTestSeats();
-    expect(seats.length).toBeGreaterThanOrEqual(2);
-
-    await runConcurrencyTest(request, 200, seats[1]!);
+  test("LOAD02 - 50 concurrent buyers receive 50 distinct seats in a 100-seat zone", async ({ request }) => {
+    test.setTimeout(300_000);
+    const fixture = await getFixture(request, FIXTURES.freeZone);
+    const tokens = await loginUsers(request, 50);
+    const results = await Promise.allSettled(tokens.map((token) => holdOne(request, token, fixture)));
+    const fulfilled = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    const winners = fulfilled.filter((r) => r.status === 201);
+    try {
+      expect(results.every((r) => r.status === "fulfilled"), "All requests must receive HTTP responses").toBe(true);
+      expect(winners, "All 50 requests should succeed").toHaveLength(50);
+      expect(winners.every((r) => Boolean(r.orderId))).toBe(true);
+      const allocated = winners.flatMap((r) => r.allocatedSeatIds);
+      expect(allocated).toHaveLength(50);
+      expect(new Set(allocated).size, "Allocated seat IDs must be unique across all orders").toBe(50);
+    } finally {
+      await releaseOrders(request, winners);
+    }
   });
 });

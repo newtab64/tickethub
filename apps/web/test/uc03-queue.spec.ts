@@ -1,9 +1,6 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { execFileSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
 
-const BASE_URL = "http://localhost:4000/api/v1";
+const BASE_URL = `${(process.env.API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "")}/api/v1`;
 const QUEUE_EVENT_ID = process.env.UC03_EVENT_ID;
 const NO_QUEUE_EVENT_ID = process.env.UC03_NO_QUEUE_EVENT_ID;
 
@@ -21,24 +18,57 @@ async function loginBuyer(request: APIRequestContext): Promise<string> {
 
   return body.data.accessToken;
 }
-function getTicketTypeId(eventId: string): string {
-  return execFileSync(
-    "docker",
-    [
-      "exec",
-      "tickethub-postgres",
-      "psql",
-      "-U",
-      "tickethub",
-      "-d",
-      "tickethub_dev",
-      "-At",
-      "-c",
-      `SELECT id FROM ticket_types WHERE event_id = '${eventId}' LIMIT 1;`,
-    ],
-    { encoding: "utf8" },
-  ).trim();
+async function getTicketTypeId(
+  request: APIRequestContext,
+  eventId: string,
+): Promise<string> {
+  // Public API: khong truy van PostgreSQL truc tiep tu Playwright.
+  const response = await request.get(`${BASE_URL}/events/${eventId}/inventory`);
+  expect(response.status(), `Inventory for event ${eventId}`).toBe(200);
+  const body: unknown = await response.json();
+  const root = body as { data?: { items?: Array<{ ticketTypeId?: string; isSeated?: boolean }> } };
+  const ticketType = root.data?.items?.find((item) => item.isSeated === true);
+  expect(ticketType?.ticketTypeId, `Missing seated ticket type for ${eventId}`).toBeTruthy();
+  return ticketType!.ticketTypeId!;
 }
+
+
+const WAITING_ROOM_FIXTURES = {
+  tc07: "pm-uc03-max-active-two",
+  tc08: "pm-uc03-fifo-two",
+  tc18: "pm-uc03-two-tabs",
+  tc15: "pm-uc03-auto-promote",
+  tc16: "pm-uc03-heartbeat-expiry",
+} as const;
+
+async function getFixtureEventId(request: APIRequestContext, slug: string): Promise<string> {
+  const response = await request.get(`${BASE_URL}/events/${slug}`);
+  expect(response.status(), `Fixture ${slug} missing; run PM seed first`).toBe(200);
+  const body = (await response.json()) as { data?: { id?: string; maxActiveUsers?: number; isWaitingRoomEnabled?: boolean } };
+  expect(body.data?.id).toBeTruthy();
+  expect(body.data?.isWaitingRoomEnabled).toBe(true);
+  return body.data!.id!;
+}
+
+async function loginFixtureBuyer(request: APIRequestContext, index: number): Promise<string> {
+  const email = `pm.load.buyer.${String(index).padStart(3, "0")}@example.test`;
+  const response = await request.post(`${BASE_URL}/auth/login`, {
+    data: { email, password: process.env.PM_LOAD_BUYER_PASSWORD ?? "Password123!" },
+  });
+  expect(response.status(), `Could not login ${email}`).toBe(200);
+  const body = (await response.json()) as { data?: { accessToken?: string } };
+  expect(body.data?.accessToken).toBeTruthy();
+  return body.data!.accessToken!;
+}
+
+async function joinFixtureBuyer(request: APIRequestContext, eventId: string, token: string) {
+  const response = await request.post(`${BASE_URL}/waiting-room/${eventId}/join`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const body = (await response.json()) as { data?: { status?: string; queuePosition?: number; queueId?: string } };
+  return { status: response.status(), data: body.data };
+}
+
 test.describe("UC03 - Waiting Room API", () => {
   test.beforeAll(() => {
     expect(QUEUE_EVENT_ID).toBeTruthy();
@@ -150,62 +180,37 @@ test.describe("UC03 - Waiting Room API", () => {
     }
   });
 
-  test("TC07 - MAX_ACTIVE đầy thì người mới phải xếp hàng", async ({
-    request,
-  }) => {
-    const login = await request.post(`${BASE_URL}/auth/login`, {
-      data: {
-        email: "pm.load.buyer.026@example.test",
-        password: "Password123!",
-      },
-    });
-
-    expect(login.status()).toBe(200);
-
-    const token = (await login.json()).data.accessToken;
-
-    const response = await request.post(
-      `${BASE_URL}/waiting-room/${QUEUE_EVENT_ID}/join`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-
-    expect(response.status()).toBe(202);
-
-    const body = await response.json();
-
-    expect(body.data.status).toBe("QUEUED");
-    expect(body.data.queuePosition).toBeGreaterThan(0);
+  test("TC07 - MAX_ACTIVE đầy thì người mới phải xếp hàng", async ({ request }) => {
+    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc07);
+    const tokens = await Promise.all([101, 102, 103].map((n) => loginFixtureBuyer(request, n)));
+    for (const token of tokens.slice(0, 2)) {
+      const joined = await joinFixtureBuyer(request, eventId, token);
+      expect(joined.status).toBe(200);
+      expect(joined.data?.status).toBe("ADMITTED");
+    }
+    const waiting = await joinFixtureBuyer(request, eventId, tokens[2]!);
+    expect(waiting.status).toBe(202);
+    expect(waiting.data?.status).toBe("QUEUED");
+    expect(waiting.data?.queuePosition).toBe(1);
   });
 
-  test("TC08 - FIFO: Người vào trước có vị trí ưu tiên", async ({
-    request,
-  }) => {
-    const login = await request.post(`${BASE_URL}/auth/login`, {
-      data: {
-        email: "pm.load.buyer.027@example.test",
-        password: "Password123!",
-      },
-    });
-
-    expect(login.status()).toBe(200);
-
-    const token = (await login.json()).data.accessToken;
-
-    const response = await request.post(
-      `${BASE_URL}/waiting-room/${QUEUE_EVENT_ID}/join`,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      },
-    );
-
-    expect(response.status()).toBe(202);
-
-    const body = await response.json();
-
-    expect(body.data.status).toBe("QUEUED");
-    expect(body.data.queuePosition).toBe(2);
+  test("TC08 - FIFO: Người vào trước có vị trí ưu tiên", async ({ request }) => {
+    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc08);
+    const tokens = await Promise.all([111, 112, 113, 114].map((n) => loginFixtureBuyer(request, n)));
+    for (const token of tokens.slice(0, 2)) {
+      const joined = await joinFixtureBuyer(request, eventId, token);
+      expect(joined.status).toBe(200);
+      expect(joined.data?.status).toBe("ADMITTED");
+    }
+    const first = await joinFixtureBuyer(request, eventId, tokens[2]!);
+    const second = await joinFixtureBuyer(request, eventId, tokens[3]!);
+    expect(first.status).toBe(202);
+    expect(second.status).toBe(202);
+    expect(first.data?.status).toBe("QUEUED");
+    expect(second.data?.status).toBe("QUEUED");
+    expect(first.data?.queuePosition).toBe(1);
+    expect(second.data?.queuePosition).toBe(2);
+    expect(first.data?.queueId).not.toBe(second.data?.queueId);
   });
 
   test("TC10 - Admission token có thời hạn 10 phút", async ({ request }) => {
@@ -360,484 +365,130 @@ test.describe("UC03 - Waiting Room API", () => {
   });
 
   test("TC15 - Tự động chuyển lượt khi có chỗ trống", async ({ request }) => {
-    test.setTimeout(30_000);
+    test.setTimeout(135_000);
 
-    const eventId = QUEUE_EVENT_ID!;
+    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc15);
+    const [buyerA, buyerB] = await Promise.all([
+      loginFixtureBuyer(request, 131),
+      loginFixtureBuyer(request, 132),
+    ]);
 
-    function redis(...args: string[]): string {
-      return execFileSync(
-        "docker",
-        ["exec", "tickethub-redis", "redis-cli", ...args],
-        { encoding: "utf8" },
-      ).trim();
-    }
+    const first = await joinFixtureBuyer(request, eventId, buyerA);
+    expect(first.status, "TC15 requires an empty, isolated active slot").toBe(200);
+    expect(first.data?.status).toBe("ADMITTED");
 
-    const activeKey = `active_users:${eventId}`;
-    const queueKey = `waiting_room:${eventId}`;
-    const heartbeatPrefix = `w03:waiting-room:hb:${eventId}:`;
+    const second = await joinFixtureBuyer(request, eventId, buyerB);
+    expect(second.status, "Buyer B should wait while Buyer A occupies the only slot").toBe(202);
+    expect(second.data?.status).toBe("QUEUED");
+    expect(second.data?.queuePosition).toBe(1);
 
-    const simulatedUsers = Array.from({ length: 20 }, () => randomUUID());
-
-    redis("DEL", activeKey, queueKey);
-
-    for (const userId of simulatedUsers) {
-      redis("SADD", activeKey, userId);
-      redis("SET", `${heartbeatPrefix}${userId}`, "1", "EX", "60");
-    }
-
-    expect(Number(redis("SCARD", activeKey))).toBe(20);
-
-    const login = await request.post(`${BASE_URL}/auth/login`, {
-      data: {
-        email: "pm.load.buyer.026@example.test",
-        password: "Password123!",
+    await expect.poll(
+      async () => {
+        const response = await request.post(
+          `${BASE_URL}/waiting-room/${eventId}/heartbeat`,
+          { headers: { Authorization: `Bearer ${buyerB}` } },
+        );
+        expect([200, 202]).toContain(response.status());
+        const body = (await response.json()) as {
+          data?: { status?: string; admissionToken?: string };
+        };
+        if (body.data?.status === "ADMITTED") {
+          expect(response.status()).toBe(200);
+          expect(body.data.admissionToken).toBeTruthy();
+        }
+        return body.data?.status;
       },
-    });
-
-    expect(login.status()).toBe(200);
-    const token = (await login.json()).data.accessToken;
-    const headers = { Authorization: `Bearer ${token}` };
-
-    const join = await request.post(
-      `${BASE_URL}/waiting-room/${eventId}/join`,
-      { headers },
-    );
-
-    expect(join.status()).toBe(202);
-    expect((await join.json()).data.status).toBe("QUEUED");
-
-    redis("SREM", activeKey, simulatedUsers[0]!);
-
-    await expect
-      .poll(() => Number(redis("SCARD", activeKey)), {
-        timeout: 15_000,
-        intervals: [1000],
-      })
-      .toBe(20);
-
-    const heartbeat = await request.post(
-      `${BASE_URL}/waiting-room/${eventId}/heartbeat`,
-      { headers },
-    );
-
-    expect(heartbeat.status()).toBe(200);
-
-    const body = await heartbeat.json();
-    expect(body.data.status).toBe("ADMITTED");
-    expect(body.data.admissionToken).toBeTruthy();
+      { timeout: 95_000, intervals: [4_000] },
+    ).toBe("ADMITTED");
   });
 
-  test("TC16 - Admission token bị từ chối khi mất heartbeat", async ({
-    request,
-  }) => {
-    const eventId = QUEUE_EVENT_ID!;
+  test("TC16 - Admission token bị từ chối khi mất heartbeat", async ({ request }) => {
+    test.setTimeout(125_000);
 
-    function redis(...args: string[]): string {
-      return execFileSync(
-        "docker",
-        ["exec", "tickethub-redis", "redis-cli", ...args],
-        { encoding: "utf8" },
-      ).trim();
-    }
-
-    const activeKey = `active_users:${eventId}`;
-    const queueKey = `waiting_room:${eventId}`;
-
-    redis("DEL", activeKey, queueKey);
-
-    const accessToken = await loginBuyer(request);
-    const headers = { Authorization: `Bearer ${accessToken}` };
-
-    const join = await request.post(
-      `${BASE_URL}/waiting-room/${eventId}/join`,
-      { headers },
-    );
-
-    expect(join.status()).toBe(200);
-
-    const admissionToken = (await join.json()).data.admissionToken;
+    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc16);
+    const ticketTypeId = await getTicketTypeId(request, eventId);
+    const buyerToken = await loginFixtureBuyer(request, 141);
+    const joined = await request.post(`${BASE_URL}/waiting-room/${eventId}/join`, {
+      headers: { Authorization: `Bearer ${buyerToken}` },
+    });
+    expect(joined.status(), "TC16 requires an isolated free active slot").toBe(200);
+    const joinBody = (await joined.json()) as {
+      data?: { status?: string; admissionToken?: string };
+    };
+    expect(joinBody.data?.status).toBe("ADMITTED");
+    const admissionToken = joinBody.data?.admissionToken;
     expect(admissionToken).toBeTruthy();
 
-    const accessPayload = JSON.parse(
-      Buffer.from(accessToken.split(".")[1]!, "base64url").toString("utf8"),
-    );
-
-    const userId = accessPayload.sub as string;
-    expect(userId).toBeTruthy();
-
-    redis("DEL", `w03:waiting-room:hb:${eventId}:${userId}`);
+    await new Promise<void>((resolve) => setTimeout(resolve, 67_000));
 
     const response = await request.post(`${BASE_URL}/booking/hold`, {
       headers: {
-        ...headers,
-        "x-admission-token": admissionToken,
+        Authorization: `Bearer ${buyerToken}`,
+        "x-admission-token": admissionToken!,
       },
-      data: createHoldBody(eventId),
+      data: { eventId, items: [{ ticketTypeId, quantity: 1 }] },
     });
-
-    expect(response.status()).toBe(403);
-
-    const body = await response.json();
-    expect(body.error.code).toBe("INVALID_ADMISSION_TOKEN");
+    expect(response.status(), "Expired heartbeat must reject admission").toBe(403);
+    const body = (await response.json()) as { error?: { code?: string } };
+    expect(body.error?.code).toBe("INVALID_ADMISSION_TOKEN");
   });
 
-  test("TC18 - Hai tab cùng tài khoản không tạo hai vị trí hàng chờ", async ({
-    request,
-  }) => {
-    test.setTimeout(30_000);
+  test("TC18 - Hai tab cùng tài khoản không tạo hai vị trí hàng chờ", async ({ request }) => {
+    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc18);
+    const tokens = await Promise.all([121, 122, 123].map((index) => loginFixtureBuyer(request, index)));
 
-    const eventId = QUEUE_EVENT_ID!;
-    const activeKey = `active_users:${eventId}`;
-    const queueKey = `waiting_room:${eventId}`;
-
-    function redis(...args: string[]): string {
-      return execFileSync(
-        "docker",
-        ["exec", "tickethub-redis", "redis-cli", ...args],
-        { encoding: "utf8" },
-      ).trim();
-    }
-    const simulatedUsers = Array.from({ length: 20 }, () => randomUUID());
-
-    const commands: string[] = ["MULTI", `DEL ${activeKey} ${queueKey}`];
-
-    for (const userId of simulatedUsers) {
-      commands.push(`SADD ${activeKey} ${userId}`);
-      commands.push(`SET w03:waiting-room:hb:${eventId}:${userId} 1 EX 60`);
+    for (const token of tokens.slice(0, 2)) {
+      const joined = await joinFixtureBuyer(request, eventId, token);
+      expect(joined.status, "TC18 fixture must start with two available active slots").toBe(200);
+      expect(joined.data?.status).toBe("ADMITTED");
     }
 
-    commands.push("EXEC");
-
-    const setup = spawnSync(
-      "docker",
-      ["exec", "-i", "tickethub-redis", "redis-cli", "--no-raw"],
-      {
-        input: commands.join("\n") + "\n",
-        encoding: "utf8",
-      },
-    );
-
-    expect(setup.status, setup.stderr).toBe(0);
-
-    const activeCount = Number(redis("SCARD", activeKey));
-    console.log("Active after setup:", activeCount);
-
-    expect(activeCount).toBe(20);
-
-    const loginResponse = await request.post(`${BASE_URL}/auth/login`, {
-      data: {
-        email: "pm.load.buyer.028@example.test",
-        password: "Password123!",
-      },
-    });
-
-    expect(loginResponse.status()).toBe(200);
-
-    const accessToken = (await loginResponse.json()).data.accessToken;
-    const headers = { Authorization: `Bearer ${accessToken}` };
-
+    const headers = { Authorization: `Bearer ${tokens[2]!}` };
+    const url = `${BASE_URL}/waiting-room/${eventId}/join`;
     const [tab1, tab2] = await Promise.all([
-      request.post(`${BASE_URL}/waiting-room/${eventId}/join`, { headers }),
-      request.post(`${BASE_URL}/waiting-room/${eventId}/join`, { headers }),
+      request.post(url, { headers }),
+      request.post(url, { headers }),
     ]);
 
     expect(tab1.status()).toBe(202);
     expect(tab2.status()).toBe(202);
-
-    const data1 = (await tab1.json()).data;
-    const data2 = (await tab2.json()).data;
-
+    const data1 = (await tab1.json()).data as { status?: string; queueId?: string; queuePosition?: number };
+    const data2 = (await tab2.json()).data as { status?: string; queueId?: string; queuePosition?: number };
     expect(data1.status).toBe("QUEUED");
     expect(data2.status).toBe("QUEUED");
-
+    expect(data1.queueId).toBeTruthy();
     expect(data1.queueId).toBe(data2.queueId);
-
-    expect(Number(redis("ZCARD", queueKey))).toBe(1);
-
     expect(data1.queuePosition).toBe(1);
     expect(data2.queuePosition).toBe(1);
   });
 
   test("TC19 - Sự kiện hết vé phải thông báo SOLD_OUT", async ({ request }) => {
-    test.setTimeout(30_000);
+    const slug = "pm-uc03-sold-out";
+    const eventId = await getFixtureEventId(request, slug);
 
-    const eventId = process.env.UC03_SOLD_OUT_EVENT_ID;
-    expect(eventId).toBeTruthy();
+    const inventoryResponse = await request.get(`${BASE_URL}/events/${eventId}/inventory`);
+    expect(inventoryResponse.status()).toBe(200);
+    const inventoryBody = (await inventoryResponse.json()) as {
+      data?: { items?: Array<{ isSeated?: boolean; capacity?: number; available?: number; sold?: number }> };
+    };
+    const seated = inventoryBody.data?.items?.filter((item) => item.isSeated === true) ?? [];
+    expect(seated.length, "TC19 requires a seated ticket type").toBeGreaterThan(0);
+    expect(seated.every((item) => item.available === 0)).toBe(true);
+    expect(seated.every((item) => (item.sold ?? 0) === item.capacity)).toBe(true);
 
-    const activeKey = `active_users:${eventId}`;
-    const queueKey = `waiting_room:${eventId}`;
+    const token = await loginFixtureBuyer(request, 151);
+    const response = await request.post(`${BASE_URL}/waiting-room/${eventId}/join`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const body = (await response.json()) as { data?: { status?: string } };
 
-    function redis(...args: string[]) {
-      return execFileSync(
-        "docker",
-        ["exec", "tickethub-redis", "redis-cli", ...args],
-        { encoding: "utf8" },
-      ).trim();
-    }
-
-    function sql(query: string) {
-      return execFileSync(
-        "docker",
-        [
-          "exec",
-          "tickethub-postgres",
-          "psql",
-          "-v",
-          "ON_ERROR_STOP=1",
-          "-U",
-          "tickethub",
-          "-d",
-          "tickethub_dev",
-          "-At",
-          "-c",
-          query,
-        ],
-        { encoding: "utf8" },
-      ).trim();
-    }
-
-    const seatsAvailable = Number(
-      sql(`
-    SELECT COUNT(*) FROM seats
-    WHERE event_id = '${eventId}'
-      AND status = 'AVAILABLE';
-  `),
-    );
-
-    const totalSeats = Number(
-      sql(`
-    SELECT COUNT(*) FROM seats
-    WHERE event_id = '${eventId}';
-  `),
-    );
-
-    expect(totalSeats).toBeGreaterThan(0);
-    expect(seatsAvailable).toBe(totalSeats);
-
-    try {
-      sql(`
-      UPDATE seats
-      SET status = 'SOLD'
-      WHERE event_id = '${eventId}';
-    `);
-
-      sql(`
-      UPDATE ticket_types
-      SET sold_count = capacity
-      WHERE event_id = '${eventId}';
-    `);
-
-      const simulatedUsers = Array.from(
-        { length: 20 },
-        (_, i) => `tc19-simulated-${i}`,
-      );
-
-      const commands = ["MULTI", `DEL ${activeKey} ${queueKey}`];
-
-      for (const userId of simulatedUsers) {
-        commands.push(`SADD ${activeKey} ${userId}`);
-        commands.push(`SET w03:waiting-room:hb:${eventId}:${userId} 1 EX 60`);
-      }
-
-      commands.push("EXEC");
-
-      const setup = spawnSync(
-        "docker",
-        ["exec", "-i", "tickethub-redis", "redis-cli"],
-        {
-          input: commands.join("\n") + "\n",
-          encoding: "utf8",
-        },
-      );
-
-      expect(setup.status, setup.stderr).toBe(0);
-      expect(Number(redis("SCARD", activeKey))).toBe(20);
-
-      const login = await request.post(`${BASE_URL}/auth/login`, {
-        data: {
-          email: "pm.load.buyer.029@example.test",
-          password: "Password123!",
-        },
-      });
-
-      expect(login.status()).toBe(200);
-
-      const token = (await login.json()).data.accessToken;
-      const headers = { Authorization: `Bearer ${token}` };
-
-      const join = await request.post(
-        `${BASE_URL}/waiting-room/${eventId}/join`,
-        { headers },
-      );
-
-      console.log("JOIN:", join.status(), await join.text());
-
-      const heartbeat = await request.post(
-        `${BASE_URL}/waiting-room/${eventId}/heartbeat`,
-        { headers },
-      );
-
-      const body = await heartbeat.json();
-
-      console.log("HEARTBEAT:", heartbeat.status(), body);
-
-      expect(body.data?.status).toBe("SOLD_OUT");
-    } finally {
-      sql(`
-      UPDATE seats SET status = 'AVAILABLE'
-      WHERE event_id = '${eventId}';
-    `);
-
-      sql(`
-      UPDATE ticket_types SET sold_count = 0
-      WHERE event_id = '${eventId}';
-    `);
-
-      redis("DEL", activeKey, queueKey);
-    }
+    expect(body.data?.status, "A fully sold-out event must not admit or queue a buyer").toBe("SOLD_OUT");
   });
 
-  test("TC20 - Tắt Waiting Room khi đang có người xếp hàng", async ({
-    request,
-  }) => {
-    test.setTimeout(30_000);
-
-    const eventId = process.env.UC03_DISABLE_EVENT_ID;
-    expect(eventId).toBeTruthy();
-
-    const activeKey = `active_users:${eventId}`;
-    const queueKey = `waiting_room:${eventId}`;
-    const hbPrefix = `w03:waiting-room:hb:${eventId}:`;
-
-    function redis(...args: string[]): string {
-      return execFileSync(
-        "docker",
-        ["exec", "tickethub-redis", "redis-cli", "--raw", ...args],
-        { encoding: "utf8" },
-      ).trim();
-    }
-
-    function sql(query: string): string {
-      return execFileSync(
-        "docker",
-        [
-          "exec",
-          "tickethub-postgres",
-          "psql",
-          "-v",
-          "ON_ERROR_STOP=1",
-          "-U",
-          "tickethub",
-          "-d",
-          "tickethub_dev",
-          "-At",
-          "-c",
-          query,
-        ],
-        { encoding: "utf8" },
-      ).trim();
-    }
-
-    const enabled = sql(`
-    SELECT is_waiting_room_enabled
-    FROM events WHERE id = '${eventId}';
-  `);
-
-    expect(enabled).toBe("t");
-
-    const simulatedUsers = Array.from(
-      { length: 20 },
-      (_, i) => `tc20-simulated-${i}`,
-    );
-
-    const login = await request.post(`${BASE_URL}/auth/login`, {
-      data: {
-        email: "pm.load.buyer.030@example.test",
-        password: "Password123!",
-      },
-    });
-
-    expect(login.status()).toBe(200);
-
-    const accessToken = (await login.json()).data.accessToken;
-    const payload = JSON.parse(
-      Buffer.from(accessToken.split(".")[1]!, "base64url").toString("utf8"),
-    );
-
-    const userId = payload.sub as string;
-    const headers = { Authorization: `Bearer ${accessToken}` };
-
-    try {
-      const commands = ["MULTI", `DEL ${activeKey} ${queueKey}`];
-
-      for (const id of simulatedUsers) {
-        commands.push(`SADD ${activeKey} ${id}`);
-        commands.push(`SET ${hbPrefix}${id} 1 EX 60`);
-      }
-
-      commands.push("EXEC");
-
-      const setup = spawnSync(
-        "docker",
-        ["exec", "-i", "tickethub-redis", "redis-cli"],
-        {
-          input: commands.join("\n") + "\n",
-          encoding: "utf8",
-        },
-      );
-
-      expect(setup.status, setup.stderr).toBe(0);
-      expect(Number(redis("SCARD", activeKey))).toBe(20);
-
-      const join = await request.post(
-        `${BASE_URL}/waiting-room/${eventId}/join`,
-        { headers },
-      );
-
-      expect(join.status()).toBe(202);
-      expect((await join.json()).data.status).toBe("QUEUED");
-
-      expect(redis("ZRANK", queueKey, userId)).toBe("0");
-
-      sql(`
-      UPDATE events
-      SET is_waiting_room_enabled = false
-      WHERE id = '${eventId}';
-    `);
-
-      const heartbeat = await request.post(
-        `${BASE_URL}/waiting-room/${eventId}/heartbeat`,
-        { headers },
-      );
-
-      const body = await heartbeat.json();
-
-      console.log("HEARTBEAT:", heartbeat.status(), body);
-
-      expect(heartbeat.status()).toBe(200);
-      expect(body.data.status).toBe("ADMITTED");
-      expect(body.data.admissionToken).toBeTruthy();
-
-      await expect
-        .poll(() => redis("ZRANK", queueKey, userId), {
-          timeout: 10_000,
-          intervals: [1000],
-        })
-        .toBe("");
-    } finally {
-      sql(`
-      UPDATE events
-      SET is_waiting_room_enabled = true
-      WHERE id = '${eventId}';
-    `);
-
-      redis("DEL", activeKey, queueKey);
-      redis("DEL", `${hbPrefix}${userId}`);
-
-      for (const id of simulatedUsers) {
-        redis("DEL", `${hbPrefix}${id}`);
-      }
-    }
+  // TODO (backend integration/fixture): Needs documented organizer API to toggle waiting-room flag and isolated queue fixture; old test updated DB and Redis.
+  test.skip("TC20 - Tắt Waiting Room khi đang có người xếp hàng", async () => {
+    // Blocked: PUT /events/:id only permits DRAFT events.
+    // No supported API for toggling Waiting Room on PUBLISHED events.
   });
 
   test("TC21 - Người dùng có đơn PENDING quay lại Waiting Room", async ({
@@ -845,18 +496,10 @@ test.describe("UC03 - Waiting Room API", () => {
   }) => {
     test.setTimeout(30_000);
 
-    const eventId = QUEUE_EVENT_ID!;
-    const ticketTypeId = getTicketTypeId(eventId);
+    const eventId = process.env.UC03_PENDING_EVENT_ID ?? QUEUE_EVENT_ID!;
+    const ticketTypeId = await getTicketTypeId(request, eventId);
 
     expect(ticketTypeId).toBeTruthy();
-
-    function redis(...args: string[]): string {
-      return execFileSync(
-        "docker",
-        ["exec", "tickethub-redis", "redis-cli", ...args],
-        { encoding: "utf8" },
-      ).trim();
-    }
 
     const accessToken = await (async () => {
       const login = await request.post(`${BASE_URL}/auth/login`, {
@@ -872,7 +515,6 @@ test.describe("UC03 - Waiting Room API", () => {
 
     const headers = { Authorization: `Bearer ${accessToken}` };
 
-    redis("DEL", `active_users:${eventId}`, `waiting_room:${eventId}`);
 
     let orderId: string | undefined;
 
@@ -882,7 +524,7 @@ test.describe("UC03 - Waiting Room API", () => {
         { headers },
       );
 
-      expect(firstJoin.status()).toBe(200);
+      expect(firstJoin.status(), "TC21 requires a clean dedicated event with free admission slots (UC03_PENDING_EVENT_ID)").toBe(200);
       const admissionToken = (await firstJoin.json()).data.admissionToken;
       const hold = await request.post(`${BASE_URL}/booking/hold`, {
         headers: {
@@ -908,7 +550,6 @@ test.describe("UC03 - Waiting Room API", () => {
 
       const secondBody = await secondJoin.json();
 
-      console.log("RETURN JOIN:", secondJoin.status(), secondBody);
       expect(secondBody.data.orderId).toBe(orderId);
     } finally {
       if (orderId) {
@@ -917,7 +558,7 @@ test.describe("UC03 - Waiting Room API", () => {
           data: { orderId },
         });
 
-        console.log("RELEASE:", release.status(), await release.text());
+        expect(release.status(), "Cleanup of pending order").toBe(200);
       }
     }
   });
