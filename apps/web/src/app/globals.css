@@ -98,3 +98,18 @@
 .ticket-notch-horizontal::after {
   right: -11px;
 }
+
+@media print {
+  header,
+  footer,
+  nav {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

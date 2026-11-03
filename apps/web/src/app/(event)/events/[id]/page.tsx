@@ -34,6 +34,7 @@ import {
   type EventItem,
   type TicketListing,
 } from "@/lib/events-catalog";
+import { useSeatStream } from "@/hooks/use-seat-stream";
 import { SeatMap } from "@/components/events/seat-map";
 import {
   computeRemainingSeconds,
@@ -108,6 +109,16 @@ function EventSplitView({ event }: { event: EventItem }) {
   >([]);
   const [isHoldingTicket, setIsHoldingTicket] = useState<boolean>(false);
   const [holdErrorMessage, setHoldErrorMessage] = useState<string | null>(null);
+
+  // Real-time Seat Status Stream via SSE with 10s Polling Fallback (UC04)
+  const {
+    isConnected: isSseConnected,
+    isPollingFallback,
+    lastUpdated: sseLastUpdated,
+    broadcastSeatChange,
+  } = useSeatStream({
+    eventId: event.id,
+  });
 
   // Countdown bám theo holdExpiresAt của server (không tự đếm lùi theo client).
   // Hết hạn: đóng drawer + popup tạm tính, vô hiệu thanh toán (UC04-E2).
@@ -291,6 +302,16 @@ function EventSplitView({ event }: { event: EventItem }) {
       setAllocatedSeats(data.allocatedSeats || []);
       setSelectedListing(listing);
       setHoldErrorMessage(null);
+
+      // Broadcast real-time HELD state to SSE & other browsers (UC04)
+      if (data.allocatedSeats && data.allocatedSeats.length > 0) {
+        broadcastSeatChange({
+          seatIds: data.allocatedSeats.map((s: { id: string }) => s.id),
+          status: "HELD",
+          zoneId: listing.zoneId,
+          expiresAt: new Date(nowMs() + 300000).toISOString(),
+        });
+      }
     } catch (err: unknown) {
       resetHoldState();
       setHoldErrorMessage(
@@ -305,10 +326,19 @@ function EventSplitView({ event }: { event: EventItem }) {
 
   const handleCancelHold = async () => {
     const currentOrderId = holdOrderId;
+    const releasedSeats = [...allocatedSeats];
 
     // Đóng drawer ngay để người dùng không thao tác tiếp trên phiên đã hủy
     resetHoldState();
     setHoldErrorMessage(null);
+
+    // Broadcast AVAILABLE status to SSE & other browsers (UC04)
+    if (releasedSeats.length > 0) {
+      broadcastSeatChange({
+        seatIds: releasedSeats.map((s) => s.id),
+        status: "AVAILABLE",
+      });
+    }
 
     // Gọi API release hold để giải phóng ghế; báo lỗi thật nếu không nhả được
     if (currentOrderId) {
@@ -520,6 +550,48 @@ function EventSplitView({ event }: { event: EventItem }) {
               </button>
             </div>
           )}
+
+          {/* Real-time SSE / 10s Fallback Polling Status Badge (UC04) */}
+          <div className="absolute top-4 right-16 z-20 hidden sm:flex items-center gap-2 bg-card/95 backdrop-blur-xs px-3 py-1.5 rounded-full border border-border shadow-xs text-[11px] font-medium text-foreground">
+            {isSseConnected ? (
+              <>
+                <span className="relative flex size-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+                </span>
+                <span className="text-emerald-800 font-bold">
+                  Đồng bộ SSE thời gian thực
+                </span>
+              </>
+            ) : isPollingFallback ? (
+              <>
+                <span className="relative flex size-2">
+                  <span className="relative inline-flex rounded-full size-2 bg-amber-500" />
+                </span>
+                <span className="text-amber-800 font-bold">
+                  Dự phòng Polling 10s
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="size-2 rounded-full bg-slate-300" />
+                <span className="text-muted-foreground">
+                  Đang kết nối SSE...
+                </span>
+              </>
+            )}
+            {sseLastUpdated && (
+              <span className="text-muted-foreground text-[10px]">
+                (
+                {sseLastUpdated.toLocaleTimeString("vi-VN", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  second: "2-digit",
+                })}
+                )
+              </span>
+            )}
+          </div>
 
           {/* SeatMap Canvas */}
           <div className="flex-1 w-full h-full">
