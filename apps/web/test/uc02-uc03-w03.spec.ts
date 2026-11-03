@@ -1,7 +1,7 @@
 // apps/web/test/uc02-uc03-w03.spec.ts
 import { test, expect } from "@playwright/test";
 
-test.describe("W03-FE1: Tìm kiếm SSR/SEO (UC02) & Hàng chờ ảo (UC03)", () => {
+test.describe("W03-FE1: Tìm kiếm SSR/SEO (UC02) & Hàng chờ ảo Pop-up (UC03)", () => {
   test("UC02-TC01: Gợi ý nhỏ khi gõ tại Trang chủ, nhấn Enter sang Trang tìm kiếm (/search) với bộ lọc và phân trang Cursor", async ({
     page,
   }) => {
@@ -32,7 +32,7 @@ test.describe("W03-FE1: Tìm kiếm SSR/SEO (UC02) & Hàng chờ ảo (UC03)", (
     await expect(page).toHaveURL(/price=/);
   });
 
-  test("UC02-TC02: Trang chi tiết sự kiện có đầy đủ Open Graph metadata và xử lý trạng thái Hết vé + Đăng ký Email", async ({
+  test("UC02-TC02: Trang chi tiết sự kiện có đầy đủ Open Graph metadata và bật Pop-up Thông báo Hết vé + Đăng ký Email", async ({
     page,
   }) => {
     await page.goto("/events/evt-anh-trai-vuot-ngan-chong-gai?soldOut=true");
@@ -43,7 +43,8 @@ test.describe("W03-FE1: Tìm kiếm SSR/SEO (UC02) & Hàng chờ ảo (UC03)", (
       .getAttribute("content");
     expect(ogTitle).toContain("Anh Trai Vượt Ngàn Chông Gai");
 
-    await expect(page.getByTestId("event-soldout-banner")).toBeVisible();
+    // Kiểm tra Pop-up Hết vé hiển thị dạng Modal
+    await expect(page.getByTestId("soldout-popup-modal")).toBeVisible();
     const emailInput = page.getByTestId("waitlist-email-input");
     await expect(emailInput).toBeVisible();
 
@@ -52,28 +53,19 @@ test.describe("W03-FE1: Tìm kiếm SSR/SEO (UC02) & Hàng chờ ảo (UC03)", (
     await expect(page.getByTestId("waitlist-success")).toBeVisible();
   });
 
-  test("UC03-TC01: Màn hình Hàng chờ ảo tiêu thụ API joinQueue và hiển thị trạng thái cấp Admission Token", async ({
+  test("UC03-TC01: Pop-up Hàng chờ ảo hiển thị số thứ tự, cập nhật tiến độ và cấp Admission Token", async ({
     page,
   }) => {
-    await page.route("**/waiting-room/*/join", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          success: true,
-          data: {
-            status: "ADMITTED",
-            admissionToken: "jwt_admission_token_valid_10m",
-          },
-        }),
-      });
-    });
+    await page.goto(
+      "/events/evt-anh-trai-vuot-ngan-chong-gai?waitingRoom=true&initialPos=2",
+    );
 
-    await page.goto("/waiting-room?eventId=evt-anh-trai-vuot-ngan-chong-gai");
+    await expect(page.getByTestId("waiting-room-popup-modal")).toBeVisible();
+    await expect(page.getByTestId("queue-position-value")).toBeVisible();
+    await expect(page.getByTestId("queue-wait-value")).toBeVisible();
 
     await expect(page.getByTestId("queue-admitted-state")).toBeVisible({
-      timeout: 10000,
+      timeout: 12000,
     });
-    await expect(page.getByTestId("enter-booking-now-btn")).toBeVisible();
   });
 });

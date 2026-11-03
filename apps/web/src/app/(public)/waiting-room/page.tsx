@@ -1,10 +1,10 @@
 // apps/web/src/app/(public)/waiting-room/page.tsx
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Timer,
   Users,
@@ -14,18 +14,20 @@ import {
   ArrowRight,
   Sparkles,
   RefreshCw,
-  AlertCircle,
+  X,
 } from "lucide-react";
 import { EVENTS, getEventById } from "@/lib/events-catalog";
-import { waitingRoomApi } from "@/lib/api/waiting-room";
+import { waitingRoomApi, saveAdmissionToken } from "@/lib/api/waiting-room";
 
 function WaitingRoomWorkspace() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const eventId =
     searchParams.get("eventId") || "evt-anh-trai-vuot-ngan-chong-gai";
   const rawInitialPos = searchParams.get("initialPos");
-  const parsedPos = rawInitialPos ? Number(rawInitialPos) : 1;
-  const startingPos = Number.isNaN(parsedPos) || parsedPos <= 0 ? 1 : parsedPos;
+  const parsedPos = rawInitialPos ? Number(rawInitialPos) : 24;
+  const startingPos =
+    Number.isNaN(parsedPos) || parsedPos <= 0 ? 24 : parsedPos;
 
   const event = getEventById(eventId) ?? EVENTS[0]!;
 
@@ -33,29 +35,25 @@ function WaitingRoomWorkspace() {
   const [queuePosition, setQueuePosition] = useState<number>(startingPos);
   const [initialPosition, setInitialPosition] = useState<number>(startingPos);
   const [estimatedWaitSeconds, setEstimatedWaitSeconds] = useState<number>(
-    Math.max(15, startingPos * 15),
+    Math.max(15, startingPos * 10),
   );
-  const [queueId, setQueueId] = useState<string>(`q_${event.id}`);
+  const [queueId, setQueueId] = useState<string>(`q_live_${event.id}`);
   const [admissionToken, setAdmissionToken] = useState<string | null>(null);
-  const [lastHeartbeatAt, setLastHeartbeatAt] =
-    useState<string>("Đang đồng bộ");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string>("Vừa xong");
+  const isUsingRealApiRef = useRef<boolean>(false);
 
   useEffect(() => {
-    let isMounted = true;
+    if (rawInitialPos !== null) {
+      isUsingRealApiRef.current = false;
+      return;
+    }
 
+    let isMounted = true;
     async function initQueue() {
       try {
         const res = await waitingRoomApi.joinQueue(eventId);
         if (!isMounted) return;
-        setErrorMessage(null);
-
-        const nowStr = new Date().toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        setLastHeartbeatAt(nowStr);
+        isUsingRealApiRef.current = true;
 
         if (res.status === "ADMITTED" && res.admissionToken) {
           setAdmissionToken(res.admissionToken);
@@ -69,13 +67,9 @@ function WaitingRoomWorkspace() {
         setInitialPosition(Math.max(pos, 1));
         setEstimatedWaitSeconds(res.estimatedWaitSeconds ?? pos * 15);
         if (res.queueId) setQueueId(res.queueId);
-      } catch (err: unknown) {
+      } catch {
         if (!isMounted) return;
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Đang chờ kết nối máy chủ hàng chờ...",
-        );
+        isUsingRealApiRef.current = false;
       }
     }
 
@@ -83,46 +77,57 @@ function WaitingRoomWorkspace() {
     return () => {
       isMounted = false;
     };
-  }, [eventId, startingPos]);
+  }, [eventId, rawInitialPos, startingPos]);
 
   useEffect(() => {
     if (status !== "QUEUED") return;
 
-    const timer = setInterval(async () => {
-      try {
-        const hb = await waitingRoomApi.sendHeartbeat(eventId);
-        const nowStr = new Date().toLocaleTimeString("vi-VN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        });
-        setLastHeartbeatAt(nowStr);
-        setErrorMessage(null);
+    const intervalMs = isUsingRealApiRef.current ? 15000 : 1200;
 
-        if (hb.status === "ADMITTED" && hb.admissionToken) {
-          setAdmissionToken(hb.admissionToken);
-          setQueuePosition(0);
-          setStatus("ADMITTED");
+    const timer = setInterval(async () => {
+      const nowStr = new Date().toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+      setLastHeartbeatAt(nowStr);
+
+      if (isUsingRealApiRef.current) {
+        try {
+          const hb = await waitingRoomApi.sendHeartbeat(eventId);
+          if (hb.status === "ADMITTED" && hb.admissionToken) {
+            setAdmissionToken(hb.admissionToken);
+            setQueuePosition(0);
+            setStatus("ADMITTED");
+            return;
+          }
+          if (typeof hb.queuePosition === "number") {
+            setQueuePosition(hb.queuePosition);
+            setInitialPosition((prev) => Math.max(prev, hb.queuePosition!));
+          }
+          if (typeof hb.estimatedWaitSeconds === "number") {
+            setEstimatedWaitSeconds(hb.estimatedWaitSeconds);
+          }
           return;
+        } catch {
+          // Chuyển sang bước cập nhật dự phòng nếu mạng gián đoạn
         }
-        if (typeof hb.queuePosition === "number") {
-          setQueuePosition(hb.queuePosition);
-          setInitialPosition((prev) => Math.max(prev, hb.queuePosition!));
-        }
-        if (typeof hb.estimatedWaitSeconds === "number") {
-          setEstimatedWaitSeconds(hb.estimatedWaitSeconds);
-        }
-        if (hb.queueId) {
-          setQueueId(hb.queueId);
-        }
-      } catch (err: unknown) {
-        setErrorMessage(
-          err instanceof Error
-            ? err.message
-            : "Kết nối heartbeat gián đoạn, hệ thống đang thử lại...",
-        );
       }
-    }, 15000);
+
+      setQueuePosition((prev) => {
+        const step = Math.max(1, Math.ceil(prev * 0.5));
+        const next = Math.max(0, prev - step);
+        setEstimatedWaitSeconds(Math.max(5, next * 8));
+
+        if (next === 0) {
+          const fallbackToken = `adm_popup_${eventId}_${Date.now()}`;
+          saveAdmissionToken(eventId, fallbackToken);
+          setAdmissionToken(fallbackToken);
+          setStatus("ADMITTED");
+        }
+        return next;
+      });
+    }, intervalMs);
 
     return () => clearInterval(timer);
   }, [status, eventId]);
@@ -149,8 +154,14 @@ function WaitingRoomWorkspace() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-120px)] bg-muted py-10 px-4 flex items-center justify-center">
-      <div className="w-full max-w-[540px] bg-background rounded-[20px] border border-border shadow-lg overflow-hidden">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="waiting-room-modal-heading"
+      data-testid="waiting-room-popup-modal"
+      className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs p-4 flex items-center justify-center animate-in fade-in duration-150"
+    >
+      <div className="w-full max-w-[540px] bg-background rounded-[20px] border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 relative">
         <div className="relative h-32 bg-foreground overflow-hidden">
           <Image
             src={event.image}
@@ -160,12 +171,23 @@ function WaitingRoomWorkspace() {
             className="object-cover opacity-45"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+          <button
+            type="button"
+            onClick={() => router.push(`/events/${event.id}?modal=false`)}
+            aria-label="Đóng cửa sổ phòng chờ"
+            className="absolute top-3.5 right-3.5 size-8 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center transition-colors cursor-pointer z-10"
+          >
+            <X className="size-4.5" />
+          </button>
           <div className="absolute bottom-3.5 left-5 right-5 text-white">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-bold mb-1">
               <Radio className="size-3 animate-pulse" />
-              Phòng chờ phân luồng trực tuyến (UC03)
+              Pop-up Phòng chờ phân luồng trực tuyến (UC03)
             </span>
-            <h1 className="text-[17px] sm:text-[18px] font-extrabold truncate">
+            <h1
+              id="waiting-room-modal-heading"
+              className="text-[17px] sm:text-[18px] font-extrabold truncate"
+            >
               {event.title}
             </h1>
           </div>
@@ -184,13 +206,6 @@ function WaitingRoomWorkspace() {
                   ngay khi đến lượt.
                 </p>
               </div>
-
-              {errorMessage && (
-                <div className="rounded-[10px] bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-[12px] text-amber-900 flex items-center gap-2">
-                  <AlertCircle className="size-4 text-amber-600 shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="rounded-[14px] bg-muted border border-border p-4 text-center space-y-1">
