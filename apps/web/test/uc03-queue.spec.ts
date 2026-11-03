@@ -26,12 +26,16 @@ async function getTicketTypeId(
   const response = await request.get(`${BASE_URL}/events/${eventId}/inventory`);
   expect(response.status(), `Inventory for event ${eventId}`).toBe(200);
   const body: unknown = await response.json();
-  const root = body as { data?: { items?: Array<{ ticketTypeId?: string; isSeated?: boolean }> } };
+  const root = body as {
+    data?: { items?: Array<{ ticketTypeId?: string; isSeated?: boolean }> };
+  };
   const ticketType = root.data?.items?.find((item) => item.isSeated === true);
-  expect(ticketType?.ticketTypeId, `Missing seated ticket type for ${eventId}`).toBeTruthy();
+  expect(
+    ticketType?.ticketTypeId,
+    `Missing seated ticket type for ${eventId}`,
+  ).toBeTruthy();
   return ticketType!.ticketTypeId!;
 }
-
 
 const WAITING_ROOM_FIXTURES = {
   tc07: "pm-uc03-max-active-two",
@@ -41,19 +45,36 @@ const WAITING_ROOM_FIXTURES = {
   tc16: "pm-uc03-heartbeat-expiry",
 } as const;
 
-async function getFixtureEventId(request: APIRequestContext, slug: string): Promise<string> {
+async function getFixtureEventId(
+  request: APIRequestContext,
+  slug: string,
+): Promise<string> {
   const response = await request.get(`${BASE_URL}/events/${slug}`);
-  expect(response.status(), `Fixture ${slug} missing; run PM seed first`).toBe(200);
-  const body = (await response.json()) as { data?: { id?: string; maxActiveUsers?: number; isWaitingRoomEnabled?: boolean } };
+  expect(response.status(), `Fixture ${slug} missing; run PM seed first`).toBe(
+    200,
+  );
+  const body = (await response.json()) as {
+    data?: {
+      id?: string;
+      maxActiveUsers?: number;
+      isWaitingRoomEnabled?: boolean;
+    };
+  };
   expect(body.data?.id).toBeTruthy();
   expect(body.data?.isWaitingRoomEnabled).toBe(true);
   return body.data!.id!;
 }
 
-async function loginFixtureBuyer(request: APIRequestContext, index: number): Promise<string> {
+async function loginFixtureBuyer(
+  request: APIRequestContext,
+  index: number,
+): Promise<string> {
   const email = `pm.load.buyer.${String(index).padStart(3, "0")}@example.test`;
   const response = await request.post(`${BASE_URL}/auth/login`, {
-    data: { email, password: process.env.PM_LOAD_BUYER_PASSWORD ?? "Password123!" },
+    data: {
+      email,
+      password: process.env.PM_LOAD_BUYER_PASSWORD ?? "Password123!",
+    },
   });
   expect(response.status(), `Could not login ${email}`).toBe(200);
   const body = (await response.json()) as { data?: { accessToken?: string } };
@@ -61,11 +82,20 @@ async function loginFixtureBuyer(request: APIRequestContext, index: number): Pro
   return body.data!.accessToken!;
 }
 
-async function joinFixtureBuyer(request: APIRequestContext, eventId: string, token: string) {
-  const response = await request.post(`${BASE_URL}/waiting-room/${eventId}/join`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  const body = (await response.json()) as { data?: { status?: string; queuePosition?: number; queueId?: string } };
+async function joinFixtureBuyer(
+  request: APIRequestContext,
+  eventId: string,
+  token: string,
+) {
+  const response = await request.post(
+    `${BASE_URL}/waiting-room/${eventId}/join`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+  );
+  const body = (await response.json()) as {
+    data?: { status?: string; queuePosition?: number; queueId?: string };
+  };
   return { status: response.status(), data: body.data };
 }
 
@@ -180,9 +210,16 @@ test.describe("UC03 - Waiting Room API", () => {
     }
   });
 
-  test("TC07 - MAX_ACTIVE đầy thì người mới phải xếp hàng", async ({ request }) => {
-    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc07);
-    const tokens = await Promise.all([101, 102, 103].map((n) => loginFixtureBuyer(request, n)));
+  test("TC07 - MAX_ACTIVE đầy thì người mới phải xếp hàng", async ({
+    request,
+  }) => {
+    const eventId = await getFixtureEventId(
+      request,
+      WAITING_ROOM_FIXTURES.tc07,
+    );
+    const tokens = await Promise.all(
+      [101, 102, 103].map((n) => loginFixtureBuyer(request, n)),
+    );
     for (const token of tokens.slice(0, 2)) {
       const joined = await joinFixtureBuyer(request, eventId, token);
       expect(joined.status).toBe(200);
@@ -194,9 +231,16 @@ test.describe("UC03 - Waiting Room API", () => {
     expect(waiting.data?.queuePosition).toBe(1);
   });
 
-  test("TC08 - FIFO: Người vào trước có vị trí ưu tiên", async ({ request }) => {
-    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc08);
-    const tokens = await Promise.all([111, 112, 113, 114].map((n) => loginFixtureBuyer(request, n)));
+  test("TC08 - FIFO: Người vào trước có vị trí ưu tiên", async ({
+    request,
+  }) => {
+    const eventId = await getFixtureEventId(
+      request,
+      WAITING_ROOM_FIXTURES.tc08,
+    );
+    const tokens = await Promise.all(
+      [111, 112, 113, 114].map((n) => loginFixtureBuyer(request, n)),
+    );
     for (const token of tokens.slice(0, 2)) {
       const joined = await joinFixtureBuyer(request, eventId, token);
       expect(joined.status).toBe(200);
@@ -367,51 +411,71 @@ test.describe("UC03 - Waiting Room API", () => {
   test("TC15 - Tự động chuyển lượt khi có chỗ trống", async ({ request }) => {
     test.setTimeout(135_000);
 
-    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc15);
+    const eventId = await getFixtureEventId(
+      request,
+      WAITING_ROOM_FIXTURES.tc15,
+    );
     const [buyerA, buyerB] = await Promise.all([
       loginFixtureBuyer(request, 131),
       loginFixtureBuyer(request, 132),
     ]);
 
     const first = await joinFixtureBuyer(request, eventId, buyerA);
-    expect(first.status, "TC15 requires an empty, isolated active slot").toBe(200);
+    expect(first.status, "TC15 requires an empty, isolated active slot").toBe(
+      200,
+    );
     expect(first.data?.status).toBe("ADMITTED");
 
     const second = await joinFixtureBuyer(request, eventId, buyerB);
-    expect(second.status, "Buyer B should wait while Buyer A occupies the only slot").toBe(202);
+    expect(
+      second.status,
+      "Buyer B should wait while Buyer A occupies the only slot",
+    ).toBe(202);
     expect(second.data?.status).toBe("QUEUED");
     expect(second.data?.queuePosition).toBe(1);
 
-    await expect.poll(
-      async () => {
-        const response = await request.post(
-          `${BASE_URL}/waiting-room/${eventId}/heartbeat`,
-          { headers: { Authorization: `Bearer ${buyerB}` } },
-        );
-        expect([200, 202]).toContain(response.status());
-        const body = (await response.json()) as {
-          data?: { status?: string; admissionToken?: string };
-        };
-        if (body.data?.status === "ADMITTED") {
-          expect(response.status()).toBe(200);
-          expect(body.data.admissionToken).toBeTruthy();
-        }
-        return body.data?.status;
-      },
-      { timeout: 95_000, intervals: [4_000] },
-    ).toBe("ADMITTED");
+    await expect
+      .poll(
+        async () => {
+          const response = await request.post(
+            `${BASE_URL}/waiting-room/${eventId}/heartbeat`,
+            { headers: { Authorization: `Bearer ${buyerB}` } },
+          );
+          expect([200, 202]).toContain(response.status());
+          const body = (await response.json()) as {
+            data?: { status?: string; admissionToken?: string };
+          };
+          if (body.data?.status === "ADMITTED") {
+            expect(response.status()).toBe(200);
+            expect(body.data.admissionToken).toBeTruthy();
+          }
+          return body.data?.status;
+        },
+        { timeout: 95_000, intervals: [4_000] },
+      )
+      .toBe("ADMITTED");
   });
 
-  test("TC16 - Admission token bị từ chối khi mất heartbeat", async ({ request }) => {
+  test("TC16 - Admission token bị từ chối khi mất heartbeat", async ({
+    request,
+  }) => {
     test.setTimeout(125_000);
 
-    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc16);
+    const eventId = await getFixtureEventId(
+      request,
+      WAITING_ROOM_FIXTURES.tc16,
+    );
     const ticketTypeId = await getTicketTypeId(request, eventId);
     const buyerToken = await loginFixtureBuyer(request, 141);
-    const joined = await request.post(`${BASE_URL}/waiting-room/${eventId}/join`, {
-      headers: { Authorization: `Bearer ${buyerToken}` },
-    });
-    expect(joined.status(), "TC16 requires an isolated free active slot").toBe(200);
+    const joined = await request.post(
+      `${BASE_URL}/waiting-room/${eventId}/join`,
+      {
+        headers: { Authorization: `Bearer ${buyerToken}` },
+      },
+    );
+    expect(joined.status(), "TC16 requires an isolated free active slot").toBe(
+      200,
+    );
     const joinBody = (await joined.json()) as {
       data?: { status?: string; admissionToken?: string };
     };
@@ -428,18 +492,30 @@ test.describe("UC03 - Waiting Room API", () => {
       },
       data: { eventId, items: [{ ticketTypeId, quantity: 1 }] },
     });
-    expect(response.status(), "Expired heartbeat must reject admission").toBe(403);
+    expect(response.status(), "Expired heartbeat must reject admission").toBe(
+      403,
+    );
     const body = (await response.json()) as { error?: { code?: string } };
     expect(body.error?.code).toBe("INVALID_ADMISSION_TOKEN");
   });
 
-  test("TC18 - Hai tab cùng tài khoản không tạo hai vị trí hàng chờ", async ({ request }) => {
-    const eventId = await getFixtureEventId(request, WAITING_ROOM_FIXTURES.tc18);
-    const tokens = await Promise.all([121, 122, 123].map((index) => loginFixtureBuyer(request, index)));
+  test("TC18 - Hai tab cùng tài khoản không tạo hai vị trí hàng chờ", async ({
+    request,
+  }) => {
+    const eventId = await getFixtureEventId(
+      request,
+      WAITING_ROOM_FIXTURES.tc18,
+    );
+    const tokens = await Promise.all(
+      [121, 122, 123].map((index) => loginFixtureBuyer(request, index)),
+    );
 
     for (const token of tokens.slice(0, 2)) {
       const joined = await joinFixtureBuyer(request, eventId, token);
-      expect(joined.status, "TC18 fixture must start with two available active slots").toBe(200);
+      expect(
+        joined.status,
+        "TC18 fixture must start with two available active slots",
+      ).toBe(200);
       expect(joined.data?.status).toBe("ADMITTED");
     }
 
@@ -452,8 +528,16 @@ test.describe("UC03 - Waiting Room API", () => {
 
     expect(tab1.status()).toBe(202);
     expect(tab2.status()).toBe(202);
-    const data1 = (await tab1.json()).data as { status?: string; queueId?: string; queuePosition?: number };
-    const data2 = (await tab2.json()).data as { status?: string; queueId?: string; queuePosition?: number };
+    const data1 = (await tab1.json()).data as {
+      status?: string;
+      queueId?: string;
+      queuePosition?: number;
+    };
+    const data2 = (await tab2.json()).data as {
+      status?: string;
+      queueId?: string;
+      queuePosition?: number;
+    };
     expect(data1.status).toBe("QUEUED");
     expect(data2.status).toBe("QUEUED");
     expect(data1.queueId).toBeTruthy();
@@ -466,23 +550,43 @@ test.describe("UC03 - Waiting Room API", () => {
     const slug = "pm-uc03-sold-out";
     const eventId = await getFixtureEventId(request, slug);
 
-    const inventoryResponse = await request.get(`${BASE_URL}/events/${eventId}/inventory`);
+    const inventoryResponse = await request.get(
+      `${BASE_URL}/events/${eventId}/inventory`,
+    );
     expect(inventoryResponse.status()).toBe(200);
     const inventoryBody = (await inventoryResponse.json()) as {
-      data?: { items?: Array<{ isSeated?: boolean; capacity?: number; available?: number; sold?: number }> };
+      data?: {
+        items?: Array<{
+          isSeated?: boolean;
+          capacity?: number;
+          available?: number;
+          sold?: number;
+        }>;
+      };
     };
-    const seated = inventoryBody.data?.items?.filter((item) => item.isSeated === true) ?? [];
-    expect(seated.length, "TC19 requires a seated ticket type").toBeGreaterThan(0);
+    const seated =
+      inventoryBody.data?.items?.filter((item) => item.isSeated === true) ?? [];
+    expect(seated.length, "TC19 requires a seated ticket type").toBeGreaterThan(
+      0,
+    );
     expect(seated.every((item) => item.available === 0)).toBe(true);
-    expect(seated.every((item) => (item.sold ?? 0) === item.capacity)).toBe(true);
+    expect(seated.every((item) => (item.sold ?? 0) === item.capacity)).toBe(
+      true,
+    );
 
     const token = await loginFixtureBuyer(request, 151);
-    const response = await request.post(`${BASE_URL}/waiting-room/${eventId}/join`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const response = await request.post(
+      `${BASE_URL}/waiting-room/${eventId}/join`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
     const body = (await response.json()) as { data?: { status?: string } };
 
-    expect(body.data?.status, "A fully sold-out event must not admit or queue a buyer").toBe("SOLD_OUT");
+    expect(
+      body.data?.status,
+      "A fully sold-out event must not admit or queue a buyer",
+    ).toBe("SOLD_OUT");
   });
 
   // TODO (backend integration/fixture): Needs documented organizer API to toggle waiting-room flag and isolated queue fixture; old test updated DB and Redis.
@@ -515,7 +619,6 @@ test.describe("UC03 - Waiting Room API", () => {
 
     const headers = { Authorization: `Bearer ${accessToken}` };
 
-
     let orderId: string | undefined;
 
     try {
@@ -524,7 +627,10 @@ test.describe("UC03 - Waiting Room API", () => {
         { headers },
       );
 
-      expect(firstJoin.status(), "TC21 requires a clean dedicated event with free admission slots (UC03_PENDING_EVENT_ID)").toBe(200);
+      expect(
+        firstJoin.status(),
+        "TC21 requires a clean dedicated event with free admission slots (UC03_PENDING_EVENT_ID)",
+      ).toBe(200);
       const admissionToken = (await firstJoin.json()).data.admissionToken;
       const hold = await request.post(`${BASE_URL}/booking/hold`, {
         headers: {

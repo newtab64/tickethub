@@ -167,7 +167,9 @@ async function seedPmLoad() {
         .from(seats)
         .where(eq(seats.eventId, existing.id));
       if (Number(countRow?.count) !== fixture.seatCount) {
-        throw new Error(`${fixture.slug}: unexpected seat count; inspect dedicated test database`);
+        throw new Error(
+          `${fixture.slug}: unexpected seat count; inspect dedicated test database`,
+        );
       }
       continue;
     }
@@ -179,7 +181,8 @@ async function seedPmLoad() {
         organizerId: organizer.id,
         title: `[PM TEST] Auto-seat ${fixture.seatCount} seat fixture`,
         slug: fixture.slug,
-        description: "Dedicated fixture for automated auto-seat concurrency testing only.",
+        description:
+          "Dedicated fixture for automated auto-seat concurrency testing only.",
         category: "Công nghệ",
         bannerUrl: "https://example.test/test-banner.png",
         venueName: "PM Test Venue",
@@ -212,7 +215,8 @@ async function seedPmLoad() {
         sortOrder: 1,
       })
       .returning({ id: ticketTypes.id });
-    if (!ticketType) throw new Error(`Failed to create ticket type for ${fixture.slug}`);
+    if (!ticketType)
+      throw new Error(`Failed to create ticket type for ${fixture.slug}`);
 
     await db.insert(seats).values(
       Array.from({ length: fixture.seatCount }, (_, index) => ({
@@ -242,7 +246,9 @@ async function seedPmLoad() {
       .limit(1);
     if (existing) {
       if (existing.maxActiveUsers !== fixture.maxActiveUsers) {
-        throw new Error(`${fixture.slug}: expected maxActiveUsers=${fixture.maxActiveUsers}`);
+        throw new Error(
+          `${fixture.slug}: expected maxActiveUsers=${fixture.maxActiveUsers}`,
+        );
       }
       continue;
     }
@@ -287,7 +293,8 @@ async function seedPmLoad() {
         sortOrder: 1,
       })
       .returning({ id: ticketTypes.id });
-    if (!ticketType) throw new Error(`Could not create ticket type for ${fixture.slug}`);
+    if (!ticketType)
+      throw new Error(`Could not create ticket type for ${fixture.slug}`);
     await db.insert(seats).values(
       Array.from({ length: 10 }, (_, index) => ({
         eventId: newEvent.id,
@@ -353,7 +360,8 @@ async function seedPmLoad() {
           sortOrder: 1,
         })
         .returning({ id: ticketTypes.id });
-      if (!ticketType) throw new Error(`Could not create ticket type for ${slug}`);
+      if (!ticketType)
+        throw new Error(`Could not create ticket type for ${slug}`);
 
       await db.insert(seats).values(
         Array.from({ length: 10 }, (_, index) => ({
@@ -374,8 +382,13 @@ async function seedPmLoad() {
         })
         .from(seats)
         .where(eq(seats.eventId, existing.id));
-      if (Number(inventory?.total) !== 10 || Number(inventory?.available) !== 0) {
-        throw new Error(`${slug}: expected 10 seats with 0 AVAILABLE; inspect test DB`);
+      if (
+        Number(inventory?.total) !== 10 ||
+        Number(inventory?.available) !== 0
+      ) {
+        throw new Error(
+          `${slug}: expected 10 seats with 0 AVAILABLE; inspect test DB`,
+        );
       }
     }
   }

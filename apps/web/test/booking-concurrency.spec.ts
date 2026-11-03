@@ -25,31 +25,49 @@ function object(value: unknown): JsonObject {
     : {};
 }
 
-async function getFixture(request: APIRequestContext, slug: string): Promise<Fixture> {
+async function getFixture(
+  request: APIRequestContext,
+  slug: string,
+): Promise<Fixture> {
   const response = await request.get(`${BASE}/events/${slug}`);
-  expect(response.status(), `Fixture ${slug} not found. Run the PM seed against a dedicated test database.`).toBe(200);
+  expect(
+    response.status(),
+    `Fixture ${slug} not found. Run the PM seed against a dedicated test database.`,
+  ).toBe(200);
   const body = object(await response.json());
   const data = object(body.data);
   const ticketTypes = Array.isArray(data.ticketTypes)
     ? data.ticketTypes
     : Array.isArray(object(data.ticketTypes).items)
-      ? object(data.ticketTypes).items as unknown[]
+      ? (object(data.ticketTypes).items as unknown[])
       : [];
   const ticketType = object(ticketTypes[0]);
   expect(typeof data.id, `Missing event id for ${slug}`).toBe("string");
-  expect(typeof ticketType.id, `GET /events/:slug must return ticketTypes with id for ${slug}`).toBe("string");
-  expect(ticketType.isSeated, `The fixture ${slug} must use a seated ticket type`).toBe(true);
+  expect(
+    typeof ticketType.id,
+    `GET /events/:slug must return ticketTypes with id for ${slug}`,
+  ).toBe("string");
+  expect(
+    ticketType.isSeated,
+    `The fixture ${slug} must use a seated ticket type`,
+  ).toBe(true);
   return { eventId: data.id as string, ticketTypeId: ticketType.id as string };
 }
 
-async function loginUsers(request: APIRequestContext, count: number): Promise<string[]> {
+async function loginUsers(
+  request: APIRequestContext,
+  count: number,
+): Promise<string[]> {
   const tokens: string[] = [];
   for (let i = 1; i <= count; i++) {
     const email = `pm.load.buyer.${String(i).padStart(3, "0")}@example.test`;
     const response = await request.post(`${BASE}/auth/login`, {
       data: { email, password: PASSWORD },
     });
-    expect(response.status(), `Failed login for ${email}; seed PM buyer accounts first`).toBe(200);
+    expect(
+      response.status(),
+      `Failed login for ${email}; seed PM buyer accounts first`,
+    ).toBe(200);
     const data = object(object(await response.json()).data);
     expect(typeof data.accessToken).toBe("string");
     tokens.push(data.accessToken as string);
@@ -79,12 +97,17 @@ async function holdOne(
     token,
     orderId: typeof data.orderId === "string" ? data.orderId : undefined,
     errorCode: typeof error.code === "string" ? error.code : undefined,
-    allocatedSeatIds: seats.map((s: unknown) => object(s).id).filter((id): id is string => typeof id === "string"),
+    allocatedSeatIds: seats
+      .map((s: unknown) => object(s).id)
+      .filter((id): id is string => typeof id === "string"),
     responseBody: body,
   };
 }
 
-async function releaseOrders(request: APIRequestContext, results: HoldResult[]) {
+async function releaseOrders(
+  request: APIRequestContext,
+  results: HoldResult[],
+) {
   const failures: string[] = [];
   for (const result of results) {
     if (!result.orderId) continue;
@@ -94,7 +117,8 @@ async function releaseOrders(request: APIRequestContext, results: HoldResult[]) 
         data: { orderId: result.orderId },
         timeout: 30_000,
       });
-      if (response.status() !== 200) failures.push(`${result.orderId}: HTTP ${response.status()}`);
+      if (response.status() !== 200)
+        failures.push(`${result.orderId}: HTTP ${response.status()}`);
     } catch (error) {
       failures.push(`${result.orderId}: ${String(error)}`);
     }
@@ -105,17 +129,31 @@ async function releaseOrders(request: APIRequestContext, results: HoldResult[]) 
 test.describe("Booking - Auto-Seat Allocation concurrency", () => {
   test.describe.configure({ mode: "serial" });
 
-  test("LOAD01 - 100 requests compete for the last available seat", async ({ request }) => {
+  test("LOAD01 - 100 requests compete for the last available seat", async ({
+    request,
+  }) => {
     test.setTimeout(300_000);
     const fixture = await getFixture(request, FIXTURES.lastSeat);
     const tokens = await loginUsers(request, 100);
-    const results = await Promise.allSettled(tokens.map((token) => holdOne(request, token, fixture)));
-    const fulfilled = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    const results = await Promise.allSettled(
+      tokens.map((token) => holdOne(request, token, fixture)),
+    );
+    const fulfilled = results.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
     const winners = fulfilled.filter((r) => r.status === 201);
     try {
-      expect(results.every((r) => r.status === "fulfilled"), "All requests must receive HTTP responses").toBe(true);
+      expect(
+        results.every((r) => r.status === "fulfilled"),
+        "All requests must receive HTTP responses",
+      ).toBe(true);
       expect(winners, "Exactly one HTTP 201 winner").toHaveLength(1);
-      expect(fulfilled.filter((r) => r.status === 409 && r.errorCode === "INSUFFICIENT_TICKET_CAPACITY")).toHaveLength(99);
+      expect(
+        fulfilled.filter(
+          (r) =>
+            r.status === 409 && r.errorCode === "INSUFFICIENT_TICKET_CAPACITY",
+        ),
+      ).toHaveLength(99);
       expect(winners[0]?.allocatedSeatIds).toHaveLength(1);
       expect(winners[0]?.orderId).toBeTruthy();
     } finally {
@@ -123,20 +161,32 @@ test.describe("Booking - Auto-Seat Allocation concurrency", () => {
     }
   });
 
-  test("LOAD02 - 50 concurrent buyers receive 50 distinct seats in a 100-seat zone", async ({ request }) => {
+  test("LOAD02 - 50 concurrent buyers receive 50 distinct seats in a 100-seat zone", async ({
+    request,
+  }) => {
     test.setTimeout(300_000);
     const fixture = await getFixture(request, FIXTURES.freeZone);
     const tokens = await loginUsers(request, 50);
-    const results = await Promise.allSettled(tokens.map((token) => holdOne(request, token, fixture)));
-    const fulfilled = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
+    const results = await Promise.allSettled(
+      tokens.map((token) => holdOne(request, token, fixture)),
+    );
+    const fulfilled = results.flatMap((result) =>
+      result.status === "fulfilled" ? [result.value] : [],
+    );
     const winners = fulfilled.filter((r) => r.status === 201);
     try {
-      expect(results.every((r) => r.status === "fulfilled"), "All requests must receive HTTP responses").toBe(true);
+      expect(
+        results.every((r) => r.status === "fulfilled"),
+        "All requests must receive HTTP responses",
+      ).toBe(true);
       expect(winners, "All 50 requests should succeed").toHaveLength(50);
       expect(winners.every((r) => Boolean(r.orderId))).toBe(true);
       const allocated = winners.flatMap((r) => r.allocatedSeatIds);
       expect(allocated).toHaveLength(50);
-      expect(new Set(allocated).size, "Allocated seat IDs must be unique across all orders").toBe(50);
+      expect(
+        new Set(allocated).size,
+        "Allocated seat IDs must be unique across all orders",
+      ).toBe(50);
     } finally {
       await releaseOrders(request, winners);
     }
