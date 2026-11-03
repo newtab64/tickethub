@@ -1,8 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 // apps/web/src/app/(public)/waiting-room/page.tsx
 "use client";
 
-import { useEffect, useState, useRef, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -14,18 +14,18 @@ import {
   ArrowRight,
   Sparkles,
   RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import { EVENTS, getEventById } from "@/lib/events-catalog";
-import { waitingRoomApi, saveAdmissionToken } from "@/lib/api/waiting-room";
+import { waitingRoomApi } from "@/lib/api/waiting-room";
 
 function WaitingRoomWorkspace() {
   const searchParams = useSearchParams();
   const eventId =
     searchParams.get("eventId") || "evt-anh-trai-vuot-ngan-chong-gai";
   const rawInitialPos = searchParams.get("initialPos");
-  const parsedPos = rawInitialPos ? Number(rawInitialPos) : 24;
-  const startingPos =
-    Number.isNaN(parsedPos) || parsedPos <= 0 ? 24 : parsedPos;
+  const parsedPos = rawInitialPos ? Number(rawInitialPos) : 1;
+  const startingPos = Number.isNaN(parsedPos) || parsedPos <= 0 ? 1 : parsedPos;
 
   const event = getEventById(eventId) ?? EVENTS[0]!;
 
@@ -33,25 +33,29 @@ function WaitingRoomWorkspace() {
   const [queuePosition, setQueuePosition] = useState<number>(startingPos);
   const [initialPosition, setInitialPosition] = useState<number>(startingPos);
   const [estimatedWaitSeconds, setEstimatedWaitSeconds] = useState<number>(
-    Math.max(15, startingPos * 10),
+    Math.max(15, startingPos * 15),
   );
-  const [queueId, setQueueId] = useState<string>(`q_live_${event.id}`);
+  const [queueId, setQueueId] = useState<string>(`q_${event.id}`);
   const [admissionToken, setAdmissionToken] = useState<string | null>(null);
-  const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string>("Vừa xong");
-  const isUsingRealApiRef = useRef<boolean>(false);
+  const [lastHeartbeatAt, setLastHeartbeatAt] =
+    useState<string>("Đang đồng bộ");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (rawInitialPos !== null) {
-      isUsingRealApiRef.current = false;
-      return;
-    }
-
     let isMounted = true;
+
     async function initQueue() {
       try {
         const res = await waitingRoomApi.joinQueue(eventId);
         if (!isMounted) return;
-        isUsingRealApiRef.current = true;
+        setErrorMessage(null);
+
+        const nowStr = new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        setLastHeartbeatAt(nowStr);
 
         if (res.status === "ADMITTED" && res.admissionToken) {
           setAdmissionToken(res.admissionToken);
@@ -65,67 +69,60 @@ function WaitingRoomWorkspace() {
         setInitialPosition(Math.max(pos, 1));
         setEstimatedWaitSeconds(res.estimatedWaitSeconds ?? pos * 15);
         if (res.queueId) setQueueId(res.queueId);
-      } catch {
+      } catch (err: unknown) {
         if (!isMounted) return;
-        isUsingRealApiRef.current = false;
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "Đang chờ kết nối máy chủ hàng chờ...",
+        );
       }
     }
 
-    initQueue();
+    void initQueue();
     return () => {
       isMounted = false;
     };
-  }, [eventId, rawInitialPos, startingPos]);
+  }, [eventId, startingPos]);
 
   useEffect(() => {
     if (status !== "QUEUED") return;
 
-    const intervalMs = isUsingRealApiRef.current ? 15000 : 1200;
-
     const timer = setInterval(async () => {
-      const nowStr = new Date().toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-      setLastHeartbeatAt(nowStr);
+      try {
+        const hb = await waitingRoomApi.sendHeartbeat(eventId);
+        const nowStr = new Date().toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+        setLastHeartbeatAt(nowStr);
+        setErrorMessage(null);
 
-      if (isUsingRealApiRef.current) {
-        try {
-          const hb = await waitingRoomApi.sendHeartbeat(eventId);
-          if (hb.status === "ADMITTED" && hb.admissionToken) {
-            setAdmissionToken(hb.admissionToken);
-            setQueuePosition(0);
-            setStatus("ADMITTED");
-            return;
-          }
-          if (typeof hb.queuePosition === "number") {
-            setQueuePosition(hb.queuePosition);
-            setInitialPosition((prev) => Math.max(prev, hb.queuePosition!));
-          }
-          if (typeof hb.estimatedWaitSeconds === "number") {
-            setEstimatedWaitSeconds(hb.estimatedWaitSeconds);
-          }
-          return;
-        } catch {
-          // Chuyển sang tiến trình fallback nếu mạng gián đoạn
-        }
-      }
-
-      setQueuePosition((prev) => {
-        const step = Math.max(1, Math.ceil(prev * 0.5));
-        const next = Math.max(0, prev - step);
-        setEstimatedWaitSeconds(Math.max(5, next * 8));
-
-        if (next === 0) {
-          const demoToken = `adm_w03_${eventId}_${Date.now()}`;
-          saveAdmissionToken(eventId, demoToken);
-          setAdmissionToken(demoToken);
+        if (hb.status === "ADMITTED" && hb.admissionToken) {
+          setAdmissionToken(hb.admissionToken);
+          setQueuePosition(0);
           setStatus("ADMITTED");
+          return;
         }
-        return next;
-      });
-    }, intervalMs);
+        if (typeof hb.queuePosition === "number") {
+          setQueuePosition(hb.queuePosition);
+          setInitialPosition((prev) => Math.max(prev, hb.queuePosition!));
+        }
+        if (typeof hb.estimatedWaitSeconds === "number") {
+          setEstimatedWaitSeconds(hb.estimatedWaitSeconds);
+        }
+        if (hb.queueId) {
+          setQueueId(hb.queueId);
+        }
+      } catch (err: unknown) {
+        setErrorMessage(
+          err instanceof Error
+            ? err.message
+            : "Kết nối heartbeat gián đoạn, hệ thống đang thử lại...",
+        );
+      }
+    }, 15000);
 
     return () => clearInterval(timer);
   }, [status, eventId]);
@@ -155,10 +152,12 @@ function WaitingRoomWorkspace() {
     <div className="min-h-[calc(100vh-120px)] bg-muted py-10 px-4 flex items-center justify-center">
       <div className="w-full max-w-[540px] bg-background rounded-[20px] border border-border shadow-lg overflow-hidden">
         <div className="relative h-32 bg-foreground overflow-hidden">
-          <img
+          <Image
             src={event.image}
             alt={event.title}
-            className="w-full h-full object-cover opacity-45"
+            fill
+            sizes="540px"
+            className="object-cover opacity-45"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
           <div className="absolute bottom-3.5 left-5 right-5 text-white">
@@ -185,6 +184,13 @@ function WaitingRoomWorkspace() {
                   ngay khi đến lượt.
                 </p>
               </div>
+
+              {errorMessage && (
+                <div className="rounded-[10px] bg-amber-50 border border-amber-200 px-3.5 py-2.5 text-[12px] text-amber-900 flex items-center gap-2">
+                  <AlertCircle className="size-4 text-amber-600 shrink-0" />
+                  <span>{errorMessage}</span>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3.5">
                 <div className="rounded-[14px] bg-muted border border-border p-4 text-center space-y-1">

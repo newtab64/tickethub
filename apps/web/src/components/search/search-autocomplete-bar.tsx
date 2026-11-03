@@ -1,8 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 // apps/web/src/components/search/search-autocomplete-bar.tsx
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, X, MapPin, Calendar, ArrowRight } from "lucide-react";
@@ -182,9 +182,11 @@ export function SearchAutocompleteBar({
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <img
+                        <Image
                           src={ev.image}
                           alt={ev.title}
+                          width={40}
+                          height={40}
                           className="size-10 rounded-[8px] object-cover shrink-0 border border-border"
                         />
                         <div className="min-w-0">

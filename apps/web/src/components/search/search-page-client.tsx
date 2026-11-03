@@ -1,8 +1,8 @@
 // apps/web/src/components/search/search-page-client.tsx
-/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
@@ -383,13 +383,14 @@ export function SearchPageClient({
                   <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-secondary">
                     <Link
                       href={`/events/${ev.id}`}
-                      className="block h-full w-full"
+                      className="relative block h-full w-full"
                     >
-                      <img
+                      <Image
                         src={ev.image}
                         alt={ev.title}
-                        loading="lazy"
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        fill
+                        sizes="(max-width: 640px) 50vw, 25vw"
+                        className="object-cover transition-transform duration-300 group-hover:scale-105"
                       />
                     </Link>
                   </div>

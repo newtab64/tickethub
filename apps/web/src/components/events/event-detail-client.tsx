@@ -1,8 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 // apps/web/src/components/events/event-detail-client.tsx
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -224,7 +224,12 @@ export function EventSplitView({ event }: { event: EventItem }) {
 
       if (response.status === 403 || response.status === 428) {
         const errPayload = await response.json().catch(() => null);
-        if (errPayload?.error?.code === "WAITING_ROOM_REQUIRED") {
+        const errCode = errPayload?.error?.code;
+        if (
+          errCode === "MISSING_ADMISSION_TOKEN" ||
+          errCode === "INVALID_ADMISSION_TOKEN"
+        ) {
+          resetHoldState();
           router.push(`/waiting-room?eventId=${encodeURIComponent(event.id)}`);
           return;
         }
@@ -338,13 +343,15 @@ export function EventSplitView({ event }: { event: EventItem }) {
         <div className="flex items-center gap-3.5 min-w-0">
           <Link
             href="/"
-            className="size-11 rounded-[8px] overflow-hidden bg-secondary shrink-0 border border-border hover:opacity-90 transition-opacity"
+            className="relative size-11 rounded-[8px] overflow-hidden bg-secondary shrink-0 border border-border hover:opacity-90 transition-opacity"
             title="Về trang chủ"
           >
-            <img
+            <Image
               src={event.image}
               alt={event.title}
-              className="w-full h-full object-cover"
+              fill
+              sizes="44px"
+              className="object-cover"
             />
           </Link>
 
@@ -662,7 +669,7 @@ export function EventSplitView({ event }: { event: EventItem }) {
                         );
                         return;
                       }
-                      handleStartHold(listing);
+                      void handleStartHold(listing);
                     }}
                     className={`p-3.5 sm:p-4 transition-colors flex gap-3.5 sm:gap-4 items-start ${
                       !isAvailable
@@ -674,11 +681,13 @@ export function EventSplitView({ event }: { event: EventItem }) {
                             : "hover:bg-muted cursor-pointer"
                     }`}
                   >
-                    <div className="w-[110px] sm:w-[124px] aspect-[16/10] rounded-[8px] overflow-hidden bg-secondary shrink-0 border border-border">
-                      <img
+                    <div className="relative w-[110px] sm:w-[124px] aspect-[16/10] rounded-[8px] overflow-hidden bg-secondary shrink-0 border border-border">
+                      <Image
                         src={listing.viewFromSeatUrl}
                         alt={listing.section}
-                        className="w-full h-full object-cover"
+                        fill
+                        sizes="124px"
+                        className="object-cover"
                       />
                     </div>
 
@@ -841,7 +850,7 @@ export function EventSplitView({ event }: { event: EventItem }) {
               </div>
               <button
                 type="button"
-                onClick={handleCancelHold}
+                onClick={() => void handleCancelHold()}
                 aria-label="Đóng cửa sổ đặt vé"
                 className="size-8 rounded-full hover:bg-secondary flex items-center justify-center text-muted-foreground"
               >
@@ -849,34 +858,38 @@ export function EventSplitView({ event }: { event: EventItem }) {
               </button>
             </div>
 
-            {holdSecondsLeft !== null && holdSecondsLeft > 0 && (
-              <div className="rounded-[10px] bg-emerald-50 border border-emerald-200 p-3.5 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-primary font-bold text-[13px]">
-                    <Timer className="size-4.5" />
-                    <span>Đang giữ chỗ • Mã {holdOrderCode}</span>
-                  </div>
-                  <span className="font-mono text-[16px] font-extrabold text-primary">
-                    {formatCountdown(holdSecondsLeft)}
-                  </span>
-                </div>
-                {allocatedSeats.length > 0 && (
-                  <div className="text-[12px] font-medium text-emerald-800 border-t border-emerald-200/60 pt-1.5 flex items-center justify-between">
-                    <span>Vị trí ghế đã cấp tự động:</span>
-                    <span className="font-mono font-bold">
-                      Hàng {allocatedSeats[0]?.rowLabel} - Ghế{" "}
-                      {allocatedSeats.map((s) => s.seatNumber).join(", ")}
+            {holdSecondsLeft !== null &&
+              holdSecondsLeft > 0 &&
+              holdOrderCode && (
+                <div className="rounded-[10px] bg-emerald-50 border border-emerald-200 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-primary font-bold text-[13px]">
+                      <Timer className="size-4.5" />
+                      <span>Đang giữ chỗ • Mã {holdOrderCode}</span>
+                    </div>
+                    <span className="font-mono text-[16px] font-extrabold text-primary">
+                      {formatCountdown(holdSecondsLeft)}
                     </span>
                   </div>
-                )}
-              </div>
-            )}
+                  {allocatedSeats.length > 0 && (
+                    <div className="text-[12px] font-medium text-emerald-800 border-t border-emerald-200/60 pt-1.5 flex items-center justify-between">
+                      <span>Vị trí ghế đã cấp tự động:</span>
+                      <span className="font-mono font-bold">
+                        Hàng {allocatedSeats[0]?.rowLabel} - Ghế{" "}
+                        {allocatedSeats.map((s) => s.seatNumber).join(", ")}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
             <div className="rounded-[10px] overflow-hidden border border-border bg-foreground aspect-[16/9] relative">
-              <img
+              <Image
                 src={selectedListing.viewFromSeatUrl}
                 alt="Góc nhìn thực tế từ chỗ ngồi"
-                className="w-full h-full object-cover"
+                fill
+                sizes="480px"
+                className="object-cover"
               />
               <span className="absolute bottom-2 left-2 px-2 py-1 rounded-[6px] bg-black/75 text-white text-[11px] font-semibold">
                 Góc nhìn thực tế sân khấu từ {selectedListing.section}
@@ -953,7 +966,7 @@ export function EventSplitView({ event }: { event: EventItem }) {
                   </Link>
                   <button
                     type="button"
-                    onClick={handleCancelHold}
+                    onClick={() => void handleCancelHold()}
                     className="w-full h-8 rounded-[8px] border border-amber-200 bg-background hover:bg-amber-100/50 text-[12px] font-semibold text-amber-800 transition-colors cursor-pointer"
                   >
                     Hủy xem chỗ này
@@ -964,15 +977,16 @@ export function EventSplitView({ event }: { event: EventItem }) {
               <div className="space-y-2 pt-1">
                 <button
                   type="button"
+                  disabled={!holdOrderId || !holdOrderCode}
                   onClick={() => setShowSubtotalModal(true)}
-                  className="w-full h-11 rounded-[10px] bg-primary hover:bg-emerald-700 text-primary-foreground text-[14px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  className="w-full h-11 rounded-[10px] bg-primary hover:bg-emerald-700 disabled:opacity-50 text-primary-foreground text-[14px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
                   <CheckCircle2 className="size-4.5" />
                   Thanh toán qua VNPay &amp; Nhận vé QR
                 </button>
                 <button
                   type="button"
-                  onClick={handleCancelHold}
+                  onClick={() => void handleCancelHold()}
                   className="w-full h-9 rounded-[8px] border border-border bg-background hover:bg-muted text-[12px] font-semibold text-muted-foreground transition-colors cursor-pointer"
                 >
                   Hủy giữ chỗ &amp; chọn khu vực khác
@@ -984,7 +998,7 @@ export function EventSplitView({ event }: { event: EventItem }) {
       )}
 
       {/* 6. Subtotal Confirmation Modal before Checkout */}
-      {showSubtotalModal && selectedListing && (
+      {showSubtotalModal && selectedListing && holdOrderId && holdOrderCode && (
         <div
           role="dialog"
           aria-modal="true"
@@ -1022,6 +1036,12 @@ export function EventSplitView({ event }: { event: EventItem }) {
             <div className="rounded-[10px] bg-muted border border-border p-3.5 space-y-2.5 text-[13px]">
               <div className="font-bold text-foreground text-[14px] line-clamp-1">
                 {event.title}
+              </div>
+              <div className="flex items-center justify-between text-muted-foreground text-[12.5px]">
+                <span>Mã đơn giữ chỗ:</span>
+                <span className="font-mono font-bold text-foreground">
+                  {holdOrderCode}
+                </span>
               </div>
               <div className="flex items-center justify-between text-muted-foreground text-[12.5px]">
                 <span>Khu vực khán đài:</span>

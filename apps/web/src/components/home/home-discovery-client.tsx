@@ -1,8 +1,8 @@
-/* eslint-disable @next/next/no-img-element */
 // apps/web/src/components/home/home-discovery-client.tsx
 "use client";
 
 import { useState, useMemo } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -100,12 +100,16 @@ function EventGridCard({
   return (
     <div className="group relative flex flex-col" data-testid="event-card">
       <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-secondary">
-        <Link href={`/events/${event.id}`} className="block h-full w-full">
-          <img
+        <Link
+          href={`/events/${event.id}`}
+          className="relative block h-full w-full"
+        >
+          <Image
             src={event.image}
             alt={event.title}
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            fill
+            sizes="(max-width: 640px) 50vw, 25vw"
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
           />
         </Link>
 
@@ -309,12 +313,14 @@ export function HomeDiscoveryClient({
                 >
                   <Link
                     href={`/events/${ev.id}`}
-                    className="block h-full w-full"
+                    className="relative block h-full w-full"
                   >
-                    <img
+                    <Image
                       src={ev.portraitImage || ev.image}
                       alt={ev.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
                   </Link>
@@ -490,11 +496,12 @@ export function HomeDiscoveryClient({
                   }
                   className="group relative aspect-[16/10] w-full overflow-hidden rounded-[14px] bg-foreground text-left cursor-pointer"
                 >
-                  <img
+                  <Image
                     src={cat.image}
                     alt={cat.title}
-                    loading="lazy"
-                    className="h-full w-full object-cover brightness-75 transition-transform duration-300 group-hover:scale-105"
+                    fill
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                    className="object-cover brightness-75 transition-transform duration-300 group-hover:scale-105"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
                   <span className="absolute bottom-3 left-3.5 text-[15px] font-bold text-white">
@@ -598,19 +605,25 @@ export function HomeDiscoveryClient({
           <div className="rounded-[12px] border border-border bg-background px-6 py-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <div className="flex items-center -space-x-3 shrink-0">
-                <img
+                <Image
                   src="/images/events/vn/ha-anh-tuan.jpg"
                   alt=""
+                  width={44}
+                  height={44}
                   className="size-11 rounded-full object-cover border-2 border-background"
                 />
-                <img
+                <Image
                   src="/images/events/vn/my-tam.jpg"
                   alt=""
+                  width={44}
+                  height={44}
                   className="size-11 rounded-full object-cover border-2 border-background"
                 />
-                <img
+                <Image
                   src="/images/events/vn/soobin.jpg"
                   alt=""
+                  width={44}
+                  height={44}
                   className="size-11 rounded-full object-cover border-2 border-background"
                 />
               </div>
