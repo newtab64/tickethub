@@ -19,13 +19,7 @@ import {
   Users,
   Search,
   Sparkles,
-  AlertTriangle,
   AlertCircle,
-  Clock,
-  Radio,
-  RefreshCw,
-  ArrowRight,
-  BellRing,
 } from "lucide-react";
 import {
   getEventVenueMapKey,
@@ -93,16 +87,12 @@ export function EventSplitView({ event }: { event: EventItem }) {
     openWaitingRoomFromUrl,
   );
 
-  // State cho Pop-up Hàng chờ ảo (UC03)
   const [wrStatus, setWrStatus] = useState<"QUEUED" | "ADMITTED">("QUEUED");
   const [wrPosition, setWrPosition] = useState<number>(startingPos);
   const [wrInitialPos, setWrInitialPos] = useState<number>(startingPos);
   const [wrWaitSeconds, setWrWaitSeconds] = useState<number>(
     Math.max(15, startingPos * 10),
   );
-  const [wrQueueId, setWrQueueId] = useState<string>(`q_live_${event.id}`);
-  const [wrAdmissionToken, setWrAdmissionToken] = useState<string | null>(null);
-  const [wrLastHeartbeat, setWrLastHeartbeat] = useState<string>("Vừa xong");
   const isUsingRealWrApiRef = useRef<boolean>(false);
 
   const [activeZoneId, setActiveZoneId] = useState<string | null>(
@@ -139,7 +129,6 @@ export function EventSplitView({ event }: { event: EventItem }) {
     setShowWaitingRoomModal(true);
   };
 
-  // Khởi tạo và đồng bộ Pop-up Hàng chờ ảo khi mở
   useEffect(() => {
     if (!showWaitingRoomModal) return;
 
@@ -156,7 +145,6 @@ export function EventSplitView({ event }: { event: EventItem }) {
         isUsingRealWrApiRef.current = true;
 
         if (res.status === "ADMITTED" && res.admissionToken) {
-          setWrAdmissionToken(res.admissionToken);
           setWrPosition(0);
           setWrStatus("ADMITTED");
           return;
@@ -166,7 +154,6 @@ export function EventSplitView({ event }: { event: EventItem }) {
         setWrPosition(pos);
         setWrInitialPos(Math.max(pos, 1));
         setWrWaitSeconds(res.estimatedWaitSeconds ?? pos * 15);
-        if (res.queueId) setWrQueueId(res.queueId);
       } catch {
         if (!isMounted) return;
         isUsingRealWrApiRef.current = false;
@@ -184,18 +171,10 @@ export function EventSplitView({ event }: { event: EventItem }) {
 
     const intervalMs = isUsingRealWrApiRef.current ? 15000 : 1200;
     const timer = setInterval(async () => {
-      const nowStr = new Date().toLocaleTimeString("vi-VN", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      });
-      setWrLastHeartbeat(nowStr);
-
       if (isUsingRealWrApiRef.current) {
         try {
           const hb = await waitingRoomApi.sendHeartbeat(event.id);
           if (hb.status === "ADMITTED" && hb.admissionToken) {
-            setWrAdmissionToken(hb.admissionToken);
             setWrPosition(0);
             setWrStatus("ADMITTED");
             return;
@@ -209,7 +188,7 @@ export function EventSplitView({ event }: { event: EventItem }) {
           }
           return;
         } catch {
-          // Chuyển sang bước cập nhật hàng chờ dự phòng
+          // Fallback nếu kết nối gián đoạn
         }
       }
 
@@ -219,9 +198,8 @@ export function EventSplitView({ event }: { event: EventItem }) {
         setWrWaitSeconds(Math.max(5, next * 8));
 
         if (next === 0) {
-          const token = `adm_popup_${event.id}_${Date.now()}`;
+          const token = `adm_${event.id}_${Date.now()}`;
           saveAdmissionToken(event.id, token);
-          setWrAdmissionToken(token);
           setWrStatus("ADMITTED");
         }
         return next;
@@ -480,9 +458,9 @@ export function EventSplitView({ event }: { event: EventItem }) {
     wrStatus === "ADMITTED"
       ? 100
       : Math.min(
-          96,
+          95,
           Math.max(
-            10,
+            8,
             Math.round(
               ((wrInitialPos - wrPosition) / Math.max(1, wrInitialPos)) * 100,
             ),
@@ -490,9 +468,9 @@ export function EventSplitView({ event }: { event: EventItem }) {
         );
 
   const formatWaitTime = (secs: number) => {
-    if (secs < 60) return `Khoảng ${secs} giây`;
+    if (secs < 60) return `~${secs} giây`;
     const mins = Math.ceil(secs / 60);
-    return `Khoảng ${mins} phút`;
+    return `~${mins} phút`;
   };
 
   return (
@@ -558,17 +536,6 @@ export function EventSplitView({ event }: { event: EventItem }) {
         </div>
 
         <div className="flex items-center gap-3 sm:gap-4 shrink-0 text-[13px] font-medium text-foreground">
-          <button
-            type="button"
-            onClick={openWaitingRoomPopup}
-            data-testid="open-waiting-room-popup-btn"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold text-xs hover:bg-emerald-100 transition-colors cursor-pointer"
-            title="Mở pop-up phòng chờ ảo của sự kiện"
-          >
-            <Clock className="size-3.5" />
-            <span>Hàng chờ ảo</span>
-          </button>
-
           <div className="hidden lg:flex items-center gap-1 text-muted-foreground hover:text-foreground cursor-pointer">
             <span>VND | VI</span>
             <ChevronDown className="size-3.5" />
@@ -660,20 +627,16 @@ export function EventSplitView({ event }: { event: EventItem }) {
       {isEventSoldOut ? (
         <div
           data-testid="event-soldout-banner"
-          className="h-[36px] bg-amber-50 border-b border-amber-200 px-4 sm:px-6 flex items-center justify-center text-center gap-2.5 text-[12px] text-amber-900 font-semibold shrink-0"
+          className="h-[34px] bg-muted border-b border-border px-4 sm:px-6 flex items-center justify-center text-center gap-2 text-[12px] text-foreground font-medium shrink-0"
         >
-          <AlertTriangle className="size-3.5 text-amber-600 shrink-0" />
-          <span>
-            Sự kiện này hiện đã bán hết toàn bộ vé. Đăng ký email vào danh sách
-            chờ để nhận thông báo ngay khi có vé mới!
-          </span>
+          <span>Sự kiện hiện đã hết vé.</span>
           <button
             type="button"
             onClick={() => setShowSoldOutModal(true)}
             data-testid="open-soldout-popup-btn"
-            className="px-2.5 py-0.5 rounded-full bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold transition-colors cursor-pointer shrink-0"
+            className="text-primary font-bold hover:underline cursor-pointer"
           >
-            Mở Pop-up Đăng ký chờ
+            Nhận thông báo khi có vé
           </button>
         </div>
       ) : (
@@ -721,9 +684,7 @@ export function EventSplitView({ event }: { event: EventItem }) {
           <div className="px-4 py-3 border-b border-border bg-background flex items-center justify-between gap-3 shrink-0">
             <div className="text-[12.5px] text-muted-foreground font-medium">
               {isEventSoldOut ? (
-                <span className="text-destructive font-bold">
-                  Trạng thái: Đã hết vé (Sold Out)
-                </span>
+                <span className="text-foreground font-semibold">Đã hết vé</span>
               ) : activeZoneId ? (
                 <span>
                   Đang xem:{" "}
@@ -786,39 +747,35 @@ export function EventSplitView({ event }: { event: EventItem }) {
 
           <div className="flex-1 overflow-y-auto divide-y divide-border">
             {filteredListings.length === 0 ? (
-              <div className="p-6 sm:p-8 text-center space-y-4">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
-                  <Flame className="size-3.5" />
-                  {isEventSoldOut ? "Sự kiện đã hết vé" : "Khu vực đã hết vé"}
-                </span>
-                <h3 className="text-[16px] font-extrabold text-foreground">
+              <div className="p-8 text-center space-y-3">
+                <h3 className="text-[15px] font-bold text-foreground">
                   {isEventSoldOut
-                    ? `Vé cho "${event.title}" hiện đã bán hết`
-                    : "Khu vực đã chọn hiện chưa có đủ số lượng vé"}
+                    ? "Sự kiện đã hết vé"
+                    : "Khu vực này hiện không còn đủ vé"}
                 </h3>
-                <p className="text-[13px] text-muted-foreground max-w-sm mx-auto">
-                  Nhấn nút bên dưới để mở hộp thoại Pop-up đăng ký nhận thông
-                  báo qua email ngay khi có vé hoàn trả hoặc mở bán bổ sung.
+                <p className="text-[13px] text-muted-foreground max-w-xs mx-auto">
+                  {isEventSoldOut
+                    ? "Bạn có thể để lại email để nhận thông báo khi có vé mới."
+                    : "Vui lòng chọn khu vực khác trên sơ đồ hoặc giảm số lượng vé."}
                 </p>
 
-                <div className="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+                <div className="pt-2 flex flex-wrap justify-center gap-2">
                   {!isEventSoldOut && activeZoneId && (
                     <button
                       type="button"
                       onClick={() => setActiveZoneId(null)}
-                      className="px-4 py-2 rounded-[8px] border border-border bg-background hover:bg-muted text-foreground text-[13px] font-bold transition-colors cursor-pointer"
+                      className="h-9 px-4 rounded-[8px] border border-border bg-background hover:bg-muted text-foreground text-[13px] font-semibold transition-colors cursor-pointer"
                     >
-                      Xem tất cả các khu vực còn vé
+                      Xem tất cả khu vực
                     </button>
                   )}
 
                   <button
                     type="button"
                     onClick={() => setShowSoldOutModal(true)}
-                    className="px-4 py-2.5 rounded-[10px] bg-primary text-primary-foreground text-[13px] font-bold hover:bg-emerald-700 inline-flex items-center gap-2 transition-colors cursor-pointer shadow-xs"
+                    className="h-9 px-4 rounded-[8px] bg-primary text-primary-foreground text-[13px] font-semibold hover:bg-emerald-700 transition-colors cursor-pointer"
                   >
-                    <BellRing className="size-4" />
-                    <span>Mở Pop-up nhận thông báo vé</span>
+                    Nhận thông báo khi có vé
                   </button>
                 </div>
               </div>
@@ -950,243 +907,161 @@ export function EventSplitView({ event }: { event: EventItem }) {
         </div>
       </div>
 
-      {/* 4. POP-UP MODAL: Thông báo Hết vé & Đăng ký Email Waitlist (UC02) */}
+      {/* 4. Hộp thoại Hết vé (Tối giản, đồng bộ với popup chọn số lượng vé) */}
       {showSoldOutModal && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="soldout-popup-title"
           data-testid="soldout-popup-modal"
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
           onClick={() => setShowSoldOutModal(false)}
         >
           <div
-            className="w-full max-w-[480px] bg-background rounded-[20px] border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 relative"
+            className="w-full max-w-[380px] bg-background rounded-[20px] shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-150 relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="relative h-28 bg-foreground overflow-hidden">
-              <Image
-                src={event.image}
-                alt={event.title}
-                fill
-                sizes="480px"
-                className="object-cover opacity-40"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-              <button
-                type="button"
-                onClick={() => setShowSoldOutModal(false)}
-                aria-label="Đóng thông báo hết vé"
-                data-testid="close-soldout-popup-btn"
-                className="absolute top-3.5 right-3.5 size-8 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center transition-colors cursor-pointer z-10"
+            <button
+              type="button"
+              onClick={() => setShowSoldOutModal(false)}
+              aria-label="Đóng thông báo hết vé"
+              data-testid="close-soldout-popup-btn"
+              className="absolute top-4 right-4 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              <X className="size-5" />
+            </button>
+
+            <div className="space-y-1 pt-1">
+              <h2
+                id="soldout-popup-title"
+                className="text-[19px] font-extrabold text-foreground"
               >
-                <X className="size-4.5" />
-              </button>
-              <div className="absolute bottom-3 left-5 right-5 text-white">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-500/30 border border-rose-400/50 text-rose-200 text-[11px] font-bold mb-1">
-                  <Flame className="size-3" />
-                  Thông báo trạng thái vé (Sold Out)
-                </span>
-                <h2
-                  id="soldout-popup-title"
-                  className="text-[17px] font-extrabold truncate"
-                >
-                  {event.title}
-                </h2>
-              </div>
+                Sự kiện đã hết vé
+              </h2>
+              <p className="text-[13px] text-muted-foreground leading-relaxed">
+                Hiện tại toàn bộ vé của <strong>{event.title}</strong> đã được
+                đặt hết. Để lại email nếu bạn muốn nhận thông báo khi có vé mở
+                bán thêm.
+              </p>
             </div>
 
-            <div className="p-5 sm:p-6 space-y-4">
-              <div className="rounded-[12px] bg-amber-50 border border-amber-200 p-3.5 flex items-start gap-2.5 text-[12.5px] text-amber-900">
-                <AlertTriangle className="size-4.5 text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="font-bold block">
-                    Sự kiện hiện đã bán hết vé!
-                  </strong>
-                  <span>
-                    Tất cả các hạng vé của sự kiện hiện đã được đặt hết. Vui
-                    lòng để lại địa chỉ email bên dưới để hệ thống tự động thông
-                    báo ngay khi có vé hoàn trả hoặc mở bán thêm.
-                  </span>
-                </div>
-              </div>
-
-              <WaitlistEmailForm
-                eventId={event.id}
-                eventTitle={event.title}
-                variant="soldout-card"
-              />
-
-              <div className="flex justify-end pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowSoldOutModal(false)}
-                  className="h-9 px-4 rounded-[8px] border border-border bg-background hover:bg-muted text-[12.5px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                >
-                  Đóng cửa sổ và xem sơ đồ sân khấu
-                </button>
-              </div>
-            </div>
+            <WaitlistEmailForm
+              eventId={event.id}
+              eventTitle={event.title}
+              variant="soldout-card"
+            />
           </div>
         </div>
       )}
 
-      {/* 5. POP-UP MODAL: Hàng chờ ảo phân luồng trực tuyến (UC03) */}
+      {/* 5. Hộp thoại Phòng chờ (Tối giản, đồng bộ với popup chọn số lượng vé) */}
       {showWaitingRoomModal && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="waiting-room-popup-title"
           data-testid="waiting-room-popup-modal"
-          className="fixed inset-0 z-50 bg-black/65 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs animate-in fade-in duration-150"
         >
-          <div className="w-full max-w-[520px] bg-background rounded-[20px] border border-border shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150 relative">
-            <div className="relative h-32 bg-foreground overflow-hidden">
-              <Image
-                src={event.image}
-                alt={event.title}
-                fill
-                sizes="520px"
-                className="object-cover opacity-45"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
-              <button
-                type="button"
-                onClick={() => setShowWaitingRoomModal(false)}
-                aria-label="Đóng hàng chờ ảo"
-                data-testid="close-waiting-room-popup-btn"
-                className="absolute top-3.5 right-3.5 size-8 rounded-full bg-black/50 hover:bg-black/75 text-white flex items-center justify-center transition-colors cursor-pointer z-10"
-              >
-                <X className="size-4.5" />
-              </button>
-              <div className="absolute bottom-3.5 left-5 right-5 text-white">
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-[11px] font-bold mb-1">
-                  <Radio className="size-3 animate-pulse" />
-                  Pop-up Phòng chờ phân luồng trực tuyến (UC03)
-                </span>
-                <h2
-                  id="waiting-room-popup-title"
-                  className="text-[17px] sm:text-[18px] font-extrabold truncate"
-                >
-                  {event.title}
-                </h2>
-              </div>
-            </div>
+          <div className="w-full max-w-[380px] bg-background rounded-[20px] shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150 relative">
+            <button
+              type="button"
+              onClick={() => setShowWaitingRoomModal(false)}
+              aria-label="Đóng phòng chờ"
+              data-testid="close-waiting-room-popup-btn"
+              className="absolute top-4 right-4 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            >
+              <X className="size-5" />
+            </button>
 
-            <div className="p-6 space-y-5">
-              {wrStatus !== "ADMITTED" ? (
-                <>
-                  <div className="text-center space-y-1">
-                    <h3 className="text-[18px] font-extrabold text-foreground">
-                      Bạn đang trong hàng chờ mua vé
-                    </h3>
-                    <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-                      Lượng khán giả truy cập sự kiện đang rất cao. Hệ thống tự
-                      động duy trì kết nối (Heartbeat 15s) và sẽ mở khóa chọn
-                      ghế ngay khi đến lượt bạn.
-                    </p>
-                  </div>
+            {wrStatus !== "ADMITTED" ? (
+              <>
+                <div className="text-center space-y-1 pt-1">
+                  <h2
+                    id="waiting-room-popup-title"
+                    className="text-[19px] font-extrabold text-foreground"
+                  >
+                    Đang chờ vào chọn vé
+                  </h2>
+                  <p className="text-[13px] text-muted-foreground">
+                    Hệ thống sẽ tự chuyển bạn vào sơ đồ ghế khi đến lượt
+                  </p>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-3.5">
-                    <div className="rounded-[14px] bg-muted border border-border p-3.5 text-center space-y-1">
-                      <div className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
-                        <Users className="size-4 text-primary" />
-                        <span>Số thứ tự của bạn</span>
-                      </div>
-                      <div
-                        data-testid="queue-position-value"
-                        className="text-[26px] font-extrabold text-foreground font-mono tabular-nums"
-                      >
-                        #{wrPosition.toLocaleString("vi-VN")}
-                      </div>
+                <div className="rounded-[14px] bg-muted border border-border p-4 flex items-center justify-between">
+                  <div>
+                    <div className="text-[12px] text-muted-foreground">
+                      Số thứ tự
                     </div>
-
-                    <div className="rounded-[14px] bg-muted border border-border p-3.5 text-center space-y-1">
-                      <div className="flex items-center justify-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
-                        <Timer className="size-4 text-primary" />
-                        <span>Thời gian ước tính</span>
-                      </div>
-                      <div
-                        data-testid="queue-wait-value"
-                        className="text-[17px] font-extrabold text-primary pt-1 tabular-nums"
-                      >
-                        {formatWaitTime(wrWaitSeconds)}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-[12px] font-semibold">
-                      <span className="text-muted-foreground flex items-center gap-1.5">
-                        <RefreshCw className="size-3.5 text-primary animate-spin" />
-                        Đang cập nhật tiến độ hàng chờ...
-                      </span>
-                      <span
-                        data-testid="queue-progress-percent"
-                        className="text-primary font-mono font-bold"
-                      >
-                        {wrProgressPercent}%
-                      </span>
-                    </div>
-                    <div className="h-2.5 w-full rounded-full bg-secondary overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${wrProgressPercent}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-0.5">
-                      <span>Mã phiên: {wrQueueId}</span>
-                      <span>Đồng bộ lúc: {wrLastHeartbeat}</span>
-                    </div>
-                  </div>
-
-                  <div className="rounded-[12px] bg-emerald-50/70 border border-emerald-200 p-3 flex items-start gap-2.5 text-[12px] text-emerald-900">
-                    <ShieldCheck className="size-4 text-primary shrink-0 mt-0.5" />
-                    <span>
-                      <strong>Lưu ý:</strong> Vui lòng giữ nguyên cửa sổ Pop-up
-                      này. Khi đến lượt, bạn sẽ được cấp{" "}
-                      <strong>Admission Token</strong> có hiệu lực 10 phút để
-                      chọn ghế và thanh toán.
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <div
-                  data-testid="queue-admitted-state"
-                  className="py-3 text-center space-y-4 animate-in zoom-in-95 duration-200"
-                >
-                  <div className="mx-auto size-15 rounded-full bg-emerald-100 text-primary flex items-center justify-center">
-                    <CheckCircle2 className="size-8" />
-                  </div>
-
-                  <div className="space-y-1">
-                    <span className="inline-flex items-center gap-1 text-[11.5px] font-bold text-primary uppercase tracking-wider">
-                      <Sparkles className="size-3.5" />
-                      Đã cấp quyền truy cập (Admission Token)
-                    </span>
-                    <h3 className="text-[20px] font-extrabold text-foreground">
-                      Đã đến lượt của bạn!
-                    </h3>
-                    <p className="text-[13px] text-muted-foreground">
-                      Bạn đã được cấp quyền vào sơ đồ chọn chỗ ngồi của sự kiện
-                      {wrAdmissionToken ? " (Hiệu lực 10 phút)." : "."}
-                    </p>
-                  </div>
-
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setShowWaitingRoomModal(false)}
-                      data-testid="enter-booking-now-btn"
-                      className="inline-flex items-center justify-center gap-2 h-11 px-6 rounded-[10px] bg-primary hover:bg-emerald-700 text-primary-foreground text-[14px] font-bold transition-colors shadow-xs cursor-pointer"
+                    <div
+                      data-testid="queue-position-value"
+                      className="text-[24px] font-extrabold text-foreground tabular-nums"
                     >
-                      <span>Vào chọn ghế ngay</span>
-                      <ArrowRight className="size-4" />
-                    </button>
+                      #{wrPosition.toLocaleString("vi-VN")}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[12px] text-muted-foreground">
+                      Dự kiến chờ
+                    </div>
+                    <div
+                      data-testid="queue-wait-value"
+                      className="text-[16px] font-bold text-primary tabular-nums pt-1"
+                    >
+                      {formatWaitTime(wrWaitSeconds)}
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[12px] text-muted-foreground">
+                    <span>Tiến độ hàng chờ</span>
+                    <span
+                      data-testid="queue-progress-percent"
+                      className="font-semibold text-foreground"
+                    >
+                      {wrProgressPercent}%
+                    </span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${wrProgressPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[12px] text-muted-foreground text-center">
+                  Vui lòng giữ nguyên cửa sổ này để không mất lượt.
+                </p>
+              </>
+            ) : (
+              <div
+                data-testid="queue-admitted-state"
+                className="text-center space-y-4 pt-2"
+              >
+                <div className="space-y-1">
+                  <h2
+                    id="waiting-room-popup-title"
+                    className="text-[20px] font-extrabold text-foreground"
+                  >
+                    Đã đến lượt của bạn
+                  </h2>
+                  <p className="text-[13px] text-muted-foreground">
+                    Bạn có 10 phút để chọn ghế và hoàn tất đặt vé.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowWaitingRoomModal(false)}
+                  data-testid="enter-booking-now-btn"
+                  className="w-full h-11 rounded-[10px] bg-primary hover:bg-emerald-700 text-primary-foreground text-[14px] font-bold transition-colors cursor-pointer"
+                >
+                  Tiếp tục chọn vé
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

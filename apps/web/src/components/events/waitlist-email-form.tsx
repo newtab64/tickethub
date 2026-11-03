@@ -2,7 +2,6 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, BellRing, CheckCircle2, AlertCircle } from "lucide-react";
 import { apiClient } from "@/lib/api/client";
 
 interface WaitlistEmailFormProps {
@@ -29,11 +28,11 @@ export function WaitlistEmailForm({
 
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) {
-      setError("Vui lòng nhập địa chỉ email của bạn.");
+      setError("Vui lòng nhập email của bạn.");
       return;
     }
     if (!EMAIL_REGEX.test(trimmed)) {
-      setError("Địa chỉ email không đúng định dạng (ví dụ: ten@email.com).");
+      setError("Email chưa đúng định dạng.");
       return;
     }
 
@@ -54,13 +53,10 @@ export function WaitlistEmailForm({
       <div
         role="status"
         data-testid="waitlist-success"
-        className="rounded-[12px] bg-accent border border-emerald-200 px-4 py-3 text-[13px] text-accent-foreground flex items-center gap-2.5 animate-in fade-in duration-150"
+        className="rounded-[10px] bg-muted border border-border px-4 py-3 text-[13px] text-foreground"
       >
-        <CheckCircle2 className="size-4.5 text-primary shrink-0" />
-        <span>
-          Đã đăng ký nhận thông báo thành công! Chúng tôi sẽ gửi email ngay khi{" "}
-          <strong>{eventTitle || "sự kiện"}</strong> có vé mới hoặc vé hoàn trả.
-        </span>
+        Đã ghi nhận email. Chúng tôi sẽ gửi thông báo cho bạn ngay khi{" "}
+        <strong>{eventTitle || "sự kiện"}</strong> có vé trở lại.
       </div>
     );
   }
@@ -73,96 +69,62 @@ export function WaitlistEmailForm({
         className="w-full sm:w-auto flex flex-col gap-1.5"
       >
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="relative flex items-center">
-            <Mail className="size-4 text-muted-foreground absolute left-3 pointer-events-none" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="Nhập email nhận thông báo..."
-              aria-label="Email nhận thông báo sự kiện"
-              data-testid="waitlist-email-input"
-              className="h-10 pl-9 pr-3.5 rounded-[8px] border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 min-w-[240px]"
-            />
-          </div>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              if (error) setError(null);
+            }}
+            placeholder="Email của bạn..."
+            aria-label="Email nhận thông báo sự kiện"
+            data-testid="waitlist-email-input"
+            className="h-10 px-3.5 rounded-[8px] border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-foreground min-w-[240px]"
+          />
           <button
             type="submit"
             disabled={isSubmitting}
             data-testid="waitlist-submit-btn"
             className="h-10 rounded-[8px] bg-foreground hover:opacity-90 disabled:opacity-50 px-4 text-[13px] font-semibold text-background transition-opacity shrink-0 cursor-pointer"
           >
-            {isSubmitting ? "Đang lưu..." : "Đăng ký nhận tin"}
+            {isSubmitting ? "Đang gửi..." : "Nhận thông báo"}
           </button>
         </div>
-        {error && (
-          <p className="text-[11.5px] text-destructive flex items-center gap-1">
-            <AlertCircle className="size-3.5 shrink-0" />
-            <span>{error}</span>
-          </p>
-        )}
+        {error && <p className="text-[12px] text-destructive">{error}</p>}
       </form>
     );
   }
 
   return (
-    <div
-      data-testid="soldout-waitlist-box"
-      className="rounded-[14px] border border-amber-200 bg-amber-50/70 p-4 sm:p-5 text-left space-y-3"
-    >
-      <div className="flex items-start gap-3">
-        <div className="size-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-          <BellRing className="size-4.5" />
-        </div>
-        <div className="space-y-1">
-          <h4 className="text-[14px] font-bold text-foreground">
-            Đăng ký danh sách chờ nhận vé (Waitlist)
-          </h4>
-          <p className="text-[12.5px] text-muted-foreground leading-relaxed">
-            Để lại email của bạn. Hệ thống TicketHub sẽ tự động gửi thông báo
-            ngay khi Ban tổ chức mở bán bổ sung hoặc có vé hoàn trả hợp lệ.
-          </p>
-        </div>
-      </div>
-
-      <form onSubmit={handleSubmit} noValidate className="space-y-2 pt-1">
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Mail className="size-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="Nhập địa chỉ email của bạn (vd: ban@gmail.com)"
-              aria-label="Địa chỉ email nhận thông báo khi có vé"
-              data-testid="waitlist-email-input"
-              className="w-full h-10 pl-9 pr-3 rounded-[8px] border border-border bg-background text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            data-testid="waitlist-submit-btn"
-            className="h-10 px-4 rounded-[8px] bg-primary hover:bg-emerald-700 disabled:opacity-50 text-primary-foreground text-[13px] font-bold transition-colors shrink-0 cursor-pointer"
-          >
-            {isSubmitting ? "Đang đăng ký..." : "Nhận thông báo"}
-          </button>
-        </div>
+    <div data-testid="soldout-waitlist-box" className="text-left space-y-3">
+      <form onSubmit={handleSubmit} noValidate className="space-y-2.5">
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            if (error) setError(null);
+          }}
+          placeholder="Nhập email của bạn (vd: ten@gmail.com)"
+          aria-label="Địa chỉ email nhận thông báo khi có vé"
+          data-testid="waitlist-email-input"
+          className="w-full h-11 px-3.5 rounded-[10px] border border-border bg-background text-[13.5px] text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary"
+        />
 
         {error && (
-          <p
-            role="alert"
-            className="text-[12px] text-destructive font-medium flex items-center gap-1.5"
-          >
-            <AlertCircle className="size-3.5 shrink-0" />
-            <span>{error}</span>
+          <p role="alert" className="text-[12px] text-destructive">
+            {error}
           </p>
         )}
+
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          data-testid="waitlist-submit-btn"
+          className="w-full h-11 rounded-[10px] bg-primary hover:bg-emerald-700 disabled:opacity-50 text-primary-foreground text-[14px] font-bold transition-colors cursor-pointer"
+        >
+          {isSubmitting ? "Đang đăng ký..." : "Báo cho tôi khi có vé"}
+        </button>
       </form>
     </div>
   );
