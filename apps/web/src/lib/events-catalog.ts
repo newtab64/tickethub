@@ -23,6 +23,28 @@ export interface EventItem {
 }
 
 export const EVENTS: EventItem[] = [
+  {
+    id: "e742fd19-f438-4ae8-9f75-f8d9ca26433b",
+    title: "Liveshow Âm Nhạc Mùa Thu 2026",
+    category: "CONCERT",
+    dateRange: "16 Th11 - 17 Th11",
+    fullDateTime: "T2, 16 Th11, 2026 • 20:00",
+    doorsOpenTime: "18:30",
+    dateWindow: "NOV",
+    venue: "Trung tâm Hội nghị Quốc gia",
+    venueAddress: "Số 57 đường Phạm Hùng, Mễ Trì, Nam Từ Liêm, Hà Nội",
+    city: "Hà Nội",
+    cityCode: "HN",
+    fromPrice: "600.000 ₫+",
+    minPriceNumber: 600000,
+    organizerName: "TicketHub Vietnam Entertainment",
+    description:
+      "Đại nhạc hội quy tụ các nghệ sĩ hàng đầu Việt Nam tại Trung tâm Hội nghị Quốc gia.",
+    image: "/images/events/vn/anh-trai.jpg",
+    portraitImage: "/images/events/vn/anh-trai.jpg",
+    featuredOrder: 1,
+    trendingOrder: 1,
+  },
   // 4 Popular Portrait Marquee Events (286x352 aspect ratio)
   {
     id: "evt-anh-trai-vuot-ngan-chong-gai",
@@ -480,6 +502,69 @@ export function getEventVenueMapKey(event: EventItem): VenueMapKey {
 }
 
 export function getEventListings(event: EventItem): TicketListing[] {
+  // Real database event: Liveshow Âm Nhạc Mùa Thu 2026
+  if (event.id === "e742fd19-f438-4ae8-9f75-f8d9ca26433b") {
+    return [
+      {
+        id: "34e9dcbc-3184-4f12-9777-da70b8b6001f",
+        eventId: event.id,
+        zoneId: "5715",
+        zoneName: "Khu VIP A",
+        section: "Khu VIP A",
+        row: "Hàng VIP",
+        seatInfo: "Phân bổ tự động ghế liền kề",
+        price: 2500000,
+        availableTickets: 20,
+        dealScore: 10,
+        dealLabel: "Tuyệt vời",
+        features: [
+          "Ghế ngồi VIP trung tâm",
+          "Lối đi riêng và nước uống",
+          "Vé điện tử QR động",
+        ],
+        viewFromSeatUrl: "/assets/seat-view.jpg",
+      },
+      {
+        id: "fa8ee5b3-2ae3-42f8-aa2b-06192d87e424",
+        eventId: event.id,
+        zoneId: "27859",
+        zoneName: "Khu Tiêu Chuẩn B",
+        section: "Khu Tiêu Chuẩn B",
+        row: "Hàng Tiêu chuẩn",
+        seatInfo: "Phân bổ tự động ghế liền kề",
+        price: 1200000,
+        availableTickets: 30,
+        dealScore: 9,
+        dealLabel: "Rất tốt",
+        features: [
+          "Tầm nhìn toàn cảnh sân khấu",
+          "Ghế ngồi tiêu chuẩn",
+          "Vé điện tử QR động",
+        ],
+        viewFromSeatUrl: "/assets/seat-view.jpg",
+      },
+      {
+        id: "f195671c-20e6-40b2-9a2c-d4c5486d192d",
+        eventId: event.id,
+        zoneId: "2196",
+        zoneName: "Khu Đứng GA",
+        section: "Khu Đứng GA",
+        seatInfo: "Vé đứng tự do - GA",
+        price: 600000,
+        availableTickets: 100,
+        dealScore: 8,
+        dealLabel: "Tốt",
+        features: [
+          "Khu vực đứng tự do",
+          "Không khí âm nhạc sôi động",
+          "Vé điện tử QR động",
+        ],
+        viewFromSeatUrl: "/assets/seat-view.jpg",
+        isStanding: true,
+      },
+    ];
+  }
+
   const mapKey = getEventVenueMapKey(event);
   const base = event.minPriceNumber;
   const roundVnd = (num: number) => Math.round(num / 10000) * 10000;

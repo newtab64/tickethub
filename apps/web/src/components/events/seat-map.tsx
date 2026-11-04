@@ -86,12 +86,9 @@ function SeatMapView({
     viewBox: mapData.viewBox,
   });
 
-  // Tooltip for overview hover
+  // Tooltip for overview hover: only shows price on white background when zone has available seats
   const [tooltip, setTooltip] = useState<{
     price: number;
-    name: string;
-    count: number;
-    isSoldOut: boolean;
     x: number;
     y: number;
   } | null>(null);
@@ -152,17 +149,12 @@ function SeatMapView({
       const target = (e.target as Element).closest("[data-zone]");
       if (target) {
         const zid = target.getAttribute("data-zone");
-        if (zid) {
-          const info = zoneInfoMap[zid];
-          const isSoldOut = !info || info.count <= 0;
+        if (zid && zoneInfoMap[zid] && zoneInfoMap[zid].count > 0) {
           onHoverZone(zid);
-          const rect = containerRef.current?.getBoundingClientRect();
+          const rect = canvasRef.current?.getBoundingClientRect();
           if (rect) {
             setTooltip({
-              price: info?.minPrice ?? 0,
-              name: info?.name ?? `Khu ${zid}`,
-              count: info?.count ?? 0,
-              isSoldOut,
+              price: zoneInfoMap[zid].minPrice,
               x: e.clientX - rect.left,
               y: e.clientY - rect.top,
             });
@@ -317,32 +309,17 @@ function SeatMapView({
         style={{ touchAction: "none" }}
         className="flex-1 w-full h-full relative cursor-grab active:cursor-grabbing overflow-hidden"
       >
-        {/* Floating Hover Tooltip on Section */}
+        {/* Floating Hover Tooltip: Only show price on white background, nothing on sold out */}
         {tooltip && (
           <div
             style={{
-              left: `${tooltip.x}px`,
-              top: `${tooltip.y - 12}px`,
+              left: `${tooltip.x + 12}px`,
+              top: `${tooltip.y - 36}px`,
               pointerEvents: "none",
             }}
-            className="absolute z-30 transform -translate-x-1/2 -translate-y-full bg-foreground text-white text-[12px] px-3 py-1.5 rounded-[6px] shadow-lg whitespace-nowrap pointer-events-none select-none"
+            className="absolute z-30 transform -translate-y-full bg-white text-emerald-600 font-bold text-[13px] px-3 py-1 rounded-[6px] shadow-md border border-border whitespace-nowrap pointer-events-none select-none"
           >
-            <div className="font-semibold text-background/90">
-              {tooltip.name}
-            </div>
-            {tooltip.isSoldOut ? (
-              <div className="font-bold text-red-300 font-mono text-[11px] pt-0.5">
-                Hết vé khả dụng
-              </div>
-            ) : (
-              <div className="font-bold text-emerald-200 font-mono">
-                Từ {formatVnd(tooltip.price)}
-                <span className="text-[11px] text-background/70 font-normal ml-1">
-                  ({tooltip.count} vé)
-                </span>
-              </div>
-            )}
-            <div className="absolute left-1/2 top-full -translate-x-1/2 border-4 border-transparent border-t-foreground" />
+            {formatVnd(tooltip.price)}
           </div>
         )}
 

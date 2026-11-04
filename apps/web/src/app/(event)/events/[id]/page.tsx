@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { EVENTS, getEventById } from "@/lib/events-catalog";
-import { EventSplitView } from "@/components/events/event-detail-client";
+import { EventSplitView } from "@/components/events/event-detail-client"; // Import component giao diện
 
 type EventParamsPromise = Promise<{ id: string }>;
 
