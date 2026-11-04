@@ -1,0 +1,19 @@
+{
+  "name": "TicketHub - Vé Điện Tử & Soát Vé Cổng PWA",
+  "short_name": "TicketHub PWA",
+  "description": "Ứng dụng quản lý vé QR động Ed25519 và soát vé cổng kiểm soát ngoại tuyến TicketHub",
+  "start_url": "/gate-scanner",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "rgb(255, 255, 255)",
+  "theme_color": "rgb(5, 150, 105)",
+  "categories": ["entertainment", "utilities", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
