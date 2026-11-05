@@ -24,11 +24,14 @@ Checkout trước đây dùng đơn mẫu và có thể điều hướng sang k�
 
 ## 3. Cam kết chất lượng mã nguồn (Code Quality Guarantees)
 
-- [x] Không dùng dữ liệu mẫu hoặc localStorage để thay thế API đơn hàng, thanh toán hoặc hoàn tiền. sessionStorage chỉ giữ mã đơn và mã giao dịch cho điều hướng quay về; kết quả luôn đọc lại từ API có xác thực.
-- [x] Không dùng kiểu `any` mới. Dữ liệu trả về được kiểm tra bằng schema Zod trong `packages/shared`.
-- [x] Màu giao diện mới dùng design tokens.
-- [x] Không có emoji hoặc ký tự gạch ngang dài trong mã và mô tả thay đổi mới.
-- [x] Không sửa `.github/workflows/`, `scripts/pr-gate-*`, `scripts/audit-doc-*`, `tests/pr-gate-*` hoặc mẫu PR.
+Bắt buộc xác nhận toàn bộ các cam kết dưới đây:
+
+- [x] Không chứa mã giả lập ở client (không dùng localStorage hoặc mock để thay thế API backend)
+- [x] Không sử dụng kiểu `any` (dùng schema Zod hoặc kiểu `unknown` có kiểm tra kiểu)
+- [x] Tuân thủ token màu tại `docs/DESIGN_TOKENS.md` (không dùng mã hex thô không khai báo)
+- [x] Không chứa biểu tượng cảm xúc (emoji) trong commit message và nội dung trao đổi
+- [x] Không chứa ký tự gạch ngang dài (em-dash) trong commit message và nội dung
+- [x] Không can thiệp trái phép vào hạ tầng kiểm soát (không sửa đổi .github/workflows/, scripts/pr-gate-_, scripts/audit-doc-_, tests/pr-gate-*)
 
 ## 4. Danh sách ca kiểm thử (Test Cases)
 
@@ -91,8 +94,8 @@ Trong môi trường này, dùng Node 24.22.1, pnpm 12.11.2 và các biến thư
 
 Ảnh được chụp từ Chromium chạy ứng dụng với dữ liệu backend thật trên database test. Đính kèm các ảnh này vào PR khi gửi review.
 
-![Checkout desktop](w04-checkout-desktop.png)
+![Checkout desktop](https://raw.githubusercontent.com/vikietduong/tickethub/811cbbf8ca6323133274af6cd7016bad550e425f/artifacts/w04-checkout-desktop.png)
 
-![Checkout mobile](w04-checkout-mobile.png)
+![Checkout mobile](https://raw.githubusercontent.com/vikietduong/tickethub/811cbbf8ca6323133274af6cd7016bad550e425f/artifacts/w04-checkout-mobile.png)
 
-![Xem trước hoàn một phần vé](w04-refund-preview.png)
+![Xem trước hoàn một phần vé](https://raw.githubusercontent.com/vikietduong/tickethub/811cbbf8ca6323133274af6cd7016bad550e425f/artifacts/w04-refund-preview.png)
