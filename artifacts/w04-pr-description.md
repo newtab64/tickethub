@@ -19,7 +19,7 @@ Checkout trước đây dùng đơn mẫu và có thể điều hướng sang k�
 - [x] `pnpm format:check`
 - [x] `pnpm test`: 191 test API và 32 test web đạt, không bỏ qua test
 - [x] `node scripts/audit-doc-parity.mjs`
-- [x] E2E W04 trên Chromium với API, PostgreSQL và Redis thật: 8/8 đạt
+- [x] E2E W04 trên Chromium với API, PostgreSQL và Redis thật: 10/10 đạt
 - [ ] `pnpm build`: shared/API build thành công; web bị chặn tải Inter và JetBrains Mono từ Google Fonts bởi chính sách mạng. Cần cho phép `fonts.googleapis.com`, `fonts.gstatic.com` rồi chạy lại trước khi đề nghị merge.
 
 ## 3. Cam kết chất lượng mã nguồn (Code Quality Guarantees)
@@ -43,9 +43,13 @@ Checkout trước đây dùng đơn mẫu và có thể điều hướng sang k�
 
 IPN trong test là thông điệp ký cục bộ qua endpoint thật. Không gửi thanh toán tới VNPay và không xác nhận giao dịch ngân hàng hoặc tiền hoàn thực tế.
 
+9. Từ trang chủ chọn sự kiện trả về từ API, sang chi tiết và trang đặt vé; chọn hạng vé, số lượng rồi giữ chỗ bằng UUID thật để vào checkout.
+10. Mở đường dẫn danh mục mẫu cũ không tạo request giữ chỗ với ID giả; hiển thị lỗi và liên kết tới sự kiện thật.
+
 ## 5. Ghi chú bổ sung (Additional Notes)
 
-- Routes: `/checkout?orderId=...`, `/checkout/result`, `/checkout/vnpay-return`, `/buyer/orders`, `/buyer/orders/[id]`; `/orders` chuyển về danh sách đơn hàng.
+- Luồng vào checkout dùng danh sách và hạng vé từ API, không dùng ID cố định của danh mục minh họa. Trang chi tiết và trang đặt vé tách biệt.
+- Routes: `/events`, `/events/[slug]`, `/events/[slug]/booking`, `/checkout?orderId=...`, `/checkout/result`, `/checkout/vnpay-return`, `/buyer/orders`, `/buyer/orders/[id]`; `/orders` chuyển về danh sách đơn hàng.
 - UI hoàn vé dùng `/refund/preview` và `/refund/request`. Gửi lại khi kết quả chưa rõ sử dụng cùng `Idempotency-Key`. Vé thu hồi và tiền hoàn đang xử lý được diễn đạt riêng.
 - Backend hiện không xử lý voucher, bankCode hay thay đổi người nhận tại endpoint tạo VNPay URL. UI không tự áp voucher hoặc gửi dữ liệu giả được backend bỏ qua. Thông tin người nhận lấy từ tài khoản, chọn QR/ATM/thẻ tại cổng VNPay. Cần phối hợp BE2 nếu bổ sung những khả năng này.
 - VNPay sandbox thật vẫn cần thông tin merchant hợp lệ và `VNPAY_RETURN_URL` truy cập được. Mặc định `TEST_TMN_CODE`/`TEST_HASH_SECRET` bị backend từ chối; không dùng fixture kiểm thử làm cấu hình sandbox thật.
@@ -86,3 +90,7 @@ Trong môi trường này, dùng Node 24.22.1, pnpm 12.11.2 và các biến thư
 ![Checkout mobile](w04-checkout-mobile.png)
 
 ![Xem trước hoàn một phần vé](w04-refund-preview.png)
+
+![Checkout đi từ trang chủ với sự kiện thật](w04-live-entry-checkout.png)
+
+![Chọn hạng vé thật từ API](w04-live-booking.png)

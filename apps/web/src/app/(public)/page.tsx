@@ -11,11 +11,12 @@ import {
   Navigation,
   X,
 } from "lucide-react";
-import {
-  EVENTS,
-  type CategoryCode,
-  type EventItem,
-} from "@/lib/events-catalog";
+import { type CategoryCode, type EventItem } from "@/lib/events-catalog";
+
+import { useQuery } from "@tanstack/react-query";
+import { listPublicEvents } from "@/lib/api/events";
+import { publicEventCard } from "@/lib/public-event-card";
+import { FlowError } from "@/components/checkout/flow-shell";
 
 const POPULAR_CATEGORIES = [
   {
@@ -86,10 +87,16 @@ function EventGridCard({
   return (
     <div className="group relative flex flex-col">
       <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-[#eff1f2]">
-        <Link href={`/events/${event.id}`} className="block h-full w-full">
+        <Link
+          href={`/events/${event.id}`}
+          className="relative block h-full w-full"
+        >
           <Image
             src={event.image}
             alt={event.title}
+            onError={(e) => {
+              e.currentTarget.src = "/file.svg";
+            }}
             fill
             unoptimized
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -123,6 +130,15 @@ function EventGridCard({
 }
 
 export default function HomePage() {
+  const eventQuery = useQuery({
+    queryKey: ["public-events"],
+    queryFn: listPublicEvents,
+    retry: false,
+  });
+  const liveEvents = useMemo(
+    () => (eventQuery.data ?? []).map(publicEventCard),
+    [eventQuery.data],
+  );
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<CategoryCode>("ALL");
   const [selectedCity, setSelectedCity] = useState<"ALL" | "HCM" | "HN" | "DN">(
@@ -183,14 +199,14 @@ export default function HomePage() {
 
   // Top 4 Popular Marquee Portrait Cards
   const popularMarqueeEvents = useMemo(() => {
-    return EVENTS.filter((e) => e.featuredOrder).sort(
-      (a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99),
-    );
-  }, []);
+    return liveEvents
+      .filter((e) => e.featuredOrder)
+      .sort((a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99));
+  }, [liveEvents]);
 
   // Filtered pool for carousels below the filter bar
   const filteredPool = useMemo(() => {
-    return EVENTS.filter((ev) => {
+    return liveEvents.filter((ev) => {
       if (selectedCategory !== "ALL" && ev.category !== selectedCategory) {
         return false;
       }
@@ -207,7 +223,7 @@ export default function HomePage() {
       }
       return true;
     });
-  }, [selectedCategory, selectedDate, searchQuery]);
+  }, [liveEvents, selectedCategory, selectedDate, searchQuery]);
 
   const trendingEvents = useMemo(() => {
     const list = filteredPool.filter((e) => e.trendingOrder);
@@ -263,6 +279,35 @@ export default function HomePage() {
           </div>
         </div>
 
+        {eventQuery.isPending && (
+          <p role="status" className="py-5">
+            Đang tải sự kiện đang mở bán...
+          </p>
+        )}
+        {eventQuery.error && (
+          <div className="space-y-3 pb-5">
+            <FlowError error={eventQuery.error} />
+            <button
+              type="button"
+              className="text-primary underline"
+              onClick={() => eventQuery.refetch()}
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
+        {eventQuery.data?.length === 0 && (
+          <p className="py-5">
+            Chưa có sự kiện được công bố. Vui lòng kiểm tra dữ liệu seed hoặc
+            duyệt sự kiện trước.
+          </p>
+        )}
+        <Link
+          href="/events"
+          className="mb-5 inline-block font-semibold text-primary underline"
+        >
+          Tất cả sự kiện đang mở bán
+        </Link>
         {/* 2. Featured Events Portrait Row */}
         <section aria-labelledby="heading-popular" className="pb-6">
           <h2
@@ -282,11 +327,14 @@ export default function HomePage() {
                 >
                   <Link
                     href={`/events/${ev.id}`}
-                    className="block h-full w-full"
+                    className="relative block h-full w-full"
                   >
                     <Image
                       src={ev.portraitImage || ev.image}
                       alt={ev.title}
+                      onError={(e) => {
+                        e.currentTarget.src = "/file.svg";
+                      }}
                       fill
                       unoptimized
                       priority

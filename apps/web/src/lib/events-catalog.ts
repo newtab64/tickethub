@@ -7,11 +7,11 @@ export interface EventItem {
   dateRange: string;
   fullDateTime: string;
   doorsOpenTime: string;
-  dateWindow: "WEEKEND" | "NOV" | "DEC";
+  dateWindow: "WEEKEND" | "NOV" | "DEC" | "OTHER";
   venue: string;
   venueAddress: string;
   city: string;
-  cityCode: "HCM" | "HN" | "DN";
+  cityCode: "HCM" | "HN" | "DN" | "OTHER";
   fromPrice: string;
   minPriceNumber: number;
   organizerName: string;

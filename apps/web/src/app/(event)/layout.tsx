@@ -4,8 +4,6 @@ export default function EventBookingLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex h-screen flex-col bg-white text-[#141d23] overflow-hidden">
-      <main className="flex-1 flex flex-col overflow-hidden">{children}</main>
-    </div>
+    <div className="min-h-screen bg-background text-foreground">{children}</div>
   );
 }
