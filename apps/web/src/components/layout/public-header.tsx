@@ -183,15 +183,6 @@ export function PublicHeader() {
             </Link>
           )}
 
-          {user?.role === "BUYER" && (
-            <Link
-              href="/buyer/orders"
-              className="text-sm font-medium hover:text-primary"
-            >
-              Đơn hàng
-            </Link>
-          )}
-
           {/* Auth State */}
           {!isLoading && !isAuthenticated && (
             <div className="flex items-center gap-3">

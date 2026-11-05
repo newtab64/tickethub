@@ -19,7 +19,7 @@ Checkout trước đây dùng đơn mẫu và có thể điều hướng sang k�
 - [x] `pnpm format:check`
 - [x] `pnpm test`: 191 test API và 32 test web đạt, không bỏ qua test
 - [x] `node scripts/audit-doc-parity.mjs`
-- [x] E2E W04 trên Chromium với API, PostgreSQL và Redis thật: 11/11 đạt
+- [x] E2E W04 trên Chromium với API, PostgreSQL và Redis thật: 9/9 đạt
 - [ ] `pnpm build`: shared/API build thành công; web bị chặn tải Inter và JetBrains Mono từ Google Fonts bởi chính sách mạng. Cần cho phép `fonts.googleapis.com`, `fonts.gstatic.com` rồi chạy lại trước khi đề nghị merge.
 
 ## 3. Cam kết chất lượng mã nguồn (Code Quality Guarantees)
@@ -37,27 +37,30 @@ Checkout trước đây dùng đơn mẫu và có thể điều hướng sang k�
 3. `vnp_ResponseCode=00` hoặc `paymentSuccess=true` trên URL không xác nhận thanh toán khi backend còn `PENDING`; rời checkout trả chỗ.
 4. Vé có ghế hiển thị đúng hàng/ghế backend tự phân bổ, client chỉ gửi hạng vé và số lượng.
 5. Lỗi kết nối thanh toán giữ người dùng tại checkout, hiển thị lỗi, đơn vẫn `PENDING`.
-6. Đồng hồ tính lại theo deadline sau khi tab bị treo; cảnh báo dưới 60 giây; hết hạn gọi API giải phóng và trở về sự kiện có thông báo.
+6. Đồng hồ tính lại theo deadline sau khi tab bị treo; cảnh báo dưới 60 giây; hết hạn gọi API giải phóng và trở về sự kiện.
 7. Nút thanh toán dùng URL HTTPS VNPay backend cấp; chuyển VNPay không giải phóng đơn; đường quay về mặc định `/checkout/vnpay-return` truy xuất lại trạng thái đơn.
 8. IPN ký bằng khóa fixture cục bộ cập nhật backend thật thành `PAID`; UI xem trước và hủy một trong hai vé, một vé còn hiệu lực, đơn vẫn `PAID`.
 
 IPN trong test là thông điệp ký cục bộ qua endpoint thật. Không gửi thanh toán tới VNPay và không xác nhận giao dịch ngân hàng hoặc tiền hoàn thực tế.
 
-9. Từ trang chủ chọn sự kiện trả về từ API, sang chi tiết và trang đặt vé; chọn hạng vé, số lượng rồi giữ chỗ bằng UUID thật để vào checkout.
-10. Mở đường dẫn danh mục mẫu cũ không tạo request giữ chỗ với ID giả; hiển thị lỗi và liên kết tới sự kiện thật.
-
-11. F5 tại checkout không gửi yêu cầu hủy, đơn vẫn `PENDING`, `expiresAt` giữ nguyên và vẫn có thể hủy chủ động sau khi tải lại.
+9. F5 tại checkout không gửi yêu cầu hủy, đơn vẫn `PENDING`, `expiresAt` giữ nguyên và vẫn có thể hủy chủ động sau khi tải lại.
 
 ## 5. Ghi chú bổ sung (Additional Notes)
 
 - F5 giữ nguyên phiên và hạn giữ chỗ. Rời checkout bằng điều hướng trong ứng dụng giải phóng chỗ; đóng tab hoặc thoát trình duyệt được backend thu hồi khi hết hạn, vì không thể dùng `pagehide` để phân biệt với tải lại trang.
-- Luồng vào checkout dùng danh sách và hạng vé từ API, không dùng ID cố định của danh mục minh họa. Trang chi tiết và trang đặt vé tách biệt.
-- Routes: `/events`, `/events/[slug]`, `/events/[slug]/booking`, `/checkout?orderId=...`, `/checkout/result`, `/checkout/vnpay-return`, `/buyer/orders`, `/buyer/orders/[id]`; `/orders` chuyển về danh sách đơn hàng.
+- Phạm vi PR chỉ gồm checkout, kết quả thanh toán, đơn hàng, yêu cầu hoàn vé, schema và test liên quan. Trang chủ, header chung, danh mục minh họa và giao diện sự kiện giữ nguyên so với nhánh nền.
+- Điểm tích hợp: luồng giữ chỗ hiện có phải tạo đơn thật rồi điều hướng tới `/checkout?orderId=<UUID>` từ phản hồi backend. PR này không sửa các ID sự kiện/hạng vé minh họa ở trang chủ hoặc trang sự kiện. Nếu dữ liệu đó không khớp database, cần xử lý trong phần việc tích hợp chọn vé riêng.
+- E2E tạo đơn qua API thật trên database test rồi kiểm tra W04 từ checkout. Không dùng kết quả này để khẳng định luồng từ trang chủ của repository gốc đã được nghiệm thu.
+- Routes: `/checkout?orderId=...`, `/checkout/result`, `/checkout/vnpay-return`, `/buyer/orders`, `/buyer/orders/[id]`; `/orders` chuyển về danh sách đơn hàng.
 - UI hoàn vé dùng `/refund/preview` và `/refund/request`. Gửi lại khi kết quả chưa rõ sử dụng cùng `Idempotency-Key`. Vé thu hồi và tiền hoàn đang xử lý được diễn đạt riêng.
 - Backend hiện không xử lý voucher, bankCode hay thay đổi người nhận tại endpoint tạo VNPay URL. UI không tự áp voucher hoặc gửi dữ liệu giả được backend bỏ qua. Thông tin người nhận lấy từ tài khoản, chọn QR/ATM/thẻ tại cổng VNPay. Cần phối hợp BE2 nếu bổ sung những khả năng này.
 - VNPay sandbox thật vẫn cần thông tin merchant hợp lệ và `VNPAY_RETURN_URL` truy cập được. Mặc định `TEST_TMN_CODE`/`TEST_HASH_SECRET` bị backend từ chối; không dùng fixture kiểm thử làm cấu hình sandbox thật.
 - Phần vé QR thuộc FE2 không được thay thế trong thay đổi này.
 - Thông điệp commit theo Conventional Commits: `feat(web): implement W04 checkout and order refunds`.
+
+### Cập nhật nhánh sau khi thu hẹp phạm vi
+
+Nếu máy đã từng chạy phiên bản có thêm routes sự kiện, chạy `corepack pnpm --filter @tickethub/web exec next typegen` để tạo lại route types trong cache Next.js. Không sửa các tệp sinh tự động để xử lý lỗi cache.
 
 ### Chạy lại E2E W04
 
@@ -93,7 +96,3 @@ Trong môi trường này, dùng Node 24.22.1, pnpm 12.11.2 và các biến thư
 ![Checkout mobile](w04-checkout-mobile.png)
 
 ![Xem trước hoàn một phần vé](w04-refund-preview.png)
-
-![Checkout đi từ trang chủ với sự kiện thật](w04-live-entry-checkout.png)
-
-![Chọn hạng vé thật từ API](w04-live-booking.png)

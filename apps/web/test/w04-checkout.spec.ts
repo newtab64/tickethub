@@ -76,65 +76,6 @@ async function hold(request: APIRequestContext, quantity = 1, seated = false) {
   return order;
 }
 
-test("Trang chủ lấy sự kiện thật và chọn vé đi tới checkout", async ({
-  page,
-  request,
-}) => {
-  await loginBrowser(page);
-  const events = (await (await request.get(`${api}/events`)).json()).data.items;
-  const event = events[0];
-  await page.goto("/");
-  await page.locator(`a[href="/events/${event.slug}"]`).first().click();
-  await expect(
-    page.getByRole("heading", { name: event.title, exact: true, level: 2 }),
-  ).toBeVisible();
-  await page.getByRole("link", { name: "Mua vé ngay" }).click();
-  await expect(page).toHaveURL(new RegExp(`/events/${event.slug}/booking`));
-  await page.getByRole("radio").last().check();
-  await page.getByLabel("Số lượng vé").selectOption("2");
-  await page.getByRole("button", { name: "Giữ chỗ và tiếp tục" }).click();
-  await expect(page).toHaveURL(/\/checkout\?orderId=/);
-  const id = new URL(page.url()).searchParams.get("orderId");
-  expect(id).toBeTruthy();
-  createdOrders.push(id!);
-  const order = BuyerOrderDetailSchema.parse(
-    (
-      await (
-        await request.get(`${api}/buyer/orders/${id}`, { headers: headers() })
-      ).json()
-    ).data,
-  );
-  expect(order.event.id).toBe(event.id);
-  expect(order.items.reduce((count, item) => count + item.quantity, 0)).toBe(2);
-  await expect(page.getByText(order.orderCode, { exact: true })).toBeVisible();
-  await page.screenshot({
-    path: "../../artifacts/w04-live-entry-checkout.png",
-    fullPage: true,
-  });
-  await page
-    .getByRole("button", { name: "Hủy giao dịch", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/events\//);
-});
-
-test("Đường dẫn sự kiện mẫu cũ không gửi ID giả để giữ chỗ", async ({
-  page,
-}) => {
-  await loginBrowser(page);
-  let holdRequests = 0;
-  page.on("request", (request) => {
-    if (request.url().endsWith("/booking/hold")) holdRequests++;
-  });
-  await page.goto("/events/evt-ha-anh-tuan-sketch-a-rose");
-  await expect(
-    page.getByRole("link", { name: "Xem sự kiện đang mở bán" }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Giữ chỗ và tiếp tục" }),
-  ).toHaveCount(0);
-  expect(holdRequests).toBe(0);
-});
-
 test("Thiếu đơn không tạo checkout giả và đơn không tồn tại không cho thanh toán", async ({
   page,
 }) => {

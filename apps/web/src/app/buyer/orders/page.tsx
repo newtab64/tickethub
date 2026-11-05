@@ -54,7 +54,7 @@ export default function OrdersPage() {
       {query.data?.length === 0 && (
         <p>
           Chưa có đơn hàng phù hợp.{" "}
-          <Link className="underline text-primary" href="/events">
+          <Link className="underline text-primary" href="/">
             Khám phá sự kiện
           </Link>
         </p>

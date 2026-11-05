@@ -382,7 +382,7 @@ function CheckoutRoute() {
     return (
       <p role="alert">
         Không có mã đơn hàng hợp lệ.{" "}
-        <Link href="/events" className="underline">
+        <Link href="/" className="underline">
           Chọn sự kiện để đặt vé
         </Link>
         .
