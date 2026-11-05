@@ -153,6 +153,60 @@ test("Thiếu đơn không tạo checkout giả và đơn không tồn tại kh�
   ).toHaveCount(0);
 });
 
+test("F5 giữ nguyên đơn và deadline, sau đó vẫn hủy chủ động được", async ({
+  page,
+  request,
+}) => {
+  const held = await hold(request);
+  await loginBrowser(page);
+  await page.goto(`/checkout?orderId=${held.orderId}`);
+  await expect(page.getByText(held.orderCode, { exact: true })).toBeVisible();
+  await expect(page.getByRole("timer")).toContainText(/0[0-5]:[0-5][0-9]/);
+  const before = BuyerOrderDetailSchema.parse(
+    (
+      await (
+        await request.get(`${api}/buyer/orders/${held.orderId}`, {
+          headers: headers(),
+        })
+      ).json()
+    ).data,
+  );
+  const releases: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/booking/release"))
+      releases.push(request.url());
+  });
+  await page.reload();
+  await expect(page.getByText(held.orderCode, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
+  ).toBeEnabled();
+  const after = BuyerOrderDetailSchema.parse(
+    (
+      await (
+        await request.get(`${api}/buyer/orders/${held.orderId}`, {
+          headers: headers(),
+        })
+      ).json()
+    ).data,
+  );
+  expect(after.status).toBe("PENDING");
+  expect(after.expiresAt).toBe(before.expiresAt);
+  expect(releases).toHaveLength(0);
+  await page
+    .getByRole("button", { name: "Hủy giao dịch", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/events\//);
+  const cancelled = (
+    await (
+      await request.get(`${api}/buyer/orders/${held.orderId}`, {
+        headers: headers(),
+      })
+    ).json()
+  ).data;
+  expect(cancelled.status).toBe("CANCELLED");
+});
+
 test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ về backend", async ({
   page,
   request,

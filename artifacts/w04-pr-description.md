@@ -19,7 +19,7 @@ Checkout trước đây dùng đơn mẫu và có thể điều hướng sang k�
 - [x] `pnpm format:check`
 - [x] `pnpm test`: 191 test API và 32 test web đạt, không bỏ qua test
 - [x] `node scripts/audit-doc-parity.mjs`
-- [x] E2E W04 trên Chromium với API, PostgreSQL và Redis thật: 10/10 đạt
+- [x] E2E W04 trên Chromium với API, PostgreSQL và Redis thật: 11/11 đạt
 - [ ] `pnpm build`: shared/API build thành công; web bị chặn tải Inter và JetBrains Mono từ Google Fonts bởi chính sách mạng. Cần cho phép `fonts.googleapis.com`, `fonts.gstatic.com` rồi chạy lại trước khi đề nghị merge.
 
 ## 3. Cam kết chất lượng mã nguồn (Code Quality Guarantees)
@@ -46,8 +46,11 @@ IPN trong test là thông điệp ký cục bộ qua endpoint thật. Không g�
 9. Từ trang chủ chọn sự kiện trả về từ API, sang chi tiết và trang đặt vé; chọn hạng vé, số lượng rồi giữ chỗ bằng UUID thật để vào checkout.
 10. Mở đường dẫn danh mục mẫu cũ không tạo request giữ chỗ với ID giả; hiển thị lỗi và liên kết tới sự kiện thật.
 
+11. F5 tại checkout không gửi yêu cầu hủy, đơn vẫn `PENDING`, `expiresAt` giữ nguyên và vẫn có thể hủy chủ động sau khi tải lại.
+
 ## 5. Ghi chú bổ sung (Additional Notes)
 
+- F5 giữ nguyên phiên và hạn giữ chỗ. Rời checkout bằng điều hướng trong ứng dụng giải phóng chỗ; đóng tab hoặc thoát trình duyệt được backend thu hồi khi hết hạn, vì không thể dùng `pagehide` để phân biệt với tải lại trang.
 - Luồng vào checkout dùng danh sách và hạng vé từ API, không dùng ID cố định của danh mục minh họa. Trang chi tiết và trang đặt vé tách biệt.
 - Routes: `/events`, `/events/[slug]`, `/events/[slug]/booking`, `/checkout?orderId=...`, `/checkout/result`, `/checkout/vnpay-return`, `/buyer/orders`, `/buyer/orders/[id]`; `/orders` chuyển về danh sách đơn hàng.
 - UI hoàn vé dùng `/refund/preview` và `/refund/request`. Gửi lại khi kết quả chưa rõ sử dụng cùng `Idempotency-Key`. Vé thu hồi và tiền hoàn đang xử lý được diễn đạt riêng.

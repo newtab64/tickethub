@@ -66,6 +66,14 @@ function Checkout({ orderId }: { orderId: string }) {
     if (cleanupTimer.current) clearTimeout(cleanupTimer.current);
     const releaseOnLeave = () => {
       if (leavingForPayment.current || releasing.current) return;
+      // F5, HMR và thay đổi query không rời đơn checkout hiện tại.
+      // Chỉ giải phóng khi thực sự chuyển sang một trang/đơn khác.
+      const current = new URL(window.location.href);
+      if (
+        current.pathname === "/checkout" &&
+        current.searchParams.get("orderId") === order.id
+      )
+        return;
       const token = getAccessToken();
       if (!token) return;
       void fetch("/api/v1/booking/release", {
@@ -80,10 +88,10 @@ function Checkout({ orderId }: { orderId: string }) {
         /* Backend vẫn thu hồi khi hết hạn nếu trình duyệt đóng đột ngột. */
       });
     };
-    window.addEventListener("pagehide", releaseOnLeave);
+    // Không hủy trên pagehide: trình duyệt cũng phát sự kiện này khi F5.
+    // Đóng tab/thoát trình duyệt được backend thu hồi theo hạn giữ chỗ.
     window.addEventListener("popstate", releaseOnLeave);
     return () => {
-      window.removeEventListener("pagehide", releaseOnLeave);
       window.removeEventListener("popstate", releaseOnLeave);
       // Hoãn để lần mount kiểm tra của React Strict Mode không hủy đơn thật.
       cleanupTimer.current = setTimeout(releaseOnLeave, 0);
