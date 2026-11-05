@@ -140,3 +140,84 @@ export interface MyTicketsListResponse {
     totalPages: number;
   };
 }
+
+export const BuyerOrderSummarySchema = z.object({
+  id: z.string().uuid(),
+  orderCode: z.string(),
+  eventId: z.string().uuid(),
+  eventTitle: z.string(),
+  eventBannerUrl: z.string(),
+  eventStartTime: z.iso.datetime(),
+  eventVenueName: z.string(),
+  totalAmount: z.number().nonnegative(),
+  discountAmount: z.number().nonnegative(),
+  finalAmount: z.number().nonnegative(),
+  status: z.enum(OrderStatus),
+  expiresAt: z.iso.datetime(),
+  paidAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  ticketCount: z.number().int().nonnegative(),
+});
+
+export const BuyerOrderDetailSchema = z.object({
+  id: z.string().uuid(),
+  orderCode: z.string(),
+  status: z.enum(OrderStatus),
+  totalAmount: z.number().nonnegative(),
+  discountAmount: z.number().nonnegative(),
+  finalAmount: z.number().nonnegative(),
+  voucherCode: z.string().nullable(),
+  expiresAt: z.iso.datetime(),
+  paidAt: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  event: z.object({
+    id: z.string().uuid(),
+    title: z.string(),
+    slug: z.string(),
+    bannerUrl: z.string(),
+    venueName: z.string(),
+    venueAddress: z.string(),
+    city: z.string(),
+    startTime: z.iso.datetime(),
+    endTime: z.iso.datetime(),
+    status: z.string(),
+  }),
+  items: z.array(
+    z.object({
+      id: z.string().uuid(),
+      ticketTypeId: z.string().uuid(),
+      ticketTypeName: z.string(),
+      quantity: z.number().int().positive(),
+      unitPrice: z.number().nonnegative(),
+      subtotal: z.number().nonnegative(),
+    }),
+  ),
+  tickets: z.array(
+    z.object({
+      id: z.string().uuid(),
+      ticketCode: z.string(),
+      ticketTypeId: z.string().uuid(),
+      ticketTypeName: z.string(),
+      isSeated: z.boolean(),
+      seatInfo: z.object({
+        zoneName: z.string(),
+        rowLabel: z.string().nullable(),
+        seatNumber: z.string().nullable(),
+        formattedLabel: z.string(),
+      }),
+      price: z.number().nonnegative(),
+      effectivePaidPrice: z.number().nonnegative(),
+      status: z.enum(TicketStatus),
+      checkedInAt: z.iso.datetime().nullable(),
+    }),
+  ),
+  refunds: z.array(
+    z.object({
+      id: z.string().uuid(),
+      amount: z.number().nonnegative(),
+      status: z.string(),
+      reason: z.string().nullable(),
+      createdAt: z.iso.datetime(),
+    }),
+  ),
+});
