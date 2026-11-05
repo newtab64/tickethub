@@ -343,6 +343,14 @@ function EventSplitView({ event }: { event: EventItem }) {
 
   return (
     <div className="flex flex-col h-[calc(100vh-32px)] bg-white overflow-hidden text-[#141d23]">
+      {searchParams.get("holdExpired") === "1" && (
+        <p
+          role="alert"
+          className="shrink-0 border-b border-border bg-accent px-4 py-3 text-sm text-accent-foreground"
+        >
+          Phiên giữ chỗ đã hết hạn. Vui lòng chọn lại khu vực và số lượng vé.
+        </p>
+      )}
       {/* 1. Clean Top Header Bar */}
       <header className="h-[64px] border-b border-[#dfe3e5] bg-white px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-30">
         {/* Left: Event thumbnail + Title + Date & Venue */}
