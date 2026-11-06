@@ -20,6 +20,7 @@
   --color-muted: var(--muted);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-secondary: var(--secondary);
+  --color-surface-dark: var(--surface-dark);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
   --color-popover-foreground: var(--popover-foreground);
@@ -52,6 +53,7 @@
   --border: #dfe3e5;
   --input: #dfe3e5;
   --ring: #10b981;
+  --surface-dark: #0c141a;
   --venue-stage: #334155;
   --venue-pitch: #4ade80;
   --venue-pitch-stroke: #22c55e;
@@ -97,4 +99,26 @@
 }
 .ticket-notch-horizontal::after {
   right: -11px;
+}
+
+/* Thanh tim kiem tren header truot ra tu phia bieu tuong ben phai */
+@keyframes header-search-slide {
+  from {
+    clip-path: inset(0 0 0 calc(100% - 3rem) round 9999px);
+    opacity: 0.4;
+  }
+  to {
+    clip-path: inset(0 0 0 0 round 9999px);
+    opacity: 1;
+  }
+}
+
+.header-search-slide {
+  animation: header-search-slide 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header-search-slide {
+    animation: none;
+  }
 }

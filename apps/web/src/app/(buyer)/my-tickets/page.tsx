@@ -82,7 +82,7 @@ function MyTicketsContent() {
             Vé của tôi
           </h1>
           <p className="text-[14px] text-muted-foreground">
-            Quản lý các vé sự kiện điện tử bạn đã đặt trên TicketHub
+            Quản lý các vé sự kiện điện tử bạn đã đặt trên tickethub
           </p>
         </div>
         <div className="flex items-center gap-2.5 self-start">

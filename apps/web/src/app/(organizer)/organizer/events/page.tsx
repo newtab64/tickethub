@@ -725,7 +725,7 @@ function OrganizerEventsContent() {
                   Chưa có sự kiện nào
                 </h3>
                 <p className="text-xs text-muted-foreground">
-                  Bạn chưa khởi tạo sự kiện nào trên TicketHub. Hãy bắt đầu bằng
+                  Bạn chưa khởi tạo sự kiện nào trên tickethub. Hãy bắt đầu bằng
                   cách tạo sự kiện đầu tiên.
                 </p>
               </div>

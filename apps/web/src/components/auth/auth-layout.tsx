@@ -46,7 +46,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
 
           {/* Footer: fixed to the bottom of the left column with clearance */}
           <footer className="h-12 flex items-center justify-center text-xs text-muted-foreground w-full max-w-[440px] mx-auto shrink-0 pb-2">
-            © 2026 TicketHub Vietnam
+            © 2026 tickethub Vietnam
           </footer>
         </div>
 

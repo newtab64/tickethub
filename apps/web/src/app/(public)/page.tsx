@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { Suspense, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  Search,
-  MapPin,
-  Calendar,
-  ChevronDown,
-  Navigation,
-  X,
-} from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { MapPin, Calendar, ChevronDown, Navigation, X } from "lucide-react";
 import {
   EVENTS,
   type CategoryCode,
   type EventItem,
 } from "@/lib/events-catalog";
+import { SpotlightHero } from "@/components/home/spotlight-hero";
 
 const POPULAR_CATEGORIES = [
   {
@@ -122,9 +117,45 @@ function EventGridCard({
   );
 }
 
+const CATEGORY_CODES: CategoryCode[] = [
+  "CONCERT",
+  "SPORT",
+  "THEATER",
+  "FESTIVAL",
+];
+
 export default function HomePage() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<CategoryCode>("ALL");
+  return (
+    <Suspense fallback={<div className="min-h-[540px] bg-surface-dark" />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const rawCategory = searchParams.get("category");
+  // Tu khoa tim kiem nam tren URL (?q=) vi o tim kiem nam o header
+  const searchQuery = searchParams.get("q") ?? "";
+  const selectedCategory: CategoryCode = CATEGORY_CODES.includes(
+    rawCategory as CategoryCode,
+  )
+    ? (rawCategory as CategoryCode)
+    : "ALL";
+  // Danh muc nam tren URL de header co the danh dau muc dang xem
+  const buildHref = (code: CategoryCode, q: string) => {
+    const params = new URLSearchParams();
+    if (code !== "ALL") params.set("category", code);
+    if (q) params.set("q", q);
+    const qs = params.toString();
+    return `${qs ? `/?${qs}` : "/"}#events-list`;
+  };
+  const setSelectedCategory = (code: CategoryCode) => {
+    router.replace(buildHref(code, searchParams.get("q") ?? ""), {
+      scroll: false,
+    });
+  };
   const [selectedCity, setSelectedCity] = useState<"ALL" | "HCM" | "HN" | "DN">(
     "HCM",
   );
@@ -181,12 +212,14 @@ export default function HomePage() {
           ? "Tháng 11"
           : "Tháng 12";
 
-  // Top 4 Popular Marquee Portrait Cards
-  const popularMarqueeEvents = useMemo(() => {
-    return EVENTS.filter((e) => e.featuredOrder).sort(
-      (a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99),
-    );
-  }, []);
+  // Hero: luon hien thi cac su kien noi bat nhat, khong doi theo danh muc
+  const heroEvents = useMemo(
+    () =>
+      EVENTS.filter((e) => e.featuredOrder).sort(
+        (a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99),
+      ),
+    [],
+  );
 
   // Filtered pool for carousels below the filter bar
   const filteredPool = useMemo(() => {
@@ -235,95 +268,38 @@ export default function HomePage() {
 
   return (
     <div className="bg-white">
+      <SpotlightHero events={heroEvents} />
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-        {/* 1. Centered Floating Pill Search Bar on Pure White Background */}
-        <div className="pt-2 pb-8">
-          <div className="max-w-[760px] mx-auto">
-            <div className="relative flex items-center bg-white rounded-full h-[50px] px-5 border border-[#e2e6e8] shadow-[0_4px_16px_rgba(0,0,0,0.08)] focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all">
-              <Search className="size-4.5 text-primary shrink-0 mr-3" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm sự kiện, nghệ sĩ, đội bóng và địa điểm"
-                aria-label="Tìm sự kiện, nghệ sĩ, đội bóng và địa điểm"
-                className="w-full bg-transparent text-[14px] text-[#141d23] placeholder:text-[#606970] focus:outline-none"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  aria-label="Xóa tìm kiếm"
-                  className="p-1 text-[#606970] hover:text-[#141d23]"
-                >
-                  <X className="size-4" />
-                </button>
-              )}
-            </div>
+        <div className="pt-8" />
+
+        {searchQuery && (
+          <div className="flex items-center gap-2 pb-3 text-[13px] text-muted-foreground">
+            <span>
+              Kết quả cho{" "}
+              <strong className="text-foreground">
+                &ldquo;{searchQuery}&rdquo;
+              </strong>
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                router.replace(buildHref(selectedCategory, ""), {
+                  scroll: false,
+                })
+              }
+              aria-label="Xóa tìm kiếm"
+              className="inline-flex h-6 items-center gap-1 rounded-full border border-border px-2 text-xs font-medium text-foreground hover:bg-muted cursor-pointer"
+            >
+              Xóa <X className="size-3" />
+            </button>
           </div>
-        </div>
-
-        {/* 2. Featured Events Portrait Row */}
-        <section aria-labelledby="heading-popular" className="pb-6">
-          <h2
-            id="heading-popular"
-            className="text-[19px] font-bold tracking-[-0.01em] text-[#141d23] mb-4"
-          >
-            Sự kiện nổi bật
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {popularMarqueeEvents.map((ev) => {
-              const isSaved = savedIds.includes(ev.id);
-              return (
-                <div
-                  key={ev.id}
-                  className="group relative aspect-[286/352] w-full overflow-hidden rounded-[16px] bg-[#141d23]"
-                >
-                  <Link
-                    href={`/events/${ev.id}`}
-                    className="block h-full w-full"
-                  >
-                    <Image
-                      src={ev.portraitImage || ev.image}
-                      alt={ev.title}
-                      fill
-                      unoptimized
-                      priority
-                      sizes="(max-width: 640px) 100vw, 25vw"
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={() => toggleSave(ev.id)}
-                    aria-label={isSaved ? "Bỏ lưu" : "Lưu vào yêu thích"}
-                    className="absolute top-3.5 right-3.5 p-1"
-                  >
-                    <FavoriteHeartIcon isSaved={isSaved} />
-                  </button>
-
-                  <Link
-                    href={`/events/${ev.id}`}
-                    className="absolute inset-x-0 bottom-0 p-4 text-white"
-                  >
-                    <h3 className="text-[17px] font-bold leading-snug text-white line-clamp-2">
-                      {ev.title}
-                    </h3>
-                    <p className="text-[13px] text-white/90 mt-0.5">
-                      {ev.dateRange}
-                    </p>
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        )}
 
         {/* 3. Location, Date & Category Filter Bar */}
-        <div className="py-3 mb-7 flex flex-wrap items-center gap-2.5">
+        <div
+          id="events-list"
+          className="scroll-mt-24 py-3 mb-7 flex flex-wrap items-center gap-2.5"
+        >
           <button
             type="button"
             onClick={() => setSelectedCity("HCM")}

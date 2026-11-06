@@ -300,7 +300,7 @@ export default function OrganizerProfilePage() {
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Cung cấp thông tin pháp lý để Admin phê duyệt quyền mở bán sự kiện
-            trên TicketHub.
+            trên tickethub.
           </p>
         </div>
         <div>{renderStatusBadge(profile?.status)}</div>

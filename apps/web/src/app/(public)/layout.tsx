@@ -10,14 +10,6 @@ export default function PublicLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-white text-[#141d23]">
-      {/* Top announcement bar */}
-      <div className="bg-[#0c141a] text-white text-[11.5px] py-1.5 px-4 text-center">
-        <p className="max-w-[1200px] mx-auto truncate">
-          TicketHub là nền tảng phân phối vé sự kiện trực tiếp hàng đầu tại Việt
-          Nam. Cam kết vé chính thức 100%.
-        </p>
-      </div>
-
       {/* Main navigation header */}
       <PublicHeader />
 
@@ -45,7 +37,7 @@ export default function PublicLayout({
                   />
                 </svg>
                 <span className="font-extrabold text-[17px] tracking-tight text-[#141d23]">
-                  TicketHub Protect
+                  tickethub Protect
                 </span>
               </div>
 
@@ -73,7 +65,7 @@ export default function PublicLayout({
 
             {/* Col 2: Về TicketHub (3 cols) */}
             <div className="lg:col-span-3 space-y-2.5 text-[13px]">
-              <h4 className="font-bold text-[#141d23]">Về TicketHub</h4>
+              <h4 className="font-bold text-[#141d23]">Về tickethub</h4>
               <ul className="space-y-2 text-[#2b343a]">
                 <li>
                   <Link
@@ -190,7 +182,7 @@ export default function PublicLayout({
           </div>
 
           <div className="pt-6 border-t border-[#dfe3e5] text-[11.5px] text-[#606970] leading-relaxed">
-            © 2026 TicketHub Vietnam. Việc sử dụng trang web này đồng nghĩa với
+            © 2026 tickethub Vietnam. Việc sử dụng trang web này đồng nghĩa với
             việc bạn đồng ý với{" "}
             <Link href="/login" className="underline hover:text-[#141d23]">
               Điều khoản sử dụng

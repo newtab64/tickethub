@@ -20,6 +20,7 @@ Nguyên tắc chung: nền trắng, viền mảnh, ít đổ bóng, một màu n
 | `--muted`              | `#f5f7f8` | Nền khu vực phụ                           |
 | `--muted-foreground`   | `#606970` | Chữ phụ (ngày, mô tả)                     |
 | `--secondary`          | `#eff1f2` | Nền ảnh chờ tải, nút phụ                  |
+| `--surface-dark`       | `#0c141a` | Nền tối của hero và banner sự kiện        |
 | `--border` / `--input` | `#dfe3e5` | Viền, đường kẻ, ô nhập                    |
 | `--destructive`        | `#d51b34` | Lỗi, hành động nguy hiểm                  |
 | `--venue-stage`        | `#334155` | Nền sân khấu trong sơ đồ                  |
@@ -40,7 +41,6 @@ Một số giá trị chưa có token và đang được ghi thẳng dưới d�
 | `#eff1f2` |      3      | `--secondary`                                      |
 | `#868f97` |      2      | Chưa có (viền khi hover nút lọc)                   |
 | `#e2e6e8` |      1      | Chưa có (viền thanh tìm kiếm)                      |
-| `#0c141a` |      1      | Chưa có (thanh thông báo trên cùng)                |
 
 Quy ước cho code mới: dùng class theo token (`text-foreground`, `text-muted-foreground`, `border-border`, `bg-muted`, `bg-primary`) thay vì `[#hex]`. Với giá trị chưa có token, thêm token vào `globals.css` trước khi dùng.
 
