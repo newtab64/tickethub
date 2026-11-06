@@ -150,7 +150,7 @@ export async function apiClient<T>(
     throw new ApiError(
       response.status,
       payload?.error?.code || "UNKNOWN_ERROR",
-      payload?.error?.message || "Không thể xử lý yêu cầu từ máy chủ TicketHub",
+      payload?.error?.message || "Không thể xử lý yêu cầu từ máy chủ tickethub",
       payload?.error?.details,
     );
   }

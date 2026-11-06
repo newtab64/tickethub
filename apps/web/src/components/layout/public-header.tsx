@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { Suspense, useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  User,
   LogOut,
   Calendar,
   Plus,
@@ -15,9 +14,27 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { useSession } from "@/providers/session-provider";
+import { getEventById, type CategoryCode } from "@/lib/events-catalog";
+import { HeaderSearch } from "@/components/layout/header-search";
 import { Badge } from "@/components/ui/badge";
 
+const NAV_CATEGORIES: { code: CategoryCode; label: string }[] = [
+  { code: "SPORT", label: "Thể thao" },
+  { code: "CONCERT", label: "Hòa nhạc" },
+  { code: "THEATER", label: "Sân khấu & Hài kịch" },
+];
+
 export function PublicHeader() {
+  return (
+    <Suspense fallback={null}>
+      <PublicHeaderInner />
+    </Suspense>
+  );
+}
+
+function PublicHeaderInner() {
+  const pathname = usePathname();
+  const categoryParam = useSearchParams().get("category");
   const router = useRouter();
   const { user, isAuthenticated, isLoading, logout } = useSession();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -47,6 +64,16 @@ export function PublicHeader() {
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  const eventId = pathname.startsWith("/events/")
+    ? pathname.split("/")[2]
+    : undefined;
+  const activeCategory: string | null =
+    pathname === "/"
+      ? categoryParam
+      : eventId
+        ? (getEventById(eventId)?.category ?? null)
+        : null;
 
   const handleLogout = async () => {
     setIsDropdownOpen(false);
@@ -96,45 +123,40 @@ export function PublicHeader() {
   };
 
   return (
-    <header className="bg-white border-b border-[#f0f2f3] sticky top-0 z-30">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <header className="sticky top-3 z-30 mt-3 -mb-[68px] px-3 sm:px-6 pointer-events-none">
+      <div className="pointer-events-auto relative max-w-[1200px] mx-auto h-14 rounded-full bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] ring-1 ring-black/5 pl-5 sm:pl-6 pr-2 flex items-center justify-between gap-4">
         {/* Left: Brand & Categories */}
         <div className="flex items-center gap-6">
           <Logo />
 
           <nav
             aria-label="Danh mục chính"
-            className="hidden md:flex items-center gap-6 text-[13.5px] font-medium text-[#141d23]"
+            className="hidden md:flex items-center gap-1 text-[13.5px] font-medium text-foreground"
           >
-            <Link
-              href="/#heading-sports"
-              className="hover:text-primary transition-colors"
-            >
-              Thể thao
-            </Link>
-            <Link
-              href="/#heading-concerts"
-              className="hover:text-primary transition-colors"
-            >
-              Hòa nhạc
-            </Link>
-            <Link
-              href="/#heading-theater"
-              className="hover:text-primary transition-colors"
-            >
-              Sân khấu &amp; Hài kịch
-            </Link>
-            <Link
-              href="/#heading-popular"
-              className="hover:text-primary transition-colors"
-            >
-              Sự kiện nổi bật
-            </Link>
+            {NAV_CATEGORIES.map((c) => {
+              const active = activeCategory === c.code;
+              return (
+                <Link
+                  key={c.code}
+                  href={`/?category=${c.code}#events-list`}
+                  aria-current={active ? "page" : undefined}
+                  className={`inline-flex h-9 items-center rounded-full px-3.5 transition-colors ${
+                    active
+                      ? "bg-emerald-50 text-primary font-semibold"
+                      : "hover:bg-slate-100 hover:text-primary"
+                  }`}
+                >
+                  {c.label}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
         {/* Right: Actions & User Profile */}
         <div className="flex items-center gap-4 sm:gap-5 text-[13.5px] font-medium text-[#141d23]">
+          <HeaderSearch />
+
           {/* Role-specific portal actions */}
           {user?.role === "ADMIN" && (
             <Link
@@ -188,17 +210,9 @@ export function PublicHeader() {
             <div className="flex items-center gap-3">
               <Link
                 href="/auth"
-                className="hover:text-primary transition-colors font-semibold"
+                className="inline-flex h-10 items-center rounded-full bg-primary px-5 text-[13px] font-bold text-white hover:bg-emerald-700 transition-colors"
               >
                 Đăng nhập
-              </Link>
-
-              <Link
-                href="/auth"
-                aria-label="Đăng nhập"
-                className="size-8 rounded-full bg-[#eff1f2] hover:bg-emerald-50 hover:text-primary flex items-center justify-center text-[#141d23] transition-colors"
-              >
-                <User className="size-4 fill-current" />
               </Link>
             </div>
           )}

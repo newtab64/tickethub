@@ -43,7 +43,7 @@ import {
 import { useSession } from "@/providers/session-provider";
 import { getAccessToken } from "@/lib/api/client";
 
-export default function EventDetailPage() {
+export default function EventBookingPage() {
   const params = useParams<{ id: string }>();
   const eventId = typeof params?.id === "string" ? params.id : "";
 

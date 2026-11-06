@@ -812,7 +812,7 @@ function CheckoutContent() {
                 <ShieldCheck className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                 <div className="space-y-0.5">
                   <div className="text-xs sm:text-sm font-bold text-foreground">
-                    100% Cam kết từ TicketHub
+                    100% Cam kết từ tickethub
                   </div>
                   <div className="text-xs text-muted-foreground leading-relaxed">
                     Mọi đơn hàng đều được đảm bảo vé chính hãng hợp lệ tại cổng
@@ -899,7 +899,7 @@ function CheckoutContent() {
 
           {/* Right: Copyright */}
           <div className="text-center md:text-right">
-            © 2026 TicketHub. All Rights Reserved.
+            © 2026 tickethub. All Rights Reserved.
           </div>
         </div>
       </footer>

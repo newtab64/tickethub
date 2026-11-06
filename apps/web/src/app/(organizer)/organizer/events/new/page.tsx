@@ -1285,7 +1285,7 @@ function CreateEventWizardContent() {
             </h2>
             <p className="text-xs text-muted-foreground">
               Vui lòng rà soát lại thông tin trước khi phát hành sự kiện lên
-              TicketHub.
+              tickethub.
             </p>
           </div>
 
