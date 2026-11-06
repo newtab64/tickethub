@@ -1,47 +1,32 @@
 "use client";
 
-import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { useSearchParams } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Search, X } from "lucide-react";
+import {
+  getAdminAuditLogs,
   getAdminOrganizers,
-  reviewOrganizerProfile,
   getAdminPendingEvents,
   reviewAdminEvent,
-  getAdminAuditLogs,
+  reviewOrganizerProfile,
   formatDateTimeVi,
   formatNumberVi,
   getDisplayStatus,
-  type OrganizerProfile,
+  type AuditLogEntry,
   type OrganizerEventItem,
+  type OrganizerProfile,
 } from "@/lib/organizer-service";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { parseAdminView } from "@/components/admin/admin-sidebar";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 // Ham an thong tin ca nhan (Decree 13/2023/ND-CP)
 function maskIdentifier(val?: string): string {
@@ -63,538 +48,651 @@ function maskEmail(email?: string): string {
   return `${local.slice(0, 2)}***@${domain}`;
 }
 
-export default function AdminModerationPage() {
-  const queryClient = useQueryClient();
+const BADGE_BASE =
+  "inline-flex items-center h-5 px-1.5 rounded border text-[11px] font-medium whitespace-nowrap";
+const BADGE_PENDING = "bg-amber-500/10 text-amber-700 border-amber-500/20";
+const BADGE_OK = "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
+const BADGE_BAD = "bg-destructive/10 text-destructive border-destructive/20";
 
-  // State cho Modal nhap ly do tu choi
-  const [rejectModal, setRejectModal] = useState<{
-    open: boolean;
-    type: "ORGANIZER" | "EVENT";
-    targetId: string;
-    targetName: string;
-  } | null>(null);
-  const [rejectReason, setRejectReason] = useState("");
-  const [rejectError, setRejectError] = useState<string | null>(null);
+type QueueRow = {
+  id: string;
+  title: string;
+  subtitle: string;
+  meta: string;
+  statusLabel: string;
+  badgeClass: string;
+  pending: boolean;
+  searchText: string;
+};
 
-  // State xem chi tiet su kien (BE1)
-  const [selectedEvent, setSelectedEvent] = useState<OrganizerEventItem | null>(
-    null,
+type Decision = { id: string; decision: "APPROVE" | "REJECT"; reason?: string };
+
+export default function AdminPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-4 text-xs text-muted-foreground">Đang tải...</div>
+      }
+    >
+      <Workspace />
+    </Suspense>
   );
+}
 
-  // Queries
+function Workspace() {
+  const view = parseAdminView(useSearchParams().get("view"));
+  if (view === "audit") return <AuditView />;
+  return <QueueView key={view} kind={view} />;
+}
+
+/* ------------------------------------------------------------------ */
+/* Queue (organizer profiles / pending events) with detail side panel   */
+/* ------------------------------------------------------------------ */
+
+function QueueView({ kind }: { kind: "organizers" | "events" }) {
+  const queryClient = useQueryClient();
+  const isOrg = kind === "organizers";
+
   const { data: organizers = [], isLoading: loadingOrgs } = useQuery({
     queryKey: ["adminOrganizers"],
     queryFn: getAdminOrganizers,
+    enabled: isOrg,
   });
-
   const { data: events = [], isLoading: loadingEvents } = useQuery({
     queryKey: ["adminPendingEvents"],
     queryFn: getAdminPendingEvents,
+    enabled: !isOrg,
+  });
+  const loading = isOrg ? loadingOrgs : loadingEvents;
+
+  const [query, setQuery] = useState("");
+  const [onlyPending, setOnlyPending] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [rejectFor, setRejectFor] = useState<string | null>(null);
+  const [lastIndex, setLastIndex] = useState(0);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const mutation = useMutation({
+    mutationFn: async (d: Decision) => {
+      if (isOrg) await reviewOrganizerProfile(d);
+      else await reviewAdminEvent(d);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: isOrg ? ["adminOrganizers"] : ["adminPendingEvents"],
+      });
+      queryClient.invalidateQueries({ queryKey: ["adminAuditLogs"] });
+      if (isOrg) {
+        queryClient.invalidateQueries({ queryKey: ["myOrganizerProfile"] });
+      }
+      setRejectFor(null);
+    },
   });
 
-  const { data: auditLogs = [] } = useQuery({
+  const rows: QueueRow[] = useMemo(() => {
+    if (isOrg) {
+      return organizers.map((o: OrganizerProfile) => {
+        const pending = o.status === "PENDING_VERIFICATION";
+        return {
+          id: o.id,
+          title: o.organizationName,
+          subtitle: `ĐD: ${o.representativeName}`,
+          meta: maskIdentifier(o.taxCode),
+          statusLabel: pending
+            ? "Chờ xác minh"
+            : o.status === "VERIFIED"
+              ? "Đã duyệt"
+              : "Đã từ chối",
+          badgeClass: pending
+            ? BADGE_PENDING
+            : o.status === "VERIFIED"
+              ? BADGE_OK
+              : BADGE_BAD,
+          pending,
+          searchText:
+            `${o.organizationName} ${o.representativeName} ${o.taxCode}`.toLowerCase(),
+        };
+      });
+    }
+    return events.map((e: OrganizerEventItem) => {
+      const meta = getDisplayStatus(e);
+      return {
+        id: e.id,
+        title: e.title,
+        subtitle: `${e.venueName} · ${e.city}`,
+        meta: formatDateTimeVi(e.startTime),
+        statusLabel: meta.label,
+        badgeClass: meta.badgeClass,
+        pending: e.status === "PENDING_APPROVAL",
+        searchText: `${e.title} ${e.venueName} ${e.city}`.toLowerCase(),
+      };
+    });
+  }, [isOrg, organizers, events]);
+
+  const pendingCount = rows.filter((r) => r.pending).length;
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return rows.filter(
+      (r) => (!onlyPending || r.pending) && (!q || r.searchText.includes(q)),
+    );
+  }, [rows, onlyPending, query]);
+
+  // Giu vi tri chon: neu muc dang chon bien mat (da duyet), chon muc ke tiep
+  const found = visible.findIndex((r) => r.id === selectedId);
+  const selectedIndex =
+    found >= 0 ? found : Math.min(lastIndex, visible.length - 1);
+  const selected = visible[selectedIndex] ?? null;
+
+  const rawOrg = isOrg ? organizers.find((o) => o.id === selected?.id) : null;
+  const rawEvent = !isOrg ? events.find((e) => e.id === selected?.id) : null;
+
+  const approve = useCallback(() => {
+    if (!selected?.pending || mutation.isPending) return;
+    mutation.mutate({ id: selected.id, decision: "APPROVE" });
+  }, [selected, mutation]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const el = e.target as HTMLElement;
+      if (
+        el.tagName === "INPUT" ||
+        el.tagName === "TEXTAREA" ||
+        e.metaKey ||
+        e.ctrlKey ||
+        e.altKey
+      ) {
+        return;
+      }
+      const move = (delta: number) => {
+        if (visible.length === 0) return;
+        const next = Math.max(
+          0,
+          Math.min(visible.length - 1, selectedIndex + delta),
+        );
+        setLastIndex(next);
+        setSelectedId(visible[next].id);
+        setRejectFor(null);
+      };
+      if (e.key === "j" || e.key === "ArrowDown") {
+        e.preventDefault();
+        move(1);
+      } else if (e.key === "k" || e.key === "ArrowUp") {
+        e.preventDefault();
+        move(-1);
+      } else if (e.key === "a") {
+        approve();
+      } else if (e.key === "r" && selected?.pending) {
+        e.preventDefault();
+        setRejectFor(selected.id);
+      } else if (e.key === "/") {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visible, selectedIndex, selected, approve]);
+
+  const mutationError =
+    mutation.isError && mutation.variables?.id === selected?.id
+      ? mutation.error.message || "Thao tác thất bại. Vui lòng thử lại."
+      : null;
+
+  return (
+    <div className="flex-1 min-h-0 flex flex-col">
+      <Toolbar
+        title={isOrg ? "Hồ sơ Ban tổ chức" : "Sự kiện chờ duyệt"}
+        count={`${pendingCount} chờ duyệt`}
+        query={query}
+        onQuery={setQuery}
+        searchRef={searchRef}
+        placeholder={
+          isOrg ? "Tìm tên đơn vị, MST..." : "Tìm sự kiện, địa điểm..."
+        }
+      >
+        <div
+          role="group"
+          aria-label="Lọc trạng thái"
+          className="inline-flex h-7 rounded-md border border-border bg-background p-0.5 text-xs"
+        >
+          {[
+            { v: true, l: "Chờ duyệt" },
+            { v: false, l: "Tất cả" },
+          ].map((o) => (
+            <button
+              key={o.l}
+              type="button"
+              aria-pressed={onlyPending === o.v}
+              onClick={() => setOnlyPending(o.v)}
+              className={`px-2.5 rounded cursor-pointer transition-colors ${
+                onlyPending === o.v
+                  ? "bg-secondary font-semibold text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {o.l}
+            </button>
+          ))}
+        </div>
+      </Toolbar>
+
+      <div className="flex-1 min-h-0 flex">
+        {/* Danh sach */}
+        <div className="flex-1 min-w-0 overflow-auto">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
+              <tr className="text-left [&>th]:h-8 [&>th]:px-3 [&>th]:font-semibold">
+                <th>{isOrg ? "Đơn vị / Đại diện" : "Sự kiện / Địa điểm"}</th>
+                <th className="w-44">{isOrg ? "MST / CCCD" : "Bắt đầu"}</th>
+                <th className="w-28">Trạng thái</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((r) => {
+                const active = r.id === selected?.id;
+                return (
+                  <tr
+                    key={r.id}
+                    onClick={() => {
+                      setSelectedId(r.id);
+                      setLastIndex(visible.indexOf(r));
+                      setRejectFor(null);
+                    }}
+                    aria-selected={active}
+                    className={`cursor-pointer border-b border-border/60 [&>td]:px-3 [&>td]:py-1.5 ${
+                      active
+                        ? "bg-primary/5 shadow-[inset_2px_0_0_var(--primary)]"
+                        : "bg-background hover:bg-secondary/50"
+                    }`}
+                  >
+                    <td className="max-w-0">
+                      <div className="font-medium text-foreground truncate">
+                        {r.title}
+                      </div>
+                      <div className="text-muted-foreground truncate">
+                        {r.subtitle}
+                      </div>
+                    </td>
+                    <td className="font-mono tabular-nums text-muted-foreground">
+                      {r.meta}
+                    </td>
+                    <td>
+                      <span className={`${BADGE_BASE} ${r.badgeClass}`}>
+                        {r.statusLabel}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!loading && visible.length === 0 && (
+            <p className="py-16 text-center text-sm text-muted-foreground">
+              {onlyPending && !query
+                ? "Hàng đợi trống. Không có mục nào cần xử lý."
+                : "Không có kết quả phù hợp."}
+            </p>
+          )}
+          {loading && (
+            <p className="py-16 text-center text-sm text-muted-foreground">
+              Đang tải...
+            </p>
+          )}
+        </div>
+
+        {/* Chi tiet */}
+        <aside className="w-[400px] shrink-0 border-l border-border bg-background overflow-y-auto">
+          {selected ? (
+            <DetailPanel
+              key={selected.id}
+              row={selected}
+              org={rawOrg ?? null}
+              event={rawEvent ?? null}
+              rejecting={rejectFor === selected.id}
+              busy={mutation.isPending}
+              error={mutationError}
+              onApprove={approve}
+              onStartReject={() => setRejectFor(selected.id)}
+              onCancelReject={() => setRejectFor(null)}
+              onReject={(reason) =>
+                mutation.mutate({
+                  id: selected.id,
+                  decision: "REJECT",
+                  reason,
+                })
+              }
+            />
+          ) : (
+            <p className="p-6 text-sm text-muted-foreground">
+              Chọn một mục trong danh sách để xem chi tiết.
+            </p>
+          )}
+        </aside>
+      </div>
+
+      <footer className="h-7 shrink-0 border-t border-border bg-background px-3 flex items-center gap-4 text-[11px] text-muted-foreground">
+        <span>
+          <Kbd>j</Kbd> <Kbd>k</Kbd> di chuyển
+        </span>
+        <span>
+          <Kbd>a</Kbd> duyệt
+        </span>
+        <span>
+          <Kbd>r</Kbd> từ chối
+        </span>
+        <span>
+          <Kbd>/</Kbd> tìm kiếm
+        </span>
+      </footer>
+    </div>
+  );
+}
+
+function DetailPanel({
+  row,
+  org,
+  event,
+  rejecting,
+  busy,
+  error,
+  onApprove,
+  onStartReject,
+  onCancelReject,
+  onReject,
+}: {
+  row: QueueRow;
+  org: OrganizerProfile | null;
+  event: OrganizerEventItem | null;
+  rejecting: boolean;
+  busy: boolean;
+  error: string | null;
+  onApprove: () => void;
+  onStartReject: () => void;
+  onCancelReject: () => void;
+  onReject: (reason: string) => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [reasonError, setReasonError] = useState(false);
+  const rejectionReason = org?.rejectionReason ?? event?.rejectionReason;
+
+  const fields: [string, string][] = org
+    ? [
+        ["Đại diện pháp luật", org.representativeName],
+        ["MST / CCCD", maskIdentifier(org.taxCode)],
+        ["Điện thoại", maskPhone(org.phone)],
+        ["Email", maskEmail(org.email)],
+        ["Địa chỉ", org.address],
+        ["Cập nhật", formatDateTimeVi(org.updatedAt)],
+      ]
+    : event
+      ? [
+          ["Thể loại", event.category],
+          ["Địa điểm", event.venueName],
+          ["Địa chỉ", `${event.venueAddress}, ${event.city}`],
+          ["Bắt đầu", formatDateTimeVi(event.startTime)],
+          [
+            "Tổng vé phát hành",
+            Number.isFinite(event.ticketsTotal)
+              ? `${formatNumberVi(event.ticketsTotal)} vé`
+              : "Chưa có dữ liệu",
+          ],
+          ["Phiên bản", `v${event.version}`],
+        ]
+      : [];
+
+  return (
+    <div className="flex flex-col min-h-full">
+      <div className="p-4 border-b border-border">
+        <span className={`${BADGE_BASE} ${row.badgeClass}`}>
+          {row.statusLabel}
+        </span>
+        <h2 className="mt-2 text-base font-bold leading-snug">{row.title}</h2>
+        {rejectionReason && (
+          <p className="mt-2 text-xs text-destructive">
+            Lý do từ chối trước đó: {rejectionReason}
+          </p>
+        )}
+      </div>
+
+      <dl className="p-4 grid grid-cols-[110px_1fr] gap-y-2 text-xs flex-1 content-start">
+        {fields.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="text-muted-foreground">{k}</dt>
+            <dd className="font-medium break-words">{v}</dd>
+          </div>
+        ))}
+        {org?.businessLicenseUrl && (
+          <>
+            <dt className="text-muted-foreground">Giấy phép KD</dt>
+            <dd>
+              <a
+                href={org.businessLicenseUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline font-medium"
+              >
+                Mở tệp đính kèm
+              </a>
+            </dd>
+          </>
+        )}
+      </dl>
+
+      {row.pending && (
+        <div className="sticky bottom-0 border-t border-border bg-background p-3 space-y-2">
+          {error && (
+            <p role="alert" className="text-xs text-destructive">
+              {error}
+            </p>
+          )}
+          {rejecting ? (
+            <form
+              className="space-y-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!reason.trim()) {
+                  setReasonError(true);
+                  return;
+                }
+                onReject(reason.trim());
+              }}
+            >
+              <Input
+                autoFocus
+                value={reason}
+                aria-invalid={reasonError}
+                onChange={(e) => {
+                  setReason(e.target.value);
+                  setReasonError(false);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") onCancelReject();
+                }}
+                placeholder="Lý do từ chối (bắt buộc, gửi cho BTC)"
+                className="h-8 text-xs"
+              />
+              {reasonError && (
+                <p className="text-xs text-destructive">
+                  Vui lòng nhập lý do từ chối.
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  className="flex-1"
+                  disabled={busy}
+                >
+                  {busy ? "Đang xử lý..." : "Xác nhận từ chối"}
+                </Button>
+                <Button type="button" variant="ghost" onClick={onCancelReject}>
+                  Hủy
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <div className="flex gap-2">
+              <Button className="flex-1" disabled={busy} onClick={onApprove}>
+                <Check /> {event ? "Duyệt mở bán" : "Phê duyệt"}
+                <Kbd tone="onPrimary">a</Kbd>
+              </Button>
+              <Button variant="outline" disabled={busy} onClick={onStartReject}>
+                <X /> Từ chối <Kbd>r</Kbd>
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Audit log                                                            */
+/* ------------------------------------------------------------------ */
+
+function AuditView() {
+  const { data: logs = [], isLoading } = useQuery({
     queryKey: ["adminAuditLogs"],
     queryFn: getAdminAuditLogs,
   });
+  const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
-  // Mutations
-  const orgMutation = useMutation({
-    mutationFn: reviewOrganizerProfile,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adminOrganizers"] });
-      queryClient.invalidateQueries({ queryKey: ["myOrganizerProfile"] });
-      queryClient.invalidateQueries({ queryKey: ["adminAuditLogs"] });
-      setRejectModal(null);
-      setRejectReason("");
-      setRejectError(null);
-    },
-    onError: (err: Error) => {
-      setRejectError(err.message || "Thao tác thất bại. Vui lòng thử lại.");
-    },
-  });
-
-  const eventMutation = useMutation({
-    mutationFn: reviewAdminEvent,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["adminPendingEvents"] });
-      queryClient.invalidateQueries({ queryKey: ["adminAuditLogs"] });
-      setRejectModal(null);
-      setRejectReason("");
-      setRejectError(null);
-    },
-    onError: (err: Error) => {
-      setRejectError(err.message || "Thao tác thất bại. Vui lòng thử lại.");
-    },
-  });
-
-  const handleConfirmReject = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!rejectModal) return;
-    if (!rejectReason.trim()) {
-      setRejectError(
-        "Vui lòng nhập lý do từ chối để hệ thống gửi thông báo cho BTC.",
-      );
-      return;
-    }
-
-    if (rejectModal.type === "ORGANIZER") {
-      orgMutation.mutate({
-        id: rejectModal.targetId,
-        decision: "REJECT",
-        reason: rejectReason.trim(),
-      });
-    } else {
-      eventMutation.mutate({
-        id: rejectModal.targetId,
-        decision: "REJECT",
-        reason: rejectReason.trim(),
-      });
-    }
-  };
-
-  const pendingOrgsCount = organizers.filter(
-    (o) => o.status === "PENDING_VERIFICATION",
-  ).length;
-  const pendingEventsCount = events.filter(
-    (e) => e.status === "PENDING_APPROVAL",
-  ).length;
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return logs.filter(
+      (l: AuditLogEntry) =>
+        !q ||
+        `${l.action} ${l.targetName} ${l.actorEmail} ${l.reason ?? ""}`
+          .toLowerCase()
+          .includes(q),
+    );
+  }, [logs, query]);
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Trung tâm Kiểm duyệt Admin (UC10)
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Xác minh hồ sơ pháp lý Ban tổ chức và kiểm duyệt nội dung sự kiện
-          trước khi mở bán công khai.
-        </p>
-      </div>
-
-      {/* The thong ke nhanh */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Hồ sơ BTC chờ xác minh</CardDescription>
-            <CardTitle className="text-2xl text-amber-700 dark:text-amber-400">
-              {pendingOrgsCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Sự kiện chờ phê duyệt</CardDescription>
-            <CardTitle className="text-2xl text-primary">
-              {pendingEventsCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Thao tác đã ghi Audit Log</CardDescription>
-            <CardTitle className="text-2xl">{auditLogs.length}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Tabs defaultValue="organizers" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="organizers">
-            Hồ sơ BTC ({pendingOrgsCount} chờ duyệt)
-          </TabsTrigger>
-          <TabsTrigger value="events">
-            Sự kiện chờ duyệt ({pendingEventsCount})
-          </TabsTrigger>
-          <TabsTrigger value="audit">
-            Nhật ký kiểm duyệt ({auditLogs.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* TAB 1: DUYET HO SO BTC */}
-        <TabsContent value="organizers">
-          <Card>
-            <CardHeader>
-              <CardTitle>Danh sách Hồ sơ Ban tổ chức</CardTitle>
-              <CardDescription>
-                Kiểm tra Mã số thuế/CCCD và giấy phép kinh doanh trước khi cấp
-                quyền VERIFIED.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingOrgs ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  Đang tải danh sách...
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tên đơn vị & Đại diện</TableHead>
-                      <TableHead>MST / CCCD</TableHead>
-                      <TableHead>Liên hệ</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                      <TableHead className="text-right">
-                        Thao tác kiểm duyệt
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {organizers.map((org: OrganizerProfile) => (
-                      <TableRow key={org.id}>
-                        <TableCell>
-                          <div className="font-medium">
-                            {org.organizationName}
-                          </div>
-                          <div className="text-xs text-muted-foreground">
-                            ĐD: {org.representativeName}
-                          </div>
-                          {org.rejectionReason && (
-                            <div className="text-xs text-destructive mt-1">
-                              Lý do từ chối: {org.rejectionReason}
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {maskIdentifier(org.taxCode)}
-                        </TableCell>
-                        <TableCell className="text-xs">
-                          <div>{maskPhone(org.phone)}</div>
-                          <div className="text-muted-foreground">
-                            {maskEmail(org.email)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {org.status === "VERIFIED" && (
-                            <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
-                              Đã duyệt
-                            </Badge>
-                          )}
-                          {org.status === "PENDING_VERIFICATION" && (
-                            <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">
-                              Chờ xác minh
-                            </Badge>
-                          )}
-                          {org.status === "REJECTED" && (
-                            <Badge variant="destructive">Đã từ chối</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
-                            disabled={
-                              org.status === "VERIFIED" || orgMutation.isPending
-                            }
-                            onClick={() =>
-                              orgMutation.mutate({
-                                id: org.id,
-                                decision: "APPROVE",
-                              })
-                            }
-                          >
-                            Phê duyệt
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                            disabled={orgMutation.isPending}
-                            onClick={() => {
-                              setRejectError(null);
-                              setRejectModal({
-                                open: true,
-                                type: "ORGANIZER",
-                                targetId: org.id,
-                                targetName: org.organizationName,
-                              });
-                            }}
-                          >
-                            Từ chối
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 2: DUYET SU KIEN */}
-        <TabsContent value="events">
-          <Card>
-            <CardHeader>
-              <CardTitle>Danh sách Sự kiện chờ kiểm duyệt</CardTitle>
-              <CardDescription>
-                Sự kiện sau khi được phê duyệt sẽ chuyển từ PENDING_APPROVAL
-                sang PUBLISHED.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingEvents ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  Đang tải sự kiện...
-                </div>
-              ) : events.length === 0 ? (
-                <div className="py-8 text-center text-muted-foreground">
-                  Hiện không có sự kiện nào đang chờ duyệt.
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sự kiện</TableHead>
-                      <TableHead>Địa điểm & Thời gian</TableHead>
-                      <TableHead>Tổng số vé</TableHead>
-                      <TableHead>Trạng thái</TableHead>
-                      <TableHead className="text-right">Thao tác</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {events.map((evt: OrganizerEventItem) => {
-                      const statusMeta = getDisplayStatus(evt);
-                      return (
-                        <TableRow key={evt.id}>
-                          <TableCell>
-                            <div className="font-medium">{evt.title}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Thể loại: {evt.category}
-                            </div>
-                            {evt.rejectionReason && (
-                              <div className="text-xs text-destructive mt-1">
-                                Lý do từ chối: {evt.rejectionReason}
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <div className="font-medium">{evt.venueName}</div>
-                            <div className="text-muted-foreground">
-                              {formatDateTimeVi(evt.startTime)} · {evt.city}
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {formatNumberVi(evt.ticketsTotal)} vé
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant="outline"
-                              className={statusMeta.badgeClass}
-                            >
-                              {statusMeta.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right space-x-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => setSelectedEvent(evt)}
-                            >
-                              Chi tiết
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-emerald-500/40 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/10"
-                              disabled={eventMutation.isPending}
-                              onClick={() =>
-                                eventMutation.mutate({
-                                  id: evt.id,
-                                  decision: "APPROVE",
-                                })
-                              }
-                            >
-                              Duyệt mở bán
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="border-destructive/40 text-destructive hover:bg-destructive/10"
-                              disabled={eventMutation.isPending}
-                              onClick={() => {
-                                setRejectError(null);
-                                setRejectModal({
-                                  open: true,
-                                  type: "EVENT",
-                                  targetId: evt.id,
-                                  targetName: evt.title,
-                                });
-                              }}
-                            >
-                              Từ chối
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* TAB 3: AUDIT LOG */}
-        <TabsContent value="audit">
-          <Card>
-            <CardHeader>
-              <CardTitle>Nhật ký thao tác kiểm duyệt (Audit Log)</CardTitle>
-              <CardDescription>
-                Ghi nhận bất biến mọi quyết định phê duyệt hoặc từ chối của
-                Admin.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Thời gian</TableHead>
-                    <TableHead>Người thực hiện</TableHead>
-                    <TableHead>Hành động</TableHead>
-                    <TableHead>Đối tượng</TableHead>
-                    <TableHead>Ghi chú / Lý do</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {auditLogs.map((log) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="text-xs">
-                        {formatDateTimeVi(log.timestamp)}
-                      </TableCell>
-                      <TableCell className="text-xs font-mono">
-                        {maskEmail(log.actorEmail)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{log.action}</Badge>
-                      </TableCell>
-                      <TableCell className="font-medium text-sm">
-                        {log.targetName}
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {log.reason || "-"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* MODAL RADIX NHAP LY DO TU CHOI (Co focus trap va Escape dismiss) */}
-      <Dialog
-        open={Boolean(rejectModal?.open)}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRejectModal(null);
-            setRejectReason("");
-            setRejectError(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-destructive">
-              Xác nhận từ chối{" "}
-              {rejectModal?.type === "ORGANIZER" ? "Hồ sơ BTC" : "Sự kiện"}
-            </DialogTitle>
-            <DialogDescription>
-              Đối tượng: <strong>{rejectModal?.targetName}</strong>
-            </DialogDescription>
-          </DialogHeader>
-
-          {rejectError && (
-            <div
-              role="alert"
-              className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm"
-            >
-              {rejectError}
-            </div>
-          )}
-
-          <form onSubmit={handleConfirmReject} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="rejectReason">
-                Lý do từ chối (bắt buộc để gửi thông báo cho BTC) *
-              </Label>
-              <Input
-                id="rejectReason"
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="VD: Giấy phép kinh doanh bị mờ / Thông tin chưa hợp lệ..."
-                autoFocus
-                required
-              />
-            </div>
-            <DialogFooter className="gap-2 sm:gap-0">
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setRejectModal(null);
-                  setRejectReason("");
-                  setRejectError(null);
-                }}
+    <div className="flex-1 min-h-0 flex flex-col">
+      <Toolbar
+        title="Nhật ký kiểm toán"
+        count={`${logs.length} bản ghi, chỉ thêm mới`}
+        query={query}
+        onQuery={setQuery}
+        searchRef={searchRef}
+        placeholder="Tìm hành động, đối tượng, người thực hiện..."
+      />
+      <div className="flex-1 min-h-0 overflow-auto">
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 z-10 bg-muted text-muted-foreground">
+            <tr className="text-left [&>th]:h-8 [&>th]:px-3 [&>th]:font-semibold">
+              <th className="w-40">Thời gian</th>
+              <th className="w-44">Người thực hiện</th>
+              <th className="w-44">Hành động</th>
+              <th>Đối tượng</th>
+              <th>Ghi chú / Lý do</th>
+            </tr>
+          </thead>
+          <tbody>
+            {visible.map((l) => (
+              <tr
+                key={l.id}
+                className="border-b border-border/60 bg-background [&>td]:px-3 [&>td]:py-1.5"
               >
-                Hủy
-              </Button>
-              <Button
-                type="submit"
-                variant="destructive"
-                disabled={orgMutation.isPending || eventMutation.isPending}
-              >
-                {orgMutation.isPending || eventMutation.isPending
-                  ? "Đang xử lý..."
-                  : "Xác nhận Từ chối"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* MODAL RADIX XEM CHI TIET SU KIEN */}
-      <Dialog
-        open={Boolean(selectedEvent)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedEvent(null);
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{selectedEvent?.title}</DialogTitle>
-            <DialogDescription>
-              Mã sự kiện: {selectedEvent?.id} · Phiên bản: v
-              {selectedEvent?.version}
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedEvent && (
-            <div className="space-y-3 text-sm">
-              <div>
-                <strong>Thể loại:</strong> {selectedEvent.category}
-              </div>
-              <div>
-                <strong>Địa điểm:</strong> {selectedEvent.venueName} (
-                {selectedEvent.venueAddress}, {selectedEvent.city})
-              </div>
-              <div>
-                <strong>Thời gian bắt đầu:</strong>{" "}
-                {formatDateTimeVi(selectedEvent.startTime)}
-              </div>
-              <div>
-                <strong>Tổng số lượng vé phát hành:</strong>{" "}
-                {formatNumberVi(selectedEvent.ticketsTotal)} vé
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button onClick={() => setSelectedEvent(null)}>Đóng</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                <td className="tabular-nums text-muted-foreground">
+                  {formatDateTimeVi(l.timestamp)}
+                </td>
+                <td className="font-mono">{maskEmail(l.actorEmail)}</td>
+                <td>
+                  <span
+                    className={`${BADGE_BASE} ${
+                      l.action.startsWith("APPROVE") ? BADGE_OK : BADGE_BAD
+                    }`}
+                  >
+                    {l.action}
+                  </span>
+                </td>
+                <td className="font-medium">{l.targetName}</td>
+                <td className="text-muted-foreground">{l.reason || "-"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {!isLoading && visible.length === 0 && (
+          <p className="py-16 text-center text-sm text-muted-foreground">
+            Không có bản ghi phù hợp.
+          </p>
+        )}
+      </div>
     </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared bits                                                          */
+/* ------------------------------------------------------------------ */
+
+function Toolbar({
+  title,
+  count,
+  query,
+  onQuery,
+  searchRef,
+  placeholder,
+  children,
+}: {
+  title: string;
+  count: string;
+  query: string;
+  onQuery: (v: string) => void;
+  searchRef: React.RefObject<HTMLInputElement | null>;
+  placeholder: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="h-12 shrink-0 border-b border-border bg-background px-3 flex items-center gap-3">
+      <h1 className="text-sm font-bold">{title}</h1>
+      <span className="text-xs text-muted-foreground tabular-nums">
+        {count}
+      </span>
+      <div className="flex-1" />
+      {children}
+      <div className="relative w-64">
+        <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
+        <Input
+          ref={searchRef}
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              onQuery("");
+              e.currentTarget.blur();
+            }
+          }}
+          placeholder={placeholder}
+          aria-label="Tìm kiếm"
+          className="h-7 pl-7 text-xs"
+        />
+      </div>
+    </div>
+  );
+}
+
+function Kbd({
+  children,
+  tone,
+}: {
+  children: React.ReactNode;
+  tone?: "onPrimary";
+}) {
+  return (
+    <kbd
+      className={`inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border text-[10px] font-mono ${
+        tone === "onPrimary"
+          ? "border-white/30 bg-white/10 text-white"
+          : "border-border bg-secondary text-muted-foreground"
+      }`}
+    >
+      {children}
+    </kbd>
   );
 }
