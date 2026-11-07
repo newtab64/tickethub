@@ -11,6 +11,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/database/migrate.ts",
     "db:seed": "tsx src/database/seed.ts",
+    "db:seed:pm-load": "tsx src/database/seed-pm-load.ts",
     "start:email-worker": "tsx src/jobs/email.worker.ts",
     "start:outbox-dispatcher": "tsx src/jobs/outbox.dispatcher.ts",
     "start:outbox-recovery": "tsx src/jobs/outbox-recovery.ts"
