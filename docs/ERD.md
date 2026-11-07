@@ -173,7 +173,7 @@ erDiagram
         numeric total_amount
         numeric discount_amount
         numeric final_amount
-        enum status "PENDING | PAID | EXPIRED | FAILED | CANCELLED | REFUNDED"
+        enum status "PENDING | PAID | EXPIRED | FAILED | CANCELLED | REFUNDED | PAYMENT_EXPIRED_REFUND_PENDING"
         timestamptz expires_at
         timestamptz paid_at
         varchar voucher_code
@@ -217,6 +217,8 @@ erDiagram
         numeric amount
         varchar response_code
         varchar bank_code
+        varchar vnp_create_date
+        varchar payment_url
         timestamptz pay_date
         enum status "PENDING | SUCCESS | FAILED"
         jsonb raw_callback
@@ -232,6 +234,11 @@ erDiagram
         numeric amount
         text reason
         enum status "PENDING | PROCESSING | COMPLETED | FAILED"
+        varchar provider_request_id UK
+        uuid provider_group_id FK
+        numeric provider_amount
+        timestamptz last_attempt_at
+        timestamptz next_retry_at
         varchar provider_refund_ref
         varchar idempotency_key UK
         int retry_count
@@ -516,21 +523,21 @@ CREATE INDEX idx_seats_hold_expiry ON seats(status, hold_expires_at) WHERE statu
 
 Lưu thông tin đơn hàng và thời hạn thanh toán.
 
-| Cột             | Kiểu          | Ràng buộc                                                                                                      | Diễn giải                          |
-| :-------------- | :------------ | :------------------------------------------------------------------------------------------------------------- | :--------------------------------- |
-| id              | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                                          | Khóa chính                         |
-| order_code      | VARCHAR(32)   | NOT NULL UNIQUE                                                                                                | Mã đơn hàng hiển thị               |
-| user_id         | UUID          | NOT NULL REFERENCES users(id)                                                                                  | Người mua (Bắt buộc vai trò BUYER) |
-| event_id        | UUID          | NOT NULL REFERENCES events(id)                                                                                 | Sự kiện                            |
-| total_amount    | NUMERIC(14,2) | NOT NULL CHECK (total_amount >= 0)                                                                             | Tổng tiền gốc                      |
-| discount_amount | NUMERIC(14,2) | NOT NULL DEFAULT 0 CHECK (discount_amount >= 0)                                                                | Số tiền giảm                       |
-| final_amount    | NUMERIC(14,2) | NOT NULL CHECK (final_amount >= 0)                                                                             | Số tiền thực trả                   |
-| status          | VARCHAR(20)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'EXPIRED', 'FAILED', 'CANCELLED', 'REFUNDED')) | Trạng thái đơn                     |
-| expires_at      | TIMESTAMPTZ   | NOT NULL                                                                                                       | Thời điểm hết hạn giữ chỗ          |
-| paid_at         | TIMESTAMPTZ   | NULL                                                                                                           | Thời điểm hoàn tất thanh toán      |
-| voucher_code    | VARCHAR(50)   | NULL                                                                                                           | Mã giảm giá                        |
-| created_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                         | Thời điểm tạo                      |
-| updated_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                         | Thời điểm cập nhật cuối            |
+| Cột             | Kiểu          | Ràng buộc                                                                                                                                                 | Diễn giải                          |
+| :-------------- | :------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------- |
+| id              | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                                                                                     | Khóa chính                         |
+| order_code      | VARCHAR(32)   | NOT NULL UNIQUE                                                                                                                                           | Mã đơn hàng hiển thị               |
+| user_id         | UUID          | NOT NULL REFERENCES users(id)                                                                                                                             | Người mua (Bắt buộc vai trò BUYER) |
+| event_id        | UUID          | NOT NULL REFERENCES events(id)                                                                                                                            | Sự kiện                            |
+| total_amount    | NUMERIC(14,2) | NOT NULL CHECK (total_amount >= 0)                                                                                                                        | Tổng tiền gốc                      |
+| discount_amount | NUMERIC(14,2) | NOT NULL DEFAULT 0 CHECK (discount_amount >= 0)                                                                                                           | Số tiền giảm                       |
+| final_amount    | NUMERIC(14,2) | NOT NULL CHECK (final_amount >= 0)                                                                                                                        | Số tiền thực trả                   |
+| status          | VARCHAR(32)   | NOT NULL DEFAULT 'PENDING' (giá trị ứng dụng: PENDING, PAID, EXPIRED, FAILED, CANCELLED, REFUNDED, PAYMENT_EXPIRED_REFUND_PENDING; DB chưa áp dụng CHECK) | Trạng thái đơn                     |
+| expires_at      | TIMESTAMPTZ   | NOT NULL                                                                                                                                                  | Thời điểm hết hạn giữ chỗ          |
+| paid_at         | TIMESTAMPTZ   | NULL                                                                                                                                                      | Thời điểm hoàn tất thanh toán      |
+| voucher_code    | VARCHAR(50)   | NULL                                                                                                                                                      | Mã giảm giá                        |
+| created_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                                                                    | Thời điểm tạo                      |
+| updated_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                                                                    | Thời điểm cập nhật cuối            |
 
 > **Ràng buộc nghiệp vụ toàn vẹn (Integrity Constraint)**: Cột `user_id` chỉ liên kết với bản ghi người dùng có `role = 'BUYER'`. Các tài khoản có vai trò `ADMIN`, `ORGANIZER` hoặc `GATE_STAFF` bị cấm tạo đơn hàng và sở hữu vé cá nhân nhằm ngăn ngừa xung đột lợi ích và găm vé nội bộ.
 
@@ -598,6 +605,8 @@ Lưu vết các giao dịch thanh toán qua cổng VNPay.
 | amount             | NUMERIC(14,2) | NOT NULL CHECK (amount > 0)                                                   | Số tiền giao dịch                             |
 | response_code      | VARCHAR(10)   | NULL                                                                          | Mã kết quả trả về từ cổng                     |
 | bank_code          | VARCHAR(20)   | NULL                                                                          | Ngân hàng thanh toán                          |
+| vnp_create_date    | VARCHAR(14)   | NULL                                                                          | Ngày tạo URL VNPay GMT+7, dùng QueryDR/Refund |
+| payment_url        | VARCHAR(4000) | NULL                                                                          | URL đã ký được lưu để tái sử dụng khi retry   |
 | pay_date           | TIMESTAMPTZ   | NULL                                                                          | Thời điểm thanh toán tại cổng                 |
 | status             | VARCHAR(20)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED')) | Trạng thái giao dịch                          |
 | raw_callback       | JSONB         | NULL                                                                          | Dữ liệu IPN nguyên bản để đối soát            |
@@ -617,21 +626,26 @@ WHERE provider_tx_number IS NOT NULL;
 
 Lưu các bản ghi yêu cầu hoàn tiền.
 
-| Cột                 | Kiểu          | Ràng buộc                                                                                     | Diễn giải                      |
-| :------------------ | :------------ | :-------------------------------------------------------------------------------------------- | :----------------------------- |
-| id                  | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                         | Khóa chính                     |
-| order_id            | UUID          | NOT NULL REFERENCES orders(id)                                                                | Khóa ngoại đơn hàng            |
-| ticket_id           | UUID          | NULL REFERENCES tickets(id)                                                                   | Vé bị hủy                      |
-| amount              | NUMERIC(14,2) | NOT NULL CHECK (amount > 0)                                                                   | Số tiền hoàn lại               |
-| reason              | TEXT          | NOT NULL                                                                                      | Lý do hoàn tiền                |
-| status              | VARCHAR(20)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')) | Trạng thái hoàn tiền           |
-| provider_refund_ref | VARCHAR(100)  | NULL                                                                                          | Mã phản hồi hoàn tiền từ VNPay |
-| idempotency_key     | VARCHAR(100)  | NOT NULL UNIQUE                                                                               | Khóa chống trùng lặp           |
-| retry_count         | INT           | NOT NULL DEFAULT 0                                                                            | Số lần thử lại qua worker      |
-| error_message       | TEXT          | NULL                                                                                          | Chi tiết lỗi nếu thất bại      |
-| processed_at        | TIMESTAMPTZ   | NULL                                                                                          | Thời điểm hoàn tất             |
-| created_at          | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                        | Thời điểm tạo                  |
-| updated_at          | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                        | Thời điểm cập nhật cuối        |
+| Cột                 | Kiểu          | Ràng buộc                                                                                     | Diễn giải                                                             |
+| :------------------ | :------------ | :-------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| id                  | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                         | Khóa chính                                                            |
+| order_id            | UUID          | NOT NULL REFERENCES orders(id)                                                                | Khóa ngoại đơn hàng                                                   |
+| ticket_id           | UUID          | NULL REFERENCES tickets(id)                                                                   | Vé bị hủy                                                             |
+| amount              | NUMERIC(14,2) | NOT NULL CHECK (amount > 0)                                                                   | Số tiền hoàn lại                                                      |
+| reason              | TEXT          | NOT NULL                                                                                      | Lý do hoàn tiền                                                       |
+| status              | VARCHAR(20)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PROCESSING', 'COMPLETED', 'FAILED')) | Trạng thái hoàn tiền                                                  |
+| provider_request_id | VARCHAR(32)   | UNIQUE, NULL                                                                                  | Mã yêu cầu lưu trước khi gọi VNPay; không gửi lại khi kết quả chưa rõ |
+| provider_group_id   | UUID          | NULL REFERENCES refunds(id)                                                                   | Nhóm gửi VNPay; tham chiếu refund leader, legacy có thể NULL          |
+| provider_amount     | NUMERIC(14,2) | NULL                                                                                          | Tổng tiền snapshot của nhóm, chỉ lưu trên leader                      |
+| last_attempt_at     | TIMESTAMPTZ   | NULL                                                                                          | Thời điểm dành quyền gửi yêu cầu hoàn tiền                            |
+| next_retry_at       | TIMESTAMPTZ   | NOT NULL, DEFAULT NOW()                                                                       | Thời điểm đối soát tiếp theo sau lỗi                                  |
+| provider_refund_ref | VARCHAR(100)  | NULL                                                                                          | Mã phản hồi hoàn tiền từ VNPay                                        |
+| idempotency_key     | VARCHAR(100)  | NOT NULL UNIQUE                                                                               | Khóa chống trùng lặp                                                  |
+| retry_count         | INT           | NOT NULL DEFAULT 0                                                                            | Số lần thử lại qua worker                                             |
+| error_message       | TEXT          | NULL                                                                                          | Chi tiết lỗi nếu thất bại                                             |
+| processed_at        | TIMESTAMPTZ   | NULL                                                                                          | Thời điểm hoàn tất                                                    |
+| created_at          | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                        | Thời điểm tạo                                                         |
+| updated_at          | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                        | Thời điểm cập nhật cuối                                               |
 
 ### gates và event_staff
 
@@ -802,21 +816,101 @@ Bảng tổng hợp được làm mới định kỳ qua worker để không ả
 
 ```sql
 CREATE MATERIALIZED VIEW mv_event_sales_summary AS
-SELECT
-    e.id AS event_id,
-    e.organizer_id,
-    e.title,
-    count(DISTINCT t.id) FILTER (WHERE t.status IN ('SOLD', 'CHECKED_IN')) AS total_sold_tickets,
-    count(DISTINCT t.id) FILTER (WHERE t.status = 'CHECKED_IN') AS total_checked_in_tickets,
-    coalesce(sum(oi.subtotal) FILTER (WHERE o.status = 'PAID'), 0) AS gross_revenue,
-    coalesce(sum(r.amount) FILTER (WHERE r.status = 'COMPLETED'), 0) AS total_refunded_amount,
-    now() AS refreshed_at
-FROM events e
-LEFT JOIN orders o ON o.event_id = e.id AND o.status = 'PAID'
-LEFT JOIN order_items oi ON oi.order_id = o.id
-LEFT JOIN tickets t ON t.event_id = e.id
-LEFT JOIN refunds r ON r.order_id = o.id AND r.status = 'COMPLETED'
-GROUP BY e.id, e.organizer_id, e.title;
+WITH revenue AS (
+ SELECT event_id, sum(total_amount) AS gross_revenue, sum(final_amount) AS paid_revenue
+ FROM orders WHERE status IN ('PAID','REFUNDED') OR paid_at IS NOT NULL GROUP BY event_id
+), refunded AS (
+ SELECT o.event_id, sum(r.amount) AS total_refunded_amount
+ FROM refunds r JOIN orders o ON o.id=r.order_id WHERE r.status='COMPLETED' GROUP BY o.event_id
+), ticket_counts AS (
+ SELECT event_id,
+ count(*) FILTER(WHERE status IN ('SOLD','CHECKED_IN')) AS total_sold_tickets,
+ count(*) FILTER(WHERE status='CHECKED_IN') AS total_checked_in_tickets,
+ count(*) FILTER(WHERE status='CANCELLED') AS total_cancelled_tickets
+ FROM tickets GROUP BY event_id
+)
+SELECT e.id AS event_id,e.organizer_id,e.title,
+ COALESCE(t.total_sold_tickets,0) AS total_sold_tickets,
+ COALESCE(t.total_checked_in_tickets,0) AS total_checked_in_tickets,
+ COALESCE(t.total_cancelled_tickets,0) AS total_cancelled_tickets,
+ COALESCE(r.gross_revenue,0)::numeric AS gross_revenue,
+ COALESCE(r.paid_revenue,0)::numeric AS paid_revenue,
+ COALESCE(f.total_refunded_amount,0)::numeric AS total_refunded_amount,
+ (COALESCE(r.paid_revenue,0)-COALESCE(f.total_refunded_amount,0))::numeric AS net_revenue,
+ CASE WHEN COALESCE(t.total_sold_tickets,0)=0 THEN 0 ELSE round(t.total_checked_in_tickets::numeric*100/t.total_sold_tickets,2) END AS checkin_percentage,
+ now() AS refreshed_at
+FROM events e LEFT JOIN revenue r ON r.event_id=e.id LEFT JOIN refunded f ON f.event_id=e.id LEFT JOIN ticket_counts t ON t.event_id=e.id;
 
 CREATE UNIQUE INDEX idx_mv_event_sales_id ON mv_event_sales_summary(event_id);
 ```
+
+## Bổ sung schema tuần 5
+
+### organizer_staff
+
+Sở hữu tài khoản nhân viên theo BTC, không cho BTC nhận quản lý tài khoản tùy ý chỉ bằng email/userId.
+
+| Cột          | Kiểu        | Ràng buộc                       | Ý nghĩa                  |
+| ------------ | ----------- | ------------------------------- | ------------------------ |
+| user_id      | UUID        | PK, FK users                    | Nhân viên do BTC quản lý |
+| organizer_id | UUID        | NOT NULL, FK organizer_profiles | BTC sở hữu               |
+| created_at   | TIMESTAMPTZ | NOT NULL                        | Thời điểm tạo            |
+
+### gate_checkin_logs
+
+Nhật ký append-only cho cả QR và thủ công. ID lịch sử không có FK cascade, cùng nguyên tắc với audit_log, để không sửa hoặc mất log khi tài nguyên thay đổi.
+
+| Cột           | Kiểu         | Ràng buộc | Ý nghĩa                                  |
+| ------------- | ------------ | --------- | ---------------------------------------- |
+| id            | UUID         | PK        | Mã log                                   |
+| event_id      | UUID         | NULL      | Sự kiện, null nếu QR không xác định được |
+| ticket_id     | UUID         | NULL      | Vé đã xác định                           |
+| gate_id       | UUID         | NULL      | Cổng đã xác định                         |
+| staff_id      | UUID         | NOT NULL  | Nhân viên thực hiện                      |
+| method        | VARCHAR(20)  | NOT NULL  | QR hoặc MANUAL                           |
+| outcome       | VARCHAR(20)  | NOT NULL  | SUCCESS hoặc REJECTED                    |
+| reason        | TEXT         | NULL      | Lý do tra cứu thủ công                   |
+| error_code    | VARCHAR(100) | NULL      | Mã từ chối                               |
+| checked_in_at | TIMESTAMPTZ  | NOT NULL  | Thời điểm thao tác                       |
+
+### report_exports
+
+Hàng đợi xuất báo cáo bền vững trong PostgreSQL; dữ liệu file nằm ngoài thư mục public.
+
+| Cột           | Kiểu         | Ràng buộc                       | Ý nghĩa                            |
+| ------------- | ------------ | ------------------------------- | ---------------------------------- |
+| id            | UUID         | PK                              | Mã job                             |
+| requested_by  | UUID         | NOT NULL, FK users              | Người yêu cầu                      |
+| organizer_id  | UUID         | NOT NULL, FK organizer_profiles | BTC sở hữu                         |
+| event_id      | UUID         | NOT NULL, FK events             | Sự kiện                            |
+| format        | VARCHAR(10)  | NOT NULL                        | csv/xlsx                           |
+| status        | VARCHAR(20)  | NOT NULL                        | Trạng thái job                     |
+| attempt_id    | UUID         | NULL                            | Fencing token mỗi lần claim        |
+| file_name     | VARCHAR(100) | NULL                            | Tên file nội bộ do worker tạo      |
+| retry_count   | INTEGER      | NOT NULL                        | Số lần lỗi                         |
+| error_message | TEXT         | NULL                            | Thông báo lỗi công khai đã rút gọn |
+| next_retry_at | TIMESTAMPTZ  | NOT NULL                        | Thời điểm thử lại                  |
+| expires_at    | TIMESTAMPTZ  | NULL                            | Hạn tải file                       |
+| created_at    | TIMESTAMPTZ  | NOT NULL                        | Ngày tạo                           |
+| updated_at    | TIMESTAMPTZ  | NOT NULL                        | Ngày cập nhật/lease                |
+
+Migration 0006_w05-staff-reporting.sql tạo MV thực tế: mv_event_sales_summary và mv_event_ticket_sales. Migration tổng hợp riêng orders, refunds, tickets trước khi join, tránh nhân doanh thu khi đơn có nhiều vé hoặc nhiều refund. Worker refresh hai MV bằng CONCURRENTLY dưới advisory lock để tránh nhiều worker refresh trùng. MV không được ánh xạ thành pgTable vì chỉ đọc qua SQL tĩnh.
+
+### Mở rộng report_exports và MV báo cáo (0004, 0005)
+
+| Cột            | Kiểu        | Ràng buộc | Ý nghĩa                                                    |
+| -------------- | ----------- | --------- | ---------------------------------------------------------- |
+| from_date      | DATE        | NULL      | Ngày đầu kỳ theo giờ Việt Nam                              |
+| to_date        | DATE        | NULL      | Ngày cuối kỳ, bao gồm trọn ngày                            |
+| ticket_type_id | UUID        | NULL      | Bộ lọc hạng vé snapshot, không FK để không mất lịch sử job |
+| voucher_code   | VARCHAR(50) | NULL      | Bộ lọc mã giảm giá chuẩn hóa chữ hoa                       |
+
+CHECK report_exports_period_check yêu cầu hai ngày cùng null hoặc cùng có giá trị và from_date <= to_date.
+Migration 0004 tạo mv_event_report_daily, tổng hợp độc lập tiền thu/ngày thanh toán, hoàn/ngày hoàn tất và vé/nhóm ngày thanh toán.
+Migration 0005 tạo mv_event_report_facts theo đơn/hạng vé/ngày/loại dòng tiền, kèm thông tin người mua và voucher.
+Phân bổ giữ tổng tiền chính xác đến cent; hoàn theo vé không nhân tiền theo số vé của đơn.
+Worker refresh cả bốn MV trong cùng transaction repeatable read/advisory lock; unique index hỗ trợ CONCURRENTLY.
+MV chỉ đọc qua SQL, không ánh xạ thành pgTable. Hoàn tất file ghi outbox REPORT_EXPORT_COMPLETED trong cùng transaction;
+không thêm PII vào payload outbox, chỉ exportId.
+
+Bản PR W05 kế thừa W04 dùng journal 0000-0004 upstream, 0005 W04 và 0006 W05. Tổng 21 bảng public, gồm đủ venues/venue_layouts và ba bảng W05; MV không tính như BASE TABLE.

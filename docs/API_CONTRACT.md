@@ -516,8 +516,10 @@ Xem chi tiết chuyên sâu của một đơn hàng.
 
 Khởi tạo giao dịch thanh toán VNPay và nhận URL chuyển hướng đến cổng thanh toán VNPay.
 
-- Header: `Authorization: Bearer <accessToken>`
-- Response 200:
+- Header: `Authorization: Bearer <accessToken>`, tùy chọn `Idempotency-Key: <UUID>`.
+- Số tiền chỉ lấy từ đơn và chi tiết đơn trong PostgreSQL, kiểm tra tổng tiền trừ giảm giá đã được server lưu. API này không tiếp nhận giá hoặc tự phê duyệt voucher từ client.
+- Chỉ chủ đơn PENDING còn trên 45 giây giữ chỗ được tạo URL. Gọi lại tái sử dụng transaction và URL đã lưu; hạn URL bằng hạn giữ chỗ.
+- Response 201:
   ```json
   {
     "success": true,
@@ -527,12 +529,29 @@ Khởi tạo giao dịch thanh toán VNPay và nhận URL chuyển hướng đ�
   }
   ```
 
+#### `POST /api/v1/payments/orders/:orderId/vnpay/query`
+
+Đối soát QueryDR khi client chưa nhận được kết quả IPN.
+
+- Header: `Authorization: Bearer <accessToken>`. Chỉ chủ sở hữu đơn được gọi.
+- Không nhận số tiền, merchant, URL hoặc mã giao dịch do client cung cấp.
+- Response 201: `{ "success": true, "data": { "decision": "APPLY_SUCCESS", "responseCode": "00" } }`.
+- `ALREADY_PROCESSED`: giao dịch đã được xử lý; `MANUAL_REVIEW`: kết quả chưa xác định; `AMOUNT_MISMATCH`: không khớp tiền.
+- HTTP 400 nếu giao dịch cũ thiếu ngày tạo VNPay; HTTP 404 nếu không có giao dịch thuộc người gọi; HTTP 503 nếu VNPay lỗi, timeout hoặc phản hồi không xác minh được.
+- `vnp_IpAddr` lấy IP merchant từ `VNPAY_REFUND_IP`, dùng chung với Refund, không dùng IP buyer hay header chuyển tiếp. Phải nghiệm thu với IP đã đăng ký trong merchant sandbox.
+- Chỉ phản hồi QueryDR loại thanh toán `01` được đưa vào xử lý đơn. Kết quả hoàn tiền `02`/`03` không được dùng để cấp vé.
+
 #### `GET /api/v1/payments/vnpay/ipn`
 
 Endpoint nhận webhook IPN (Instant Payment Notification) từ cổng thanh toán VNPay để cập nhật trạng thái đơn hàng thành công.
 
 - Tham số: Toàn bộ query params từ VNPay (`vnp_TxnRef`, `vnp_Amount`, `vnp_ResponseCode`, `vnp_SecureHash`, ...)
-- Response 200: `{"RspCode": "00", "Message": "Confirm Success"}`
+- Cần bật `ENABLE_VNPAY_IPN_PROCESSING=true`; mặc định endpoint tắt.
+- Xác minh HMAC-SHA512, merchant, số tiền trước khi cập nhật; khóa order rồi transaction trong cùng transaction DB.
+- IPN thành công đến muộn với đủ metadata: khôi phục toàn bộ vé nếu còn trống; nếu không đủ kho thì rollback phần khôi phục và chuyển đơn sang `PAYMENT_EXPIRED_REFUND_PENDING`, tạo một refund cùng sự kiện outbox `REFUND_REQUESTED`. Không gọi API hoàn tiền trong transaction DB.
+- IPN thành công đã xác minh trên đơn `CANCELLED` hoặc đơn chưa thanh toán của sự kiện `SUSPENDED`/`CANCELLED` tạo hoàn tiền tự động, không phục hồi/cấp vé. `SUSPENDED` là trạng thái sự kiện. Callback lặp không tạo refund thứ hai.
+- Giao dịch cũ thiếu ngày tạo, mã giao dịch VNPay hoặc ngày thanh toán hợp lệ được giữ ở `MANUAL_REVIEW` để tránh tự động xử lý dựa trên bằng chứng thiếu.
+- Response 200: `{"RspCode": "00", "Message": "Confirm Success"}`; callback lặp trả `02`, sai chữ ký `97`, sai tiền `04`, không có đơn `01`, cần đối soát `99`.
 
 #### `GET /api/v1/internal/vnpay/ipn-preview`
 
@@ -745,29 +764,45 @@ Tra cứu thủ công vé dự phòng bằng mã vé tĩnh 32 ký tự kết h�
 
 Tính trước số tiền hoàn lại theo chính sách trước khi xác nhận.
 
-- Request body: `{ "ticketId": "tkt-uuid" }`
-- Response 200:
+- Header: `Authorization: Bearer <accessToken>`; chỉ BUYER sở hữu đơn được thao tác.
+- Request body: `{ "orderId": "<uuid>", "ticketIds": ["<uuid-ticket>"] }` (1-6 vé khác nhau).
+- Response 201 (trả trực tiếp, không bọc `success/data`):
 
 ```json
 {
-  "success": true,
-  "data": {
-    "ticketPrice": 2500000,
-    "refundPercentage": 70,
-    "refundAmount": 1750000,
-    "feeDeducted": 750000,
-    "policyApplied": "Hủy trước sự kiện 3-7 ngày (hoàn 70%)"
-  }
+  "orderId": "<uuid>",
+  "policyType": "FLEXIBLE",
+  "daysUntilEvent": 10,
+  "refundPercentage": 100,
+  "items": [],
+  "totalRefundAmount": 200000,
+  "totalFeeDeducted": 0
 }
 ```
 
+`items` liệt kê kết quả tính theo từng vé và giá mua đã lưu, có phân bổ voucher. FLEXIBLE hoàn 100% trước 7 ngày, 50% trước 3 ngày; STRICT hoàn 50% trước 14 ngày; NO_REFUND không cho hoàn tự nguyện. Trường hợp không đủ điều kiện trả lỗi, không thu hồi vé trong preview.
+
 #### `POST /api/v1/refund/request`
 
-Gửi yêu cầu hủy vé.
+- Header: `Authorization: Bearer <accessToken>`, `Idempotency-Key: <UUID>`.
+- Request body: `{ "orderId": "<uuid>", "ticketIds": ["<uuid-ticket>"], "reason": "Bận việc đột xuất" }`.
+- Response 201 (trả trực tiếp):
 
-- Header: `Authorization: Bearer <accessToken>`, `Idempotency-Key: <UUID>`
-- Request body: `{ "ticketId": "tkt-uuid", "reason": "Bận việc đột xuất" }`
-- Response 200: `{ "success": true, "data": { "refundId": "ref-uuid", "status": "PROCESSING" } }`
+```json
+{
+  "refundId": "<uuid-refund-dau-tien>",
+  "refundIds": ["<uuid-refund-1>", "<uuid-refund-2>"],
+  "orderId": "<uuid>",
+  "status": "PROCESSING",
+  "refundAmount": 200000,
+  "cancelledTicketCount": 2,
+  "orderStatus": "REFUNDED"
+}
+```
+
+`PROCESSING` ở response xác nhận đã tiếp nhận, chưa chứng minh VNPay đã hoàn tiền. Transaction DB thu hồi các vé, trả kho và tạo một refund PENDING cho mỗi vé cùng một outbox chứa `refundIds`. Worker gom các refund chưa gửi của yêu cầu thành một lần gọi VNPay: `02` khi hoàn toàn bộ số tiền giao dịch gốc, `03` khi hoàn một phần. Refund đã gửi theo cơ chế cũ được đối soát riêng, không gom để gửi lại. Timeout chỉ đối soát QueryDR với request ID đã lưu.
+
+Đơn giữ `PAID` khi chỉ hủy một phần số vé; toàn bộ vé bị hủy thì đơn là `REFUNDED`. Trạng thái tiền thực tế xem ở các refund `COMPLETED`, không suy ra từ trạng thái đơn. Cùng key và payload trả cùng kết quả; cùng key với payload khác trả 409. Thiếu key hoặc payload sai trả 400; khác chủ đơn bị từ chối.
 
 ### Quản trị hệ thống (`/admin`)
 
@@ -1307,3 +1342,121 @@ Kiểm tra kết nối tới cơ sở dữ liệu PostgreSQL và máy chủ Redi
     }
   }
   ```
+
+## Tuần 5 BE2: Nhân viên, lịch sử soát vé và báo cáo UC09
+
+Các API `/organizer` bên dưới yêu cầu JWT của ORGANIZER đang ACTIVE và hồ sơ VERIFIED. Mọi tài nguyên được kiểm tra theo BTC sở hữu; truy cập tài nguyên của BTC khác trả 404. Không lấy organizerId từ body.
+
+### Quản lý nhân viên
+
+#### `POST /api/v1/organizer/staff`
+
+Body: `{ "email": "staff@example.com", "fullName": "Nhân viên A", "password": "<tối thiểu 12 ký tự>", "phone": "0901234567" }`. Tạo tài khoản GATE_STAFF ACTIVE thuộc BTC. Response 201 gồm id, email, fullName, phone, status, createdAt; không trả mật khẩu/hash. Email trùng trả 409. Role không được truyền bởi client.
+
+#### `GET /api/v1/organizer/staff`
+
+Query `page` mặc định 1, `limit` mặc định 20, tối đa 100. Response 200: `{ "success": true, "data": [ ... ] }`, chỉ gồm nhân viên thuộc BTC hiện tại.
+
+#### `PATCH /api/v1/organizer/staff/:staffId`
+
+Body gồm các trường muốn sửa: fullName, phone, status (ACTIVE hoặc LOCKED). Không sửa role/email qua API này. Response 200 là thông tin nhân viên sau cập nhật. Khóa nhân viên khiến JWT cũ không còn dùng để soát vé được; giữ lịch sử soát vé.
+
+#### `POST /api/v1/organizer/events/:eventId/gates`
+
+Body: `{ "name": "Cổng A", "locationDesc": "Sảnh chính" }`. Response 201 là cổng mới của sự kiện thuộc BTC.
+
+#### `GET /api/v1/organizer/events/:eventId/gates`
+
+Response 200: data là mảng cổng, hỗ trợ page/limit (mặc định 1/100, tối đa 100 mỗi trang); meta ở ngoài data gồm page, limit, hasMore. Không giới hạn tổng ở 100 cổng.
+
+#### `POST /api/v1/organizer/events/:eventId/staff`
+
+Body: `{ "userId": "staff-uuid", "gateId": "gate-uuid" }`. Chỉ gán nhân viên ACTIVE do BTC quản lý vào cổng thuộc đúng sự kiện của BTC. Response 201 là phân công. Gọi lại cập nhật cổng của phân công hiện có, không tạo dòng trùng.
+
+#### `GET /api/v1/organizer/events/:eventId/staff`
+
+Response 200: data là mảng phân công, hỗ trợ page/limit (mặc định 1/100); meta gồm page, limit, hasMore. Không trả passwordHash.
+
+#### `DELETE /api/v1/organizer/events/:eventId/staff/:staffId`
+
+Gỡ phân công, không xóa tài khoản hay lịch sử. Response 200: `{ "success": true, "data": { "removed": true } }`. Yêu cầu soát vé tiếp theo của nhân viên phải bị từ chối.
+
+### Bổ sung hợp đồng soát vé
+
+`POST /api/v1/gate/lookup` hỗ trợ hai cách đối chiếu:
+
+- `ticketCode` + `phoneOrEmailLast4` chứa 4 số cuối SĐT (giữ tên trường cũ để tương thích).
+- `ticketCode` + `email` đầy đủ, đối chiếu không phân biệt hoa/thường. Không chấp nhận 4 ký tự cuối email vì không đủ để xác minh.
+
+Vẫn cần eventId và reason không rỗng. gateId có thể bỏ qua nếu nhân viên đã được gán cổng; nếu truyền thì phải đúng cổng được phân công. Check-in phải xác định được cổng thực tế. Admin cần chỉ định cổng khi không có phân công. Trả nguyên GateLookupResponse như hợp đồng cũ, không bọc thêm data.
+
+Cả QR và thủ công cùng kiểm tra tài khoản ACTIVE, phân công sự kiện/cổng và trạng thái PUBLISHED. QR còn phải khớp ticketId, eventId, orderId, userId với vé thật. Cập nhật CHECKED_IN, ghi gate_checkin_logs SUCCESS và audit_log cùng một transaction; lỗi ghi log phải rollback check-in. Lần thử bị từ chối được ghi REJECTED riêng sau rollback. Không ghi email/SĐT đối chiếu hoặc QR token vào log.
+
+#### `GET /api/v1/organizer/events/:eventId/checkins`
+
+Query page/limit như danh sách staff. Response 200 gồm các log của sự kiện: id, eventId, ticketId, gateId, staffId, method (QR/MANUAL), outcome (SUCCESS/REJECTED), reason, errorCode, checkedInAt. Log append-only. QR hỏng không xác định được sự kiện vẫn được lưu với eventId null, không xuất hiện trong lịch sử riêng của sự kiện.
+
+### Báo cáo và xuất file
+
+#### `GET /api/v1/organizer/events/:eventId/reports`
+
+Response 200: `{ "success": true, "data": { "summary": { ... }, "sales": [ ... ] } }`.
+
+- summary đọc từ mv_event_sales_summary: event_id, organizer_id, title, total_sold_tickets, total_checked_in_tickets, total_cancelled_tickets, gross_revenue, paid_revenue, total_refunded_amount, net_revenue, checkin_percentage, refreshed_at.
+- sales đọc từ mv_event_ticket_sales: event_id, organizer_id, ticket_type_id, ticket_type_name, sale_date, total_sold_tickets, total_checked_in_tickets, paid_revenue, refreshed_at.
+- Tiền là chuỗi decimal; số đếm BIGINT có thể là chuỗi. Ngày bán theo Asia/Ho_Chi_Minh. paid_revenue là tiền đã thu trước hoàn tiền; net_revenue trừ các refund COMPLETED. Doanh thu theo hạng/ngày phân bổ tiền sau giảm giá theo giá vé trong order_items.
+- Worker refresh view mỗi 5 phút; cache Redis TTL 60 giây. Redis hỏng thì đọc MV, không quay về truy vấn tổng hợp trên bảng giao dịch. Kết quả có thể chậm tối đa khoảng 6 phút; xem refreshed_at. Sự kiện chưa refresh có summary null; không coi là doanh thu 0.
+
+#### `POST /api/v1/organizer/events/:eventId/reports/exports`
+
+Body: `{ "format": "csv" }` hoặc `{ "format": "xlsx" }`. Response 202: `{ "success": true, "data": { "id": "export-uuid", "status": "PENDING", "format": "csv", "createdAt": "..." } }`. Tối đa 3 job đang PENDING/PROCESSING mỗi người dùng; vượt giới hạn trả 409. Không tạo file trong HTTP request.
+
+#### `GET /api/v1/organizer/events/:eventId/reports/exports/:exportId`
+
+Chỉ người tạo, còn quyền với sự kiện, được đọc trạng thái. Response 200 gồm id, status, format, createdAt, expiresAt, errorMessage, downloadUrl. Các trạng thái: PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED. downloadUrl chỉ có khi COMPLETED; không trả đường dẫn filesystem.
+
+#### `GET /api/v1/organizer/events/:eventId/reports/exports/:exportId/download`
+
+Yêu cầu JWT và kiểm tra lại quyền. File thực sự là CSV UTF-8 hoặc XLSX, tên file do server tạo. Response 409 khi chưa xong, 410 khi hết hạn 24 giờ, 404 nếu không có file/tài nguyên thuộc người gọi. Header Cache-Control private, no-store. File không được phục vụ trực tiếp từ thư mục public.
+
+CSV ngăn công thức bắt đầu bằng =, +, -, @; Excel ghi dữ liệu không tin cậy bằng ô string, không tạo formula. Một báo cáo hỗ trợ tối đa 10.000 dòng phân tổ; vượt giới hạn báo lỗi thay vì xuất thiếu dữ liệu.
+
+### Mở rộng UC09 cho tích hợp FE1
+
+Hợp đồng chi tiết, quy tắc thời gian/tiền và mẫu response: [w05-be2-integration.md](testing/w05-be2-integration.md).
+
+#### `GET /api/v1/organizer/events/:eventId/checkins/summary`
+
+Thống kê trực tiếp toàn sự kiện và từng cổng: validTickets, checkedInTickets, remainingTickets,
+successfulAttempts, rejectedAttempts, checkinPercentage; kèm generatedAt và timelineLast24Hours theo giờ Việt Nam.
+Không dùng các dòng của một trang lịch sử để tính tổng. activeAssignedStaff không có nghĩa là online.
+
+#### `GET /api/v1/organizer/events/:eventId/reports/exports`
+
+Danh sách job của người tạo và đúng sự kiện thuộc quyền, hỗ trợ page/limit; data là mảng, meta page/limit/hasMore.
+Mỗi job có bộ lọc fromDate/toDate/ticketTypeId/voucherCode, trạng thái hiệu lực và link tải khi còn hạn.
+
+#### `GET /api/v1/organizer/events/:eventId/reports/buyers`
+
+Danh sách đơn đã thanh toán với thông tin liên hệ người mua từ MV; hỗ trợ bộ lọc báo cáo và phân trang.
+Không trả passwordHash, token hay thông tin đăng nhập. Chỉ BTC có quyền sự kiện được xem.
+
+#### `GET /api/v1/organizer/events/:eventId/reports/vouchers`
+
+Phân tích theo voucher từ MV: paidOrders, grossRevenue, discountAmount, paidRevenue,
+refundedAmount, netRevenue, validTickets, refreshedAt. Hỗ trợ bộ lọc báo cáo và phân trang.
+
+GET reports nhận fromDate/toDate (YYYY-MM-DD, cả hai hoặc không có), ticketTypeId, voucherCode.
+POST exports nhận cùng bộ lọc và format, lưu bộ lọc bền vững cho worker. Không truyền lọc giữ hành vi toàn sự kiện.
+Tiền hoàn theo ngày COMPLETED, tiền thu theo ngày thanh toán; kỳ có thể có net âm.
+analytics.fees là NOT_CONFIGURED với giá trị null vì nhóm chưa chốt phí, net_revenue chưa trừ phí.
+HTTP tối đa 10000 dòng, vượt trả 422 REPORT_TOO_LARGE và hướng sang xuất nền; xuất nền tối đa 100000 dòng,
+vượt trả job FAILED REPORT_TOO_LARGE, không xuất thiếu dòng. Giới hạn mới thay thế giới hạn export 10000 dòng phía trên.
+Danh sách staff, cổng, phân công, checkins và exports giữ data dạng mảng, thêm meta page/limit/hasMore.
+Outbox REPORT_EXPORT_COMPLETED được ghi nguyên tử với hoàn tất job; gửi email cần cấu hình riêng, link vào FE có xác thực.
+
+### Search W03: xử lý keyword và độ liên quan
+
+Keyword được trim/normalize NFC. Keyword dưới hai ký tự bỏ điều kiện full-text nhưng vẫn áp dụng bộ lọc.
+Keyword hợp lệ ưu tiên ts_rank giảm dần, sau đó startTime/id tăng dần; cursor theo cùng thứ tự để tránh mất/trùng kết quả.
+Không phục hồi UC03 hoặc admission token.
