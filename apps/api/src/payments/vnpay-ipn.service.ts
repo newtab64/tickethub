@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, sql, inArray } from "drizzle-orm";
 import { randomBytes } from "node:crypto";
 import {
   OrderStatus,
@@ -12,6 +12,7 @@ import {
 
 import { db } from "../database/db";
 import {
+  events,
   orders,
   transactions,
   orderItems,
@@ -22,6 +23,9 @@ import {
   auditLog,
 } from "../database/schema";
 
+import { settleLatePayment } from "./late-payment";
+import { parseVnpayDate } from "./vnpay-api";
+import type { VerifyPaymentResult } from "./payment-gateway.interface";
 import { VnpayGateway } from "./vnpay.gateway";
 import { toVnpayAmount } from "./vnpay-amount";
 import { decideVnpayIpn, type IpnDecision } from "./vnpay-ipn.decision";
@@ -51,6 +55,16 @@ export class VnpayIpnService {
       return "INVALID_SIGNATURE";
     }
 
+    return this.settleVerified(params, verified);
+  }
+
+  async settleVerified(
+    params: Record<string, string>,
+    verified: VerifyPaymentResult,
+    source: "IPN" | "QUERYDR" = "IPN",
+  ): Promise<IpnDecision> {
+    if (!verified.verified || !verified.transactionRef)
+      return "INVALID_SIGNATURE";
     // 2. Tim giao dich do Backend da tao
     const existing = await db.query.transactions.findFirst({
       where: and(
@@ -65,9 +79,10 @@ export class VnpayIpnService {
     const finalSuccess =
       params.vnp_ResponseCode === "00" && params.vnp_TransactionStatus === "00";
     const finalFailure =
-      params.vnp_ResponseCode !== "00" &&
-      params.vnp_ResponseCode !== "07" &&
-      params.vnp_TransactionStatus === "02";
+      params.vnp_TransactionStatus === "02" &&
+      (source === "QUERYDR"
+        ? params.vnp_ResponseCode === "00"
+        : params.vnp_ResponseCode !== "00" && params.vnp_ResponseCode !== "07");
     if (!finalSuccess && !finalFailure) {
       return "MANUAL_REVIEW";
     }
@@ -116,9 +131,22 @@ export class VnpayIpnService {
         return "ALREADY_PROCESSED";
       }
 
+      if (
+        amountMatches &&
+        transaction.status === TransactionStatus.SUCCESS &&
+        [OrderStatus.PAYMENT_EXPIRED_REFUND_PENDING, OrderStatus.REFUNDED].some(
+          (status) => status === order.status,
+        )
+      )
+        return "ALREADY_PROCESSED";
       const now = new Date();
+      const event = await tx.query.events.findFirst({
+        where: eq(events.id, order.eventId),
+      });
+      const eventUnavailable =
+        event?.status === "SUSPENDED" || event?.status === "CANCELLED";
 
-      const decision = decideVnpayIpn({
+      let decision = decideVnpayIpn({
         signatureValid: true,
         transactionFound: true,
         amountMatches,
@@ -128,6 +156,23 @@ export class VnpayIpnService {
         orderExpired: now >= order.expiresAt,
       });
 
+      if (eventUnavailable && decision === "APPLY_SUCCESS")
+        decision = "MANUAL_REVIEW";
+      if (
+        decision === "MANUAL_REVIEW" &&
+        verified.success &&
+        amountMatches &&
+        transaction.status === TransactionStatus.PENDING &&
+        parseVnpayDate(transaction.vnpCreateDate ?? undefined) &&
+        (order.status === OrderStatus.CANCELLED ||
+          order.status === OrderStatus.EXPIRED ||
+          (order.status === OrderStatus.PENDING && eventUnavailable) ||
+          (order.status === OrderStatus.PENDING && now >= order.expiresAt)) &&
+        /^\d{1,15}$/.test(params.vnp_TransactionNo ?? "") &&
+        parseVnpayDate(params.vnp_PayDate)
+      ) {
+        return settleLatePayment(tx, order, transaction, params);
+      }
       if (decision !== "APPLY_SUCCESS" && decision !== "RECORD_FAILURE") {
         // Ghi nhan callback thanh toan thanh cong
         // nhung khong the xac nhan don hang.
@@ -139,7 +184,7 @@ export class VnpayIpnService {
             .from(auditLog)
             .where(
               and(
-                eq(auditLog.action, "VNPAY_IPN_MANUAL_REVIEW"),
+                eq(auditLog.action, `VNPAY_${source}_MANUAL_REVIEW`),
                 eq(auditLog.targetType, "TRANSACTION"),
                 eq(auditLog.targetId, transaction.id),
               ),
@@ -171,7 +216,7 @@ export class VnpayIpnService {
 
             await tx.insert(auditLog).values({
               actorRole: "SYSTEM",
-              action: "VNPAY_IPN_MANUAL_REVIEW",
+              action: `VNPAY_${source}_MANUAL_REVIEW`,
               targetType: "TRANSACTION",
               targetId: transaction.id,
               changes: {
@@ -298,6 +343,7 @@ export class VnpayIpnService {
           responseCode: params.vnp_ResponseCode ?? null,
           providerTxNumber: verified.providerTransactionId ?? null,
           bankCode: params.vnp_BankCode ?? null,
+          payDate: parseVnpayDate(params.vnp_PayDate),
           rawCallback: params,
           updatedAt: now,
         })
@@ -321,7 +367,7 @@ export class VnpayIpnService {
       if (decision === "APPLY_SUCCESS") {
         const ticketRows = items.flatMap((item) =>
           Array.from({ length: item.quantity }, () => ({
-            ticketCode: `TK${randomBytes(14).toString("hex").toUpperCase()}`,
+            ticketCode: `TK${randomBytes(15).toString("hex").toUpperCase()}`,
             orderId: order.id,
             userId: order.userId,
             eventId: order.eventId,
@@ -358,7 +404,11 @@ export class VnpayIpnService {
 
     // Redis chỉ được invalidated sau khi transaction DB commit thành công.
     // Callback trùng, sai chữ ký, hoặc manual review không đổi tồn kho.
-    if (decision === "APPLY_SUCCESS" || decision === "RECORD_FAILURE") {
+    if (
+      decision === "APPLY_SUCCESS" ||
+      decision === "RECORD_FAILURE" ||
+      decision === "REFUND_PENDING"
+    ) {
       const [affectedOrder] = await db
         .select({ eventId: orders.eventId })
         .from(orders)
@@ -378,14 +428,28 @@ export class VnpayIpnService {
           .filter((id): id is string => id !== null && id !== undefined);
 
         if (seatIds.length > 0) {
-          await this.seatStreamService?.publishSeatStatusChanged(
-            affectedOrder.eventId,
-            {
-              seatIds,
-              status: decision === "APPLY_SUCCESS" ? "SOLD" : "AVAILABLE",
-              expiresAt: null,
-            },
-          );
+          // IPN muon co the mat ghe vao tay don khac. Phat trang thai DB that,
+          // khong gan AVAILABLE chi vi don cu duoc dua vao hang doi hoan tien.
+          const currentSeats = await db
+            .select({
+              id: seats.id,
+              status: seats.status,
+              holdExpiresAt: seats.holdExpiresAt,
+            })
+            .from(seats)
+            .where(inArray(seats.id, seatIds));
+          for (const seat of currentSeats)
+            await this.seatStreamService?.publishSeatStatusChanged(
+              affectedOrder.eventId,
+              {
+                seatIds: [seat.id],
+                status: seat.status,
+                expiresAt:
+                  seat.status === SeatStatus.HELD
+                    ? (seat.holdExpiresAt?.toISOString() ?? null)
+                    : null,
+              },
+            );
         }
       }
     }
