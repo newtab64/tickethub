@@ -1307,3 +1307,9 @@ Kiểm tra kết nối tới cơ sở dữ liệu PostgreSQL và máy chủ Redi
     }
   }
   ```
+
+### Search W03: xử lý keyword và độ liên quan
+
+Keyword được trim/normalize NFC. Keyword dưới hai ký tự bỏ điều kiện full-text nhưng vẫn áp dụng bộ lọc.
+Keyword hợp lệ ưu tiên ts_rank giảm dần, sau đó startTime/id tăng dần; cursor theo cùng thứ tự để tránh mất/trùng kết quả.
+Không phục hồi UC03 hoặc admission token.
