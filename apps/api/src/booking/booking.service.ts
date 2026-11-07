@@ -327,11 +327,13 @@ export class BookingService {
       // 2. Tự động phân bổ ghế ngồi liền kề cho vé ngồi không chỉ định seatId
       for (const autoItem of autoSeatedItems) {
         const qty = autoItem.quantity ?? 1;
-        let chosenAutoSeats: CandidateSeat[] = [];
-        let allocated = false;
-        const maxRetries = 10;
+        let chosenAutoSeats: CandidateSeat[];
+        // Ghe da bi giao dich khac chiem hoac dang bi khoa: loai khoi cac lan chon sau.
+        // Moi lan that bai them it nhat 1 ghe vao tap nay nen vong lap luon ket thuc,
+        // bang viec cap du ghe hoac INSUFFICIENT_TICKET_CAPACITY.
+        const unavailableSeatIds = new Set<string>();
 
-        for (let attempt = 0; attempt < maxRetries; attempt++) {
+        for (;;) {
           const candidateSeats = await tx
             .select({
               id: seats.id,
@@ -357,7 +359,8 @@ export class BookingService {
             .orderBy(asc(seats.rowLabel), asc(seats.seatNumber));
 
           const availableCandidates = candidateSeats.filter(
-            (s) => !allHeldSeatIdsSet.has(s.id),
+            (s) =>
+              !allHeldSeatIdsSet.has(s.id) && !unavailableSeatIds.has(s.id),
           );
 
           const chosen = findContiguousSeats(availableCandidates, qty);
@@ -375,7 +378,8 @@ export class BookingService {
 
           const chosenSeatIds = chosen.map((s) => s.id).sort();
 
-          // Khóa các ghế được chọn bằng SELECT ... FOR UPDATE theo thứ tự id tăng dần
+          // Khóa các ghế được chọn bằng SELECT ... FOR UPDATE SKIP LOCKED theo thứ tự id tăng dần.
+          // SKIP LOCKED giúp các yêu cầu đồng thời không chờ nhau và không tranh cùng một ghế.
           const lockedAutoSeats = await tx
             .select({
               id: seats.id,
@@ -399,26 +403,21 @@ export class BookingService {
               ),
             )
             .orderBy(asc(seats.id))
-            .for("update");
+            .for("update", { skipLocked: true });
 
           if (lockedAutoSeats.length === chosenSeatIds.length) {
             chosenAutoSeats = lockedAutoSeats;
-            allocated = true;
             break;
           }
-          // Neu bi transaction khac chiem mat, thu tim tiep o vong lap sau
-        }
 
-        if (!allocated || chosenAutoSeats.length < qty) {
-          throw new ConflictException({
-            success: false,
-            error: {
-              code: "SEAT_ALREADY_HELD",
-              message:
-                "Một số ghế phân bổ vừa được người khác giữ chỗ. Vui lòng thử lại.",
-              timestamp: new Date().toISOString(),
-            },
-          });
+          // Ghe khong khoa duoc la ghe da bi chiem hoac dang bi giao dich khac khoa:
+          // loai chung roi chon lai tu cac ghe con lai.
+          const lockedIds = new Set(lockedAutoSeats.map((s) => s.id));
+          for (const id of chosenSeatIds) {
+            if (!lockedIds.has(id)) {
+              unavailableSeatIds.add(id);
+            }
+          }
         }
 
         const chosenSeatIds = chosenAutoSeats.map((s) => s.id).sort();
