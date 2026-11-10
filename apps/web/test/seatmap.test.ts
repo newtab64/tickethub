@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { SeatStatus } from "@tickethub/shared";
-import { VENUE_SVG } from "../src/lib/venue-svg.generated.ts";
+import { VENUE_SVG, type VenueMapKey } from "../src/lib/venue-svg.generated.ts";
 import {
   clampPanToMap,
   fitMapRect,
@@ -21,35 +21,111 @@ describe("SeatMap: UC04 Architectural Map & Navigation", () => {
     assert.equal(SeatStatus.BLOCKED, "BLOCKED");
   });
 
-  test("VENUE_SVG chua cac ban do khan dai hop le va parse duoc viewBox", () => {
-    const venueKeys = Object.keys(VENUE_SVG);
-    assert.ok(
-      venueKeys.length >= 4,
-      "Phai co it nhat 4 loai ban do san van dong / nha hat",
-    );
-    assert.ok(
-      venueKeys.includes("arena-t-stage"),
-      "Phai co ban do arena-t-stage",
-    );
-    assert.ok(
-      venueKeys.includes("stadium-football"),
-      "Phai co ban do stadium-football",
+  test("VENUE_SVG chua du 5 mau ban do khan dai khong trung lap cho 5 loai su kien", () => {
+    const expectedZonesByMap: Record<VenueMapKey, string[]> = {
+      "arena-t-stage": [
+        "5715",
+        "27859",
+        "2196",
+        "349",
+        "495",
+        "496",
+        "497",
+        "504",
+      ],
+      "stadium-concert": [
+        "682",
+        "101",
+        "102",
+        "105",
+        "110",
+        "112",
+        "135",
+        "138",
+        "146",
+        "406",
+        "408",
+        "410",
+        "412",
+        "438",
+        "608",
+        "610",
+        "612",
+        "638",
+      ],
+      "stadium-football": [
+        "138",
+        "140",
+        "112",
+        "114",
+        "408",
+        "410",
+        "610",
+        "612",
+      ],
+      "arena-basketball": [
+        "19",
+        "22",
+        "C109",
+        "C110",
+        "105",
+        "116",
+        "120",
+        "223",
+      ],
+      theater: ["vip", "orch", "box", "balc", "518", "519", "520", "521"],
+    };
+
+    const venueKeys = Object.keys(VENUE_SVG) as VenueMapKey[];
+    assert.equal(
+      venueKeys.length,
+      5,
+      "Phai co dung 5 mau seatmap cho 5 loai su kien khac nhau",
     );
 
-    for (const key of venueKeys) {
+    const seenMarkups = new Set<string>();
+    const seenViewBoxes = new Set<string>();
+
+    for (const [key, requiredZones] of Object.entries(expectedZonesByMap) as [
+      VenueMapKey,
+      string[],
+    ][]) {
       const map = VENUE_SVG[key];
       assert.ok(map, `Ban do ${key} phai ton tai`);
       assert.ok(map.viewBox, `Ban do ${key} phai co viewBox`);
-      assert.ok(map.markup.length > 50, `Ban do ${key} phai co markup SVG`);
+      assert.ok(
+        map.markup.length > 5000,
+        `Ban do ${key} phai co markup SVG kien truc chi tiet (> 5000 ky tu)`,
+      );
 
-      // Su dung parseViewBox thuc te tu seat-map.utils
+      assert.equal(
+        seenMarkups.has(map.markup),
+        false,
+        `Markup cua ${key} khong duoc trung lap voi mau seatmap khac`,
+      );
+      seenMarkups.add(map.markup);
+
+      assert.equal(
+        seenViewBoxes.has(map.viewBox),
+        false,
+        `viewBox cua ${key} khong duoc trung lap`,
+      );
+      seenViewBoxes.add(map.viewBox);
+
       const parsed = parseViewBox(map.viewBox);
       assert.ok(parsed.width > 0, `viewBox width cua ${key} phai > 0`);
       assert.ok(parsed.height > 0, `viewBox height cua ${key} phai > 0`);
       assert.ok(
         map.markup.includes("data-zone"),
-        `Markup ${key} phai chua it nhat 1 khu vuc data-zone`,
+        `Markup ${key} phai chua khu vuc data-zone`,
       );
+
+      for (const zoneId of requiredZones) {
+        assert.ok(
+          map.markup.includes(`data-zone="${zoneId}"`),
+          `Ban do ${key} phai chua data-zone="${zoneId}"`,
+        );
+      }
     }
   });
 
