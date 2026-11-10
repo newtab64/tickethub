@@ -42,6 +42,7 @@ import {
 } from "@/components/events/seat-map.utils";
 import { useSession } from "@/providers/session-provider";
 import { getAccessToken } from "@/lib/api/client";
+import { useSeatStream } from "@/hooks/use-seat-stream";
 
 export default function EventBookingPage() {
   const params = useParams<{ id: string }>();
@@ -71,7 +72,25 @@ function EventSplitView({ event }: { event: EventItem }) {
   const cannotBuyTickets = isAdmin || isOrganizer;
 
   const mapKey = useMemo(() => getEventVenueMapKey(event), [event]);
-  const allListings = useMemo(() => getEventListings(event), [event]);
+  const baseListings = useMemo(() => getEventListings(event), [event]);
+  const {
+    isConnected: isSseConnected,
+    isPollingFallback,
+    zoneDeltaMap,
+    broadcastSeatChange,
+  } = useSeatStream({ eventId: event.id });
+
+  const allListings = useMemo(() => {
+    return baseListings.map((listing) => {
+      const delta = zoneDeltaMap[listing.zoneId] ?? 0;
+      if (delta === 0) return listing;
+      return {
+        ...listing,
+        availableTickets: Math.max(0, listing.availableTickets + delta),
+      };
+    });
+  }, [baseListings, zoneDeltaMap]);
+
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -291,6 +310,17 @@ function EventSplitView({ event }: { event: EventItem }) {
       setAllocatedSeats(data.allocatedSeats || []);
       setSelectedListing(listing);
       setHoldErrorMessage(null);
+      broadcastSeatChange({
+        seatIds: Array.isArray(data.allocatedSeats)
+          ? data.allocatedSeats.map((s: { id: string }) => s.id)
+          : Array.from(
+              { length: ticketQuantity },
+              (_, idx) => `${listing.id}-${idx}`,
+            ),
+        status: "HELD",
+        zoneId: listing.zoneId,
+        expiresAt: data.holdExpiresAt ?? null,
+      });
     } catch (err: unknown) {
       resetHoldState();
       setHoldErrorMessage(
@@ -305,10 +335,26 @@ function EventSplitView({ event }: { event: EventItem }) {
 
   const handleCancelHold = async () => {
     const currentOrderId = holdOrderId;
+    const prevListing = selectedListing;
+    const prevSeats = allocatedSeats;
 
     // Đóng drawer ngay để người dùng không thao tác tiếp trên phiên đã hủy
     resetHoldState();
     setHoldErrorMessage(null);
+
+    if (prevListing) {
+      broadcastSeatChange({
+        seatIds:
+          prevSeats.length > 0
+            ? prevSeats.map((s) => s.id)
+            : Array.from(
+                { length: ticketQuantity },
+                (_, idx) => `${prevListing.id}-${idx}`,
+              ),
+        status: "AVAILABLE",
+        zoneId: prevListing.zoneId,
+      });
+    }
 
     // Gọi API release hold để giải phóng ghế; báo lỗi thật nếu không nhả được
     if (currentOrderId) {
@@ -371,6 +417,14 @@ function EventSplitView({ event }: { event: EventItem }) {
               <span className="hidden sm:inline text-[#cbd5e1]">•</span>
               <span className="hidden sm:inline truncate text-[#868f97]">
                 {event.venue}, {event.city}
+              </span>
+              <span className="hidden lg:inline-flex items-center gap-1.5 ml-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-primary text-[11px] font-semibold">
+                <span className="size-1.5 rounded-full bg-primary" />
+                {isSseConnected
+                  ? "Cập nhật trực tiếp"
+                  : isPollingFallback
+                    ? "Đồng bộ 10s"
+                    : "Sẵn sàng"}
               </span>
             </div>
           </div>
