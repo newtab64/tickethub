@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { verifyJwt } from "../src/lib/auth-crypto.ts";
+import { verifyJwt } from "../src/features/identity/api/jwt-verify.ts";
 
 const SECRET = "tickethub-super-secret-development-jwt-key-2026-min-32-chars";
 

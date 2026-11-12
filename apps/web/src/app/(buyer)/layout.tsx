@@ -1,7 +1,7 @@
 // apps/web/src/app/(buyer)/layout.tsx
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
+import { Logo } from "@/shared/ui/logo";
 
 export default function BuyerLayout({
   children,

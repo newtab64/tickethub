@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TicketHub Web
 
-## Getting Started
+Ứng dụng giao diện của TicketHub xây dựng bằng Next.js App Router và React. Tổ chức mã theo tính năng; mô tả đầy đủ nằm trong [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md) (mục "Kiến trúc frontend theo tính năng").
 
-First, run the development server:
+## Chạy ứng dụng
+
+Từ thư mục gốc của kho mã:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm --filter @tickethub/web dev     # chế độ phát triển, http://localhost:3000
+pnpm --filter @tickethub/web build   # biên dịch bản production
+pnpm --filter @tickethub/web start   # chạy bản đã biên dịch
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Cần Node.js 22 LTS trở lên. Các biến môi trường ứng dụng đọc: `NEXT_PUBLIC_API_URL` (địa chỉ API cho trình duyệt), `API_URL` (địa chỉ API cho proxy giữ chỗ phía máy chủ, mặc định lấy từ `NEXT_PUBLIC_API_URL`) và `JWT_SECRET` (khóa xác thực chữ ký JWT trong `proxy.ts`, phải trùng với backend; có giá trị mặc định chỉ dùng cho phát triển).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Cấu trúc mã nguồn
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/                 # Route Next.js: page.tsx, layout.tsx, route handler (chỉ ghép nối)
+├── features/<tên>/
+│   ├── domain/          # Kiểu và hàm thuần, không phụ thuộc React hay Next
+│   ├── api/             # Gọi backend, lưu trữ trình duyệt, xác thực
+│   ├── data/            # Dữ liệu tạm cho đến khi có API
+│   ├── ui/              # Màn hình, hook use-*-screen và các khối giao diện
+│   ├── index.ts         # API công khai của feature
+│   └── server.ts        # Điểm vào phía máy chủ (nếu có)
+├── shared/              # api client, thành phần UI nền tảng, định dạng
+└── proxy.ts             # Bảo vệ route theo vai trò
+```
 
-## Learn More
+Các feature: `identity`, `event`, `booking`, `payment`, `ticketing`, `organizer`, `moderation`, `venue`.
 
-To learn more about Next.js, take a look at the following resources:
+## Kiểm thử
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm --filter @tickethub/web test       # test đơn vị (node:test), gồm test kiến trúc
+pnpm --filter @tickethub/web lint
+pnpm --filter @tickethub/web test:e2e   # Playwright, cần backend đang chạy
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Sơ đồ SVG địa điểm được sinh bằng `python3 apps/web/scripts/build-venue-maps.py` và ghi vào `src/features/venue/data/venue-svg.generated.ts`.
