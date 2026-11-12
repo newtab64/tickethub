@@ -1,8 +1,10 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { VenuesService } from "../src/venues/venues.service";
+import { createVenueServices } from "../src/contexts/venue/venue.composition";
+import { VenueDomainError } from "../src/contexts/venue/domain/venue.errors";
+import { InMemoryVenueRepository } from "./helpers/in-memory-venue.repository";
 import type Redis from "ioredis";
-import type { UpdateVenueDto, CreateVenueLayoutDto } from "@tickethub/shared";
+import type { CreateVenueLayoutDto } from "@tickethub/shared";
 
 describe("VenuesService Unit Tests", () => {
   let mockRedis: {
@@ -17,7 +19,8 @@ describe("VenuesService Unit Tests", () => {
     keys: (pattern: string) => Promise<string[]>;
   };
   let cacheStore: Map<string, string>;
-  let service: VenuesService;
+  let repo: InMemoryVenueRepository;
+  let service: ReturnType<typeof createVenueServices>;
 
   beforeEach(() => {
     cacheStore = new Map<string, string>();
@@ -40,7 +43,8 @@ describe("VenuesService Unit Tests", () => {
       },
     };
 
-    service = new VenuesService(mockRedis as unknown as Redis);
+    repo = new InMemoryVenueRepository();
+    service = createVenueServices(mockRedis as unknown as Redis, { repo });
   });
 
   it("should return cached venue layouts when cache hit occurs", async () => {
@@ -61,7 +65,7 @@ describe("VenuesService Unit Tests", () => {
 
     cacheStore.set(`venue:layouts:${venueId}`, JSON.stringify(cachedData));
 
-    const result = await service.getVenueLayouts(venueId);
+    const result = await service.queries.getVenueLayouts(venueId);
     assert.deepEqual(result, cachedData);
   });
 
@@ -69,20 +73,6 @@ describe("VenuesService Unit Tests", () => {
     const venueId = "venue-456";
     cacheStore.set(`venue:layouts:${venueId}`, JSON.stringify([]));
     cacheStore.set("venues:list:all", JSON.stringify([]));
-
-    // Mock create layout internal DB call
-    service["insertVenueLayoutToDb"] = async (
-      vId: string,
-      dto: CreateVenueLayoutDto,
-    ) => ({
-      id: "layout-new",
-      venueId: vId,
-      ...dto,
-      isDefault: dto.isDefault ?? false,
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    });
 
     const newLayout: CreateVenueLayoutDto = {
       name: "Sơ đồ mới",
@@ -93,34 +83,37 @@ describe("VenuesService Unit Tests", () => {
       isDefault: false,
     };
 
-    await service.createVenueLayout(venueId, newLayout);
+    await service.commands.createVenueLayout(venueId, newLayout);
 
     assert.equal(cacheStore.has(`venue:layouts:${venueId}`), false);
     assert.equal(cacheStore.has("venues:list:all"), false);
   });
 
   it("should invalidate redis cache when venue is updated", async () => {
-    const venueId = "venue-789";
-    cacheStore.set(`venue:detail:${venueId}`, JSON.stringify({ id: venueId }));
     cacheStore.set("venues:list:page1", JSON.stringify([]));
 
-    service["updateVenueInDb"] = async (id: string, dto: UpdateVenueDto) => ({
-      id,
-      name: dto.name || "Default",
+    const venue = await repo.create({
+      name: "Default",
       shortName: "DEF",
       city: "Hà Nội",
       district: "Ba Đình",
       address: "123 Đường",
       category: "stadium",
       totalCapacity: "30,000",
-      isActive: true,
-      createdAt: new Date(),
-      updatedAt: new Date(),
     });
+    cacheStore.set(`venue:detail:${venue.id}`, JSON.stringify({}));
 
-    await service.updateVenue(venueId, { name: "Tên Mới" });
+    await service.commands.updateVenue(venue.id, { name: "Tên Mới" });
 
-    assert.equal(cacheStore.has(`venue:detail:${venueId}`), false);
+    assert.equal(cacheStore.has(`venue:detail:${venue.id}`), false);
     assert.equal(cacheStore.has("venues:list:page1"), false);
+  });
+
+  it("throws a domain error when updating a venue that does not exist", async () => {
+    await assert.rejects(
+      () => service.commands.updateVenue("missing", { name: "x" }),
+      (err: unknown) =>
+        err instanceof VenueDomainError && err.code === "VENUE_NOT_FOUND",
+    );
   });
 });

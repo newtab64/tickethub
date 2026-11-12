@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { decideRecovery } from "../src/jobs/recovery-decision";
+import { decideRecovery } from "../src/contexts/notification/domain/recovery-decision";
 
 test("Waiting job must not be recovered", () => {
   assert.equal(decideRecovery("waiting", 0, 3), "WAIT");

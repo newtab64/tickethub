@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { SeatStreamService } from "../src/events/seat-stream.service";
-import type { SeatStreamMessageEvent } from "../src/events/seat-stream.service";
+import { SeatStreamService } from "../src/contexts/event/infrastructure/seat-stream.service";
+import type { SeatStreamMessageEvent } from "../src/contexts/event/infrastructure/seat-stream.service";
 import type Redis from "ioredis";
 
 describe("E2E Integration Simulation: Realtime Seat Stream (SSE & Redis Pub/Sub)", () => {

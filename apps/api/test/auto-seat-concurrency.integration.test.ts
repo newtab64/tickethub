@@ -1,12 +1,12 @@
-import type { HttpErrorLike } from "./helpers/http-error";
+import { errorCodeOf } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { asc, eq, inArray } from "drizzle-orm";
 import postgres from "postgres";
-import { BookingService } from "../src/booking/booking.service";
+import { createBookingCommands } from "../src/contexts/booking/booking.composition";
 import { db, sqlClient } from "../src/database/db";
 import { env } from "../src/config/env.config";
-import type { EventReadCacheService } from "../src/events/event-read-cache.service";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
 import {
   users,
   events,
@@ -26,7 +26,7 @@ import {
 
 const cacheStub = {
   invalidate: async (_eventId: string): Promise<void> => {},
-} as EventReadCacheService;
+} as EventReadModel;
 
 const SEATS_PER_ROW = 10;
 const ROWS = 15;
@@ -42,7 +42,7 @@ function rowLabel(index: number): string {
 }
 
 describe("Auto Seat Allocation: dong thoi nhieu nguoi mua cung mot hang ve", () => {
-  const bookingService = new BookingService(cacheStub);
+  const bookingService = createBookingCommands(cacheStub);
 
   let buyerIds: string[] = [];
   let eventId = "";
@@ -281,8 +281,7 @@ describe("Auto Seat Allocation: dong thoi nhieu nguoi mua cung mot hang ve", () 
         `Con ${SEATS_PER_ROW * ROWS - COLLIDING_SEATS} ghe trong, khong duoc tu choi. Ma loi: ${
           outcome.ok
             ? ""
-            : ((outcome.reason as HttpErrorLike).response?.error?.code ??
-              String(outcome.reason))
+            : (errorCodeOf(outcome.reason) ?? String(outcome.reason))
         }`,
       );
       if (outcome.ok) {
@@ -316,7 +315,7 @@ describe("Auto Seat Allocation: dong thoi nhieu nguoi mua cung mot hang ve", () 
       `Vung con ${SEATS_PER_ROW * ROWS - BUYER_COUNT} ghe trong sau khi giu xong, khong duoc tu choi ai. Ma loi: ${rejected
         .map(
           (r) =>
-            (r as PromiseRejectedResult).reason?.response?.error?.code ??
+            errorCodeOf((r as PromiseRejectedResult).reason) ??
             String((r as PromiseRejectedResult).reason),
         )
         .join(", ")}`,
@@ -386,8 +385,7 @@ describe("Auto Seat Allocation: dong thoi nhieu nguoi mua cung mot hang ve", () 
     );
     assert.equal(losers.length, 59);
     for (const loser of losers) {
-      const err = loser.reason as HttpErrorLike;
-      assert.equal(err.response?.error?.code, "INSUFFICIENT_TICKET_CAPACITY");
+      assert.equal(errorCodeOf(loser.reason), "INSUFFICIENT_TICKET_CAPACITY");
     }
   });
 });

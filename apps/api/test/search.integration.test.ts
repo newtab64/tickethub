@@ -11,11 +11,11 @@ import {
   organizerProfiles,
   users,
 } from "../src/database/schema";
-import { SearchService } from "../src/search/search.service";
-import { SearchController } from "../src/search/search.controller";
+import { createSearchEventsUseCase } from "../src/contexts/search/search.composition";
+import { SearchController } from "../src/contexts/search/interface/search.controller";
 
 describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => {
-  let searchService: SearchService;
+  let searchEvents: ReturnType<typeof createSearchEventsUseCase>;
   let searchController: SearchController;
 
   let organizerId = "";
@@ -26,8 +26,8 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
   let event3Id = "";
 
   before(async () => {
-    searchService = new SearchService();
-    searchController = new SearchController(searchService);
+    searchEvents = createSearchEventsUseCase();
+    searchController = new SearchController(searchEvents);
 
     // 1. Tim hoac tao organizer profile mau
     let orgProfile = await db.query.organizerProfiles.findFirst();
@@ -218,7 +218,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
 
   describe("1. Tim kiem Full-Text tieng Viet unaccent (co dau va khong dau)", () => {
     it("Tim 'trinh cong son' khong dau -> tim thay su kien Dem Nhac", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         keyword: "trinh cong son",
         limit: 10,
       });
@@ -229,7 +229,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Tim 'Trịnh Công Sơn' co dau -> tim thay su kien Dem Nhac", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         keyword: "Trịnh Công Sơn",
         limit: 10,
       });
@@ -239,7 +239,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Tim tu trong mo ta 'tuyet pham bat hu' -> tim thay su kien tuong ung", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         keyword: "tuyet pham bat hu",
         limit: 10,
       });
@@ -249,7 +249,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Tim 'tri tue nhan tao' khong dau -> tim thay su kien Hoi Thao AI", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         keyword: "tri tue nhan tao",
         limit: 10,
       });
@@ -259,7 +259,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Tim 'marathon' -> tim thay su kien Giai Chay", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         keyword: "marathon",
         limit: 10,
       });
@@ -271,13 +271,13 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
 
   describe("2. Loc da tieu chi (City, Category, Price, Date)", () => {
     it("Loc theo thanh pho co dau va khong dau: 'Hà Nội' / 'ha noi'", async () => {
-      const res1 = await searchService.searchEvents({
+      const res1 = await searchEvents.execute({
         city: "Hà Nội",
         limit: 10,
       });
       assert.ok(res1.items.some((item) => item.id === event1Id));
 
-      const res2 = await searchService.searchEvents({
+      const res2 = await searchEvents.execute({
         city: "ha noi",
         limit: 10,
       });
@@ -286,7 +286,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Loc theo the loai category: 'CONCERT'", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         category: "CONCERT",
         limit: 10,
       });
@@ -295,7 +295,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Loc theo khoang gia minPrice: 600000 -> chi tra ve su kien co ve >= 600.000", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         minPrice: 600000,
         limit: 10,
       });
@@ -308,7 +308,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Loc theo khoang gia maxPrice: 250000 -> chi tra ve su kien co ve <= 250.000", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         maxPrice: 250000,
         limit: 10,
       });
@@ -320,7 +320,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
     });
 
     it("Loc theo khoang thoi gian fromDate va toDate", async () => {
-      const res = await searchService.searchEvents({
+      const res = await searchEvents.execute({
         fromDate: "2026-11-14T00:00:00.000Z",
         toDate: "2026-11-16T23:59:59.000Z",
         limit: 10,
@@ -335,7 +335,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
 
   describe("3. Phan trang bang con tro (Cursor Pagination)", () => {
     it("Phan trang dung thu tu va nextCursor chinh xac", async () => {
-      const page1 = await searchService.searchEvents({
+      const page1 = await searchEvents.execute({
         limit: 2,
       });
 
@@ -343,7 +343,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
       assert.equal(page1.hasMore, true);
       assert.ok(page1.nextCursor);
 
-      const page2 = await searchService.searchEvents({
+      const page2 = await searchEvents.execute({
         cursor: page1.nextCursor!,
         limit: 2,
       });
@@ -361,7 +361,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
 
     it("Tu choi cursor khong ton tai", async () => {
       await assert.rejects(
-        searchService.searchEvents({
+        searchEvents.execute({
           cursor: "00000000-0000-0000-0000-000000000000",
           limit: 10,
         }),
@@ -417,7 +417,7 @@ describe("W03-BE2: Event Full-Text Search (UC02) Integration Test Suite", () => 
 
       for (let i = 0; i < iterations; i++) {
         const start = performance.now();
-        await searchService.searchEvents({
+        await searchEvents.execute({
           keyword: "nhac trinh",
           city: "Ha Noi",
           limit: 10,

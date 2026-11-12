@@ -1,9 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { BadRequestException } from "@nestjs/common";
-import { RefundsController } from "../src/refunds/refunds.controller";
-import type { RefundsService } from "../src/refunds/refunds.service";
-import type { AuthenticatedUser } from "../src/auth/decorators/current-user.decorator";
+import { RefundsController } from "../src/contexts/refund/interface/refunds.controller";
+import type { PreviewRefundUseCase } from "../src/contexts/refund/application/preview-refund.use-case";
+import type { RequestRefundUseCase } from "../src/contexts/refund/application/request-refund.use-case";
+import type { AuthenticatedUser } from "../src/contexts/identity/interface/decorators/current-user.decorator";
 import type {
   RefundPreviewRequest,
   RefundPreviewResponse,
@@ -18,10 +19,9 @@ describe("RefundsController Unit Tests", () => {
     role: "BUYER",
   };
 
-  const mockRefundsService = {
-    previewRefund: async (
-      userId: string,
-      role: string,
+  const mockPreview = {
+    execute: async (
+      _actor: { userId: string; role: string },
       dto: RefundPreviewRequest,
     ): Promise<RefundPreviewResponse> => {
       return {
@@ -34,9 +34,11 @@ describe("RefundsController Unit Tests", () => {
         totalFeeDeducted: 0,
       };
     },
-    executeRefund: async (
-      _userId: string,
-      _role: string,
+  } as unknown as PreviewRefundUseCase;
+
+  const mockRequest = {
+    execute: async (
+      _actor: { userId: string; role: string },
       dto: RefundExecuteRequest,
       _idempotencyKey: string,
     ): Promise<RefundExecuteResponse> => {
@@ -50,9 +52,9 @@ describe("RefundsController Unit Tests", () => {
         orderStatus: "PAID",
       };
     },
-  } as unknown as RefundsService;
+  } as unknown as RequestRefundUseCase;
 
-  const controller = new RefundsController(mockRefundsService);
+  const controller = new RefundsController(mockPreview, mockRequest);
 
   it("successfully previews refund", async () => {
     const res = await controller.preview(mockUser, {

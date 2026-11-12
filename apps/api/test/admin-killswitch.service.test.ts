@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { db, sqlClient } from "../src/database/db";
-import { AdminService } from "../src/admin/admin.service";
+import { createModerationServices } from "../src/contexts/moderation/moderation.composition";
+import { ModerationDomainError } from "../src/contexts/moderation/domain/moderation.errors";
 import {
   users,
   events,
@@ -21,10 +22,10 @@ import {
   SeatStatus,
   RefundPolicyType,
 } from "@tickethub/shared";
-import { ConflictException } from "@nestjs/common";
 
-describe("AdminService Kill Switch, Resumption & Audit Logs", () => {
-  let adminService: AdminService;
+describe("Moderation Kill Switch, Resumption & Audit Logs", () => {
+  let adminService: ReturnType<typeof createModerationServices>["events"];
+  let auditLogs: ReturnType<typeof createModerationServices>["auditLogs"];
 
   const createdUserIds: string[] = [];
   const createdEventIds: string[] = [];
@@ -40,7 +41,9 @@ describe("AdminService Kill Switch, Resumption & Audit Logs", () => {
   let orgProfileId = "";
 
   before(async () => {
-    adminService = new AdminService();
+    const services = createModerationServices();
+    adminService = services.events;
+    auditLogs = services.auditLogs;
     const stamp = Date.now();
 
     // 1. Setup Admin
@@ -269,7 +272,8 @@ describe("AdminService Kill Switch, Resumption & Audit Logs", () => {
           reason: "Kich hoat lai",
         }),
       (err: unknown) => {
-        assert.ok(err instanceof ConflictException);
+        assert.ok(err instanceof ModerationDomainError);
+        assert.equal(err.kind, "CONFLICT");
         assert.match((err as Error).message, /EVENT_ALREADY_SUSPENDED/);
         return true;
       },
@@ -301,7 +305,7 @@ describe("AdminService Kill Switch, Resumption & Audit Logs", () => {
   });
 
   it("retrieves paginated audit logs for the event", async () => {
-    const auditRes = await adminService.getEventAuditLogs(testEventId, {
+    const auditRes = await auditLogs.getEventAuditLogs(testEventId, {
       page: 1,
       limit: 10,
     });

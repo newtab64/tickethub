@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { calculatePayout } from "../src/payouts/payout-calculator";
+import { calculatePayout } from "../src/contexts/payout/domain/payout-calculator";
 
 describe("PayoutCalculator", () => {
   it("calculates standard payout with 5% platform fee and 1.5% gateway fee", () => {

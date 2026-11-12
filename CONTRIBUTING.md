@@ -71,6 +71,8 @@ Hệ thống quản lý mã nguồn với hai nhánh chính và các nhánh làm
 ## 5. Tiêu chuẩn mã nguồn (Code Standards)
 
 - **TypeScript nghiêm ngặt:** Kích hoạt chế độ kiểm tra toàn diện (`strict: true`, `noUncheckedIndexedAccess: true`, `exactOptionalPropertyTypes: true`). Không sử dụng kiểu `any`. Định nghĩa kiểu rõ ràng cho tham số và giá trị trả về; sử dụng kiểu `unknown` kết hợp Zod schema đối với dữ liệu từ bên ngoài.
+- **Kiến trúc backend:** Mã backend tổ chức theo bounded context và 4 tầng `domain`, `application`, `infrastructure`, `interface` tại `apps/api/src/contexts/`. Quy tắc phụ thuộc giữa các tầng bắt buộc tuân thủ và được kiểm tra bởi `apps/api/test/architecture.test.ts` (xem [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) và [docs/DEVELOPMENT_STANDARDS.md](docs/DEVELOPMENT_STANDARDS.md)). Quy tắc nghiệp vụ mới đặt ở `domain`, không đặt trong controller hay adapter.
+- **Kiến trúc frontend:** Mã frontend tổ chức theo feature tại `apps/web/src/features/` (mỗi feature gồm `domain`, `api`, `data`, `ui`, `index.ts`); `src/app/` chỉ ghép route mỏng. Quy tắc phụ thuộc được kiểm tra bởi `apps/web/test/architecture.test.ts` (xem [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
 - **Tổ chức mã dùng chung:** Toàn bộ Zod schemas, hằng số dùng chung và interface dữ liệu giữa client và server phải đặt trong package `packages/shared`.
 - **An toàn giao dịch:** Logic giữ chỗ, mua vé và thanh toán phải thực thi trong database transaction của PostgreSQL với cơ chế khóa hàng (`SELECT ... FOR UPDATE` sắp xếp `id ASC`) để triệt tiêu nguy cơ tranh chấp hoặc bế tắc (deadlock).
 - **Gửi thông báo phi đồng bộ:** Không gọi API bên thứ ba (email, SMS) trực tiếp trong transaction của đơn hàng; bắt buộc sử dụng bảng `outbox` (Transactional Outbox pattern).
@@ -92,7 +94,7 @@ Hệ thống quản lý mã nguồn với hai nhánh chính và các nhánh làm
   - `refactor`: Tái cấu trúc mã nguồn.
   - `test`: Thêm hoặc sửa đổi bài kiểm thử.
   - `chore`: Cấu hình phụ thuộc, công cụ phát triển hoặc tác vụ bảo trì.
-- **Scope thường dùng:** `api`, `web`, `shared`, `auth`, `booking`, `events`, `config`.
+- **Scope thường dùng:** `api`, `web`, `shared`, `config`, hoặc tên bounded context: `identity`, `event`, `venue`, `search`, `upload`, `booking`, `payment`, `refund`, `ticketing`, `moderation`, `payout`, `notification`; với frontend dùng tên feature: `identity`, `event`, `booking`, `payment`, `ticketing`, `organizer`, `moderation`, `venue`.
 - **Quy định quan trọng:** Không chèn biểu tượng cảm xúc hoặc ký tự tượng hình vào tiêu đề và nội dung commit.
 
 ## 7. Tiêu chuẩn kiểm thử (Testing Guidelines)
@@ -101,8 +103,10 @@ Hệ thống quản lý mã nguồn với hai nhánh chính và các nhánh làm
   ```bash
   pnpm test
   ```
+- Mỗi quy tắc mới ở tầng `domain` cần test đơn vị không phụ thuộc cơ sở dữ liệu; test kiến trúc `apps/api/test/architecture.test.ts` phải tiếp tục đạt.
 - Kiểm thử logic xử lý tranh chấp ghế, thanh toán và kiểm soát vé phải chạy trực tiếp với cơ sở dữ liệu PostgreSQL và Redis thật (không dùng mock cho các giao dịch trạng thái cốt lõi).
 - Các thay đổi liên quan đến tồn kho vé phải có ca kiểm thử đồng thời (tối thiểu 50 yêu cầu song song).
+- Bộ test tích hợp IPN của VNPay chỉ chạy khi tên cơ sở dữ liệu trong `DATABASE_URL` khớp biến `IPN_TEST_DB_NAME` (mặc định `tickethub_ipn_test`). Khi kiểm thử cục bộ, đặt biến này theo cơ sở dữ liệu kiểm thử riêng, nếu không bộ test sẽ tự bỏ qua.
 - Đối với mã nguồn có sự hỗ trợ của AI, bài kiểm thử phải bao quát các trường hợp biên (edge cases), kiểm tra tính toàn vẹn dữ liệu và xác minh hành vi thực tế trước khi gửi Pull Request.
 
 ## 8. Quy định về mã nguồn do AI hỗ trợ (AI-Generated Code)

@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { VnpayIpnService } from "../src/payments/vnpay-ipn.service";
+import { createPaymentUseCases } from "../src/contexts/payment/payment.composition";
 
 test("IPN: Reject callback without signature", async () => {
-  const service = new VnpayIpnService();
+  const service = createPaymentUseCases().processIpn;
 
   const result = await service.process({
     vnp_TxnRef: "TEST001",
@@ -17,7 +17,7 @@ test("IPN: Reject callback without signature", async () => {
 });
 
 test("IPN: Reject malformed signature", async () => {
-  const service = new VnpayIpnService();
+  const service = createPaymentUseCases().processIpn;
 
   const result = await service.process({
     vnp_TxnRef: "TEST002",
@@ -31,7 +31,7 @@ test("IPN: Reject malformed signature", async () => {
 });
 
 test("IPN: Reject incorrect signature", async () => {
-  const service = new VnpayIpnService();
+  const service = createPaymentUseCases().processIpn;
 
   const result = await service.process({
     vnp_TxnRef: "TEST003",

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import type {
   SeatStreamService,
   SeatStatusChangedPayload,
-} from "../src/events/seat-stream.service";
+} from "../src/contexts/event/infrastructure/seat-stream.service";
 
 describe("Seat Status Publisher Hooks Tests", () => {
   it("should verify publisher payload format for HELD status", async () => {
