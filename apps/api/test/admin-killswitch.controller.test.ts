@@ -1,8 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { AdminController } from "../src/admin/admin.controller";
-import { AdminService } from "../src/admin/admin.service";
-import { AuthenticatedUser } from "../src/auth/decorators/current-user.decorator";
+import { AdminController } from "../src/contexts/moderation/interface/admin.controller";
+import type { KycModerationService } from "../src/contexts/moderation/application/kyc-moderation.service";
+import type { EventModerationService } from "../src/contexts/moderation/application/event-moderation.service";
+import type { AuditLogQueries } from "../src/contexts/moderation/application/audit-log-queries.service";
+import { AuthenticatedUser } from "../src/contexts/identity/interface/decorators/current-user.decorator";
 import {
   UserRole,
   EventKillSwitchData,
@@ -84,9 +86,13 @@ describe("AdminController Kill Switch & Audit Log Unit Tests", () => {
         },
       };
     },
-  } as unknown as AdminService;
+  };
 
-  const adminController = new AdminController(mockAdminService);
+  const adminController = new AdminController(
+    mockAdminService as unknown as KycModerationService,
+    mockAdminService as unknown as EventModerationService,
+    mockAdminService as unknown as AuditLogQueries,
+  );
   const testEventId = "b91f2a3c-4d5e-6f7a-8b9c-0d1e2f3a4b5c";
 
   it("successfully activates Kill Switch via AdminController", async () => {

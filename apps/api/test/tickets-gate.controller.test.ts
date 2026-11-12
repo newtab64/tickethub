@@ -1,9 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { TicketsController } from "../src/tickets/tickets.controller";
-import { GateController } from "../src/tickets/gate.controller";
-import { TicketsService } from "../src/tickets/tickets.service";
-import { AuthenticatedUser } from "../src/auth/decorators/current-user.decorator";
+import { TicketsController } from "../src/contexts/ticketing/interface/tickets.controller";
+import { GateController } from "../src/contexts/ticketing/interface/gate.controller";
+import type { BuyerTicketService } from "../src/contexts/ticketing/application/buyer-ticket.service";
+import type { GateCheckInService } from "../src/contexts/ticketing/application/gate-checkin.service";
+import { AuthenticatedUser } from "../src/contexts/identity/interface/decorators/current-user.decorator";
 import {
   UserRole,
   GetTicketQrResponse,
@@ -75,10 +76,12 @@ describe("TicketsController & GateController Unit Tests", () => {
         method: "MANUAL_LOOKUP",
       };
     },
-  } as unknown as TicketsService;
+  };
+  const mockBuyerTickets = mockTicketsService as unknown as BuyerTicketService;
+  const mockGate = mockTicketsService as unknown as GateCheckInService;
 
-  const ticketsController = new TicketsController(mockTicketsService);
-  const gateController = new GateController(mockTicketsService);
+  const ticketsController = new TicketsController(mockBuyerTickets);
+  const gateController = new GateController(mockGate);
 
   it("successfully retrieves dynamic QR token via TicketsController", async () => {
     const res = await ticketsController.getQrToken(mockUser, "tkt-123");

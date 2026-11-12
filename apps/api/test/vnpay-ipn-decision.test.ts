@@ -4,7 +4,7 @@ import { OrderStatus, TransactionStatus } from "@tickethub/shared";
 import {
   decideVnpayIpn,
   type IpnDecisionInput,
-} from "../src/payments/vnpay-ipn.decision";
+} from "../src/contexts/payment/domain/ipn-decision";
 
 const valid: IpnDecisionInput = {
   signatureValid: true,
@@ -61,14 +61,38 @@ test("Do not process duplicate completed payment", () => {
   );
 });
 
-test("Do not pay expired order", () => {
+test("A successful payment on a lapsed order is a late payment, never lost", () => {
+  for (const lapsed of [
+    { orderExpired: true },
+    { orderStatus: OrderStatus.EXPIRED },
+    { orderStatus: OrderStatus.CANCELLED },
+  ]) {
+    assert.equal(decideVnpayIpn({ ...valid, ...lapsed }), "LATE_PAYMENT");
+  }
+});
+
+test("A failed payment on a lapsed order only needs review", () => {
   assert.equal(
-    decideVnpayIpn({
-      ...valid,
-      orderExpired: true,
-    }),
+    decideVnpayIpn({ ...valid, orderExpired: true, paymentSuccessful: false }),
     "MANUAL_REVIEW",
   );
+});
+
+test("A settled late payment is not processed twice", () => {
+  for (const orderStatus of [
+    OrderStatus.PAYMENT_EXPIRED_REFUND_PENDING,
+    OrderStatus.REFUNDED,
+    OrderStatus.PAID,
+  ]) {
+    assert.equal(
+      decideVnpayIpn({
+        ...valid,
+        orderStatus,
+        transactionStatus: TransactionStatus.SUCCESS,
+      }),
+      "ALREADY_PROCESSED",
+    );
+  }
 });
 
 test("Review inconsistent order and transaction states", () => {

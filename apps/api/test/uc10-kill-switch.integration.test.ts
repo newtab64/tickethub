@@ -38,26 +38,29 @@ import {
   type AuthUser,
 } from "@tickethub/shared";
 
-import { AdminService } from "../src/admin/admin.service";
-import { AdminController } from "../src/admin/admin.controller";
-import { EventReadCacheService } from "../src/events/event-read-cache.service";
-import { EventsService } from "../src/events/events.service";
-import { BookingService } from "../src/booking/booking.service";
-import { TicketsService } from "../src/tickets/tickets.service";
-import { TicketsController } from "../src/tickets/tickets.controller";
-import { GateController } from "../src/tickets/gate.controller";
-import { Ed25519Service } from "../src/tickets/crypto/ed25519.service";
-import { RolesGuard } from "../src/auth/guards/roles.guard";
+import { createModerationServices } from "../src/contexts/moderation/moderation.composition";
+import { AdminController } from "../src/contexts/moderation/interface/admin.controller";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
+import { createEventServices } from "../src/contexts/event/event.composition";
+import { BookingDomainError } from "../src/contexts/booking/domain/booking.errors";
+import { createBookingCommands } from "../src/contexts/booking/booking.composition";
+import type { BookingCommands } from "../src/contexts/booking/application/booking-commands.service";
+import {
+  createTicketsFacade,
+  type TicketsFacade,
+} from "./helpers/tickets-facade";
+import { TicketsController } from "../src/contexts/ticketing/interface/tickets.controller";
+import { GateController } from "../src/contexts/ticketing/interface/gate.controller";
+import { Ed25519QrTokenService } from "../src/contexts/ticketing/infrastructure/ed25519-qr-token.service";
+import { RolesGuard } from "../src/contexts/identity/interface/guards/roles.guard";
 
 describe("UC10: Emergency Kill Switch & Immutable Audit Log E2E Integration Suite", () => {
   let redis: Redis;
-  let adminService: AdminService;
   let adminController: AdminController;
-  let eventCacheService: EventReadCacheService;
-  let eventsService: EventsService;
-  let bookingService: BookingService;
-  let ed25519Service: Ed25519Service;
-  let ticketsService: TicketsService;
+  let eventCacheService: EventReadModel;
+  let bookingService: BookingCommands;
+  let ed25519Service: Ed25519QrTokenService;
+  let ticketsService: TicketsFacade;
   let ticketsController: TicketsController;
   let gateController: GateController;
   let rolesGuard: RolesGuard;
@@ -122,17 +125,20 @@ describe("UC10: Emergency Kill Switch & Immutable Audit Log E2E Integration Suit
 
   before(async () => {
     redis = new Redis(env.REDIS_URL);
-    eventsService = new EventsService();
-    eventCacheService = new EventReadCacheService(redis, eventsService);
-    adminService = new AdminService(eventCacheService);
-    adminController = new AdminController(adminService);
+    eventCacheService = createEventServices(redis).readModel;
+    const moderation = createModerationServices(eventCacheService);
+    adminController = new AdminController(
+      moderation.kyc,
+      moderation.events,
+      moderation.auditLogs,
+    );
 
-    bookingService = new BookingService(eventCacheService);
+    bookingService = createBookingCommands(eventCacheService);
 
-    ed25519Service = new Ed25519Service();
-    ticketsService = new TicketsService(ed25519Service);
-    ticketsController = new TicketsController(ticketsService);
-    gateController = new GateController(ticketsService);
+    ed25519Service = new Ed25519QrTokenService();
+    ticketsService = createTicketsFacade(ed25519Service);
+    ticketsController = new TicketsController(ticketsService.buyer);
+    gateController = new GateController(ticketsService.gate);
 
     rolesGuard = new RolesGuard(new Reflector());
 
@@ -703,13 +709,9 @@ describe("UC10: Emergency Kill Switch & Immutable Audit Log E2E Integration Suit
           ],
         }),
       (err: unknown) => {
-        assert.ok(err instanceof BadRequestException);
-        const res = (err as BadRequestException).getResponse() as Record<
-          string,
-          unknown
-        >;
-        const errObj = res?.error as Record<string, unknown> | undefined;
-        assert.equal(errObj?.code, "EVENT_NOT_PUBLISHED");
+        assert.ok(err instanceof BookingDomainError);
+        assert.equal(err.kind, "BAD_REQUEST");
+        assert.equal(err.code, "EVENT_NOT_PUBLISHED");
         return true;
       },
     );

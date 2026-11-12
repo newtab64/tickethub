@@ -1,32 +1,32 @@
 import { Module } from "@nestjs/common";
 import { RedisModule } from "./database/redis.module";
 import { HealthModule } from "./health/health.module";
-import { AuthModule } from "./auth/auth.module";
-import { EventsModule } from "./events/events.module";
-import { BookingModule } from "./booking/booking.module";
-import { PaymentsModule } from "./payments/payments.module";
-import { AdminModule } from "./admin/admin.module";
-import { UploadsModule } from "./uploads/uploads.module";
-import { SearchModule } from "./search/search.module";
-import { RefundsModule } from "./refunds/refunds.module";
-import { TicketsModule } from "./tickets/tickets.module";
-import { VenuesModule } from "./venues/venues.module";
-import { PayoutsModule } from "./payouts/payouts.module";
+import { IdentityModule } from "./contexts/identity/identity.module";
+import { EventModule } from "./contexts/event/event.module";
+import { BookingModule } from "./contexts/booking/booking.module";
+import { PaymentModule } from "./contexts/payment/payment.module";
+import { ModerationModule } from "./contexts/moderation/moderation.module";
+import { UploadModule } from "./contexts/upload/upload.module";
+import { SearchModule } from "./contexts/search/search.module";
+import { RefundModule } from "./contexts/refund/refund.module";
+import { TicketingModule } from "./contexts/ticketing/ticketing.module";
+import { VenueModule } from "./contexts/venue/venue.module";
+import { PayoutModule } from "./contexts/payout/payout.module";
 @Module({
   imports: [
     RedisModule,
     HealthModule,
-    AuthModule,
-    EventsModule,
+    IdentityModule,
+    EventModule,
     BookingModule,
-    PaymentsModule,
-    AdminModule,
-    UploadsModule,
+    PaymentModule,
+    ModerationModule,
+    UploadModule,
     SearchModule,
-    RefundsModule,
-    TicketsModule,
-    VenuesModule,
-    PayoutsModule,
+    RefundModule,
+    TicketingModule,
+    VenueModule,
+    PayoutModule,
   ],
 })
 export class AppModule {}

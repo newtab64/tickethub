@@ -3,8 +3,11 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { db, sqlClient } from "../src/database/db";
-import { TicketsService } from "../src/tickets/tickets.service";
-import { Ed25519Service } from "../src/tickets/crypto/ed25519.service";
+import {
+  createTicketsFacade,
+  type TicketsFacade,
+} from "./helpers/tickets-facade";
+import { Ed25519QrTokenService } from "../src/contexts/ticketing/infrastructure/ed25519-qr-token.service";
 import {
   users,
   events,
@@ -26,15 +29,11 @@ import {
   SeatStatus,
   RefundPolicyType,
 } from "@tickethub/shared";
-import {
-  ForbiddenException,
-  ConflictException,
-  BadRequestException,
-} from "@nestjs/common";
+import { TicketingDomainError } from "../src/contexts/ticketing/domain/ticketing.errors";
 
 describe("TicketsService Gate Check-in Tests", () => {
-  let ed25519Service: Ed25519Service;
-  let ticketsService: TicketsService;
+  let ed25519Service: Ed25519QrTokenService;
+  let ticketsService: TicketsFacade;
 
   const createdUserIds: string[] = [];
   const createdEventIds: string[] = [];
@@ -55,8 +54,8 @@ describe("TicketsService Gate Check-in Tests", () => {
   let testTicketCode2 = "";
 
   before(async () => {
-    ed25519Service = new Ed25519Service();
-    ticketsService = new TicketsService(ed25519Service);
+    ed25519Service = new Ed25519QrTokenService();
+    ticketsService = createTicketsFacade(ed25519Service);
 
     const stamp = Date.now();
 
@@ -313,7 +312,8 @@ describe("TicketsService Gate Check-in Tests", () => {
       async () =>
         ticketsService.getTicketQr(otherBuyerId, UserRole.BUYER, testTicketId),
       (err: unknown) => {
-        assert.ok(err instanceof ForbiddenException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "FORBIDDEN");
         assert.match((err as Error).message, /ACCESS_DENIED/);
         return true;
       },
@@ -333,7 +333,8 @@ describe("TicketsService Gate Check-in Tests", () => {
           qrToken: qrRes.qrToken,
         }),
       (err: unknown) => {
-        assert.ok(err instanceof ForbiddenException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "FORBIDDEN");
         assert.match((err as Error).message, /STAFF_NOT_ASSIGNED_TO_EVENT/);
         return true;
       },
@@ -378,7 +379,8 @@ describe("TicketsService Gate Check-in Tests", () => {
           qrToken: qrRes.qrToken,
         }),
       (err: unknown) => {
-        assert.ok(err instanceof ConflictException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "CONFLICT");
         assert.match((err as Error).message, /TICKET_ALREADY_USED/);
         return true;
       },
@@ -396,7 +398,8 @@ describe("TicketsService Gate Check-in Tests", () => {
           reason: "Khach het pin",
         }),
       (err: unknown) => {
-        assert.ok(err instanceof BadRequestException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "BAD_REQUEST");
         assert.match((err as Error).message, /VERIFICATION_FAILED/);
         return true;
       },
@@ -441,7 +444,8 @@ describe("TicketsService Gate Check-in Tests", () => {
           reason: "Tra cuu lai",
         }),
       (err: unknown) => {
-        assert.ok(err instanceof ConflictException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "CONFLICT");
         assert.match((err as Error).message, /TICKET_ALREADY_USED/);
         return true;
       },

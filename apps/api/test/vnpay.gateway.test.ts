@@ -13,7 +13,8 @@ async function createGateway() {
   process.env.VNPAY_RETURN_URL = RETURN_URL;
   process.env.VNPAY_URL = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
 
-  const { VnpayGateway } = await import("../src/payments/vnpay.gateway");
+  const { VnpayGateway } =
+    await import("../src/contexts/payment/infrastructure/vnpay.gateway");
 
   return new VnpayGateway();
 }

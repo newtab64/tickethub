@@ -1,7 +1,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { SeatStreamService } from "../src/events/seat-stream.service";
-import type { SeatStatusChangedPayload } from "../src/events/seat-stream.service";
+import { SeatStreamService } from "../src/contexts/event/infrastructure/seat-stream.service";
+import type { SeatStatusChangedPayload } from "../src/contexts/event/infrastructure/seat-stream.service";
 import type Redis from "ioredis";
 import { firstValueFrom } from "rxjs";
 

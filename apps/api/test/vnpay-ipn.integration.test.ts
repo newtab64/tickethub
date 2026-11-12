@@ -1,21 +1,22 @@
-import test from "node:test";
+import test, { before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { and, eq, sql } from "drizzle-orm";
-import { BookingService } from "../src/booking/booking.service";
-import { PaymentService } from "../src/payments/payment.service";
-import { VnpayGateway } from "../src/payments/vnpay.gateway";
-import type { EventReadCacheService } from "../src/events/event-read-cache.service";
+import { createBookingCommands } from "../src/contexts/booking/booking.composition";
+import { VnpayGateway } from "../src/contexts/payment/infrastructure/vnpay.gateway";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
 import {
   OrderStatus,
   TransactionStatus,
   PaymentProvider,
   SeatStatus,
+  EventStatus,
 } from "@tickethub/shared";
 
 import { env } from "../src/config/env.config";
 import { db } from "../src/database/db";
 import {
+  events,
   users,
   orders,
   orderItems,
@@ -24,11 +25,10 @@ import {
   tickets,
   outbox,
   seats,
-  auditLog,
 } from "../src/database/schema";
 
-import { VnpayIpnService } from "../src/payments/vnpay-ipn.service";
-import { toVnpayAmount } from "../src/payments/vnpay-ipn.preview.service";
+import { createPaymentUseCases } from "../src/contexts/payment/payment.composition";
+import { toVnpayAmount } from "../src/contexts/payment/domain/vnpay-amount";
 
 // Safety guard: never write integration fixtures to dev DB.
 
@@ -36,7 +36,7 @@ const cacheStub = {
   invalidate: async (_eventId: string): Promise<void> => {
     // Unit/integration test khong can xoa Redis cache that
   },
-} as EventReadCacheService;
+} as EventReadModel;
 
 const targetDb = decodeURIComponent(
   new URL(env.DATABASE_URL).pathname.slice(1),
@@ -53,14 +53,24 @@ const isSafeTestDb = isValidExpectedDb && targetDb === expectedTestDb;
 async function createFixture(expired = false) {
   const [user] = await db.select({ id: users.id }).from(users).limit(1);
 
-  const [tt] = await db
-    .select()
+  // Hang ve dung thuoc su kien PUBLISHED de thanh toan muon co the khoi phuc ve
+  const [published] = await db
+    .select({ tt: ticketTypes })
     .from(ticketTypes)
-    .where(eq(ticketTypes.isSeated, false))
+    .innerJoin(events, eq(ticketTypes.eventId, events.id))
+    .where(
+      and(
+        eq(ticketTypes.isSeated, false),
+        eq(events.status, EventStatus.PUBLISHED),
+      ),
+    )
     .limit(1);
+  const tt = published?.tt;
 
   if (!user || !tt) {
-    throw new Error("Test DB needs seeded users and GA ticket types");
+    throw new Error(
+      "Test DB needs seeded users and a GA ticket type of a PUBLISHED event",
+    );
   }
 
   const id = randomUUID();
@@ -119,7 +129,7 @@ async function createFixture(expired = false) {
 // Mock only the already-verified gateway result.
 // Database transactions and inventory changes remain real.
 function serviceWithVerifiedCallback(transactionRef: string, success: boolean) {
-  const service = new VnpayIpnService(cacheStub);
+  const service = createPaymentUseCases(cacheStub).processIpn;
 
   Object.defineProperty(service, "gateway", {
     value: {
@@ -146,9 +156,42 @@ async function readOrder(orderId: string) {
   return { order, transaction };
 }
 
+let originalCapacity: { id: string; capacity: number } | null = null;
+
 if (!isSafeTestDb) {
   test.skip(`VNPay IPN integration tests skipped: database '${targetDb}' is not test database '${expectedTestDb}'. To run integration tests, point DATABASE_URL to a database ending in _test.`, () => {});
 } else {
+  // Cac test dung bo dem ban ve tich luy; nang suc chua de khoi phuc ve sau cleanup luon con cho
+  before(async () => {
+    const [row] = await db
+      .select({ id: ticketTypes.id, capacity: ticketTypes.capacity })
+      .from(ticketTypes)
+      .innerJoin(events, eq(ticketTypes.eventId, events.id))
+      .where(
+        and(
+          eq(ticketTypes.isSeated, false),
+          eq(events.status, EventStatus.PUBLISHED),
+        ),
+      )
+      .limit(1);
+    if (row) {
+      originalCapacity = row;
+      await db
+        .update(ticketTypes)
+        .set({ capacity: 1_000_000 })
+        .where(eq(ticketTypes.id, row.id));
+    }
+  });
+
+  after(async () => {
+    if (originalCapacity) {
+      await db
+        .update(ticketTypes)
+        .set({ capacity: originalCapacity.capacity })
+        .where(eq(ticketTypes.id, originalCapacity.id));
+    }
+  });
+
   test("Successful IPN updates payment once", async () => {
     const fixture = await createFixture();
     const service = serviceWithVerifiedCallback(fixture.transactionRef, true);
@@ -232,7 +275,7 @@ if (!isSafeTestDb) {
     assert.equal(tt?.soldCount, fixture.soldBefore);
   });
 
-  test("Expired order never becomes PAID", async () => {
+  test("Late success IPN on a lapsed PENDING order restores the intact hold and issues the ticket", async () => {
     const fixture = await createFixture(true);
     const service = serviceWithVerifiedCallback(fixture.transactionRef, true);
 
@@ -242,10 +285,38 @@ if (!isSafeTestDb) {
       vnp_TransactionStatus: "00",
     });
 
-    assert.equal(result, "MANUAL_REVIEW");
+    assert.equal(result, "LATE_RESTORED");
 
     const { order, transaction } = await readOrder(fixture.orderId);
+    assert.equal(order?.status, OrderStatus.PAID);
+    assert.equal(transaction?.status, TransactionStatus.SUCCESS);
 
+    const [tt] = await db
+      .select()
+      .from(ticketTypes)
+      .where(eq(ticketTypes.id, fixture.ticketTypeId));
+    assert.equal(tt?.heldCount, fixture.heldBefore);
+    assert.equal(tt?.soldCount, fixture.soldBefore + 1);
+
+    const issued = await db
+      .select()
+      .from(tickets)
+      .where(eq(tickets.orderId, fixture.orderId));
+    assert.equal(issued.length, 1);
+  });
+
+  test("Late failed IPN on a lapsed order is only flagged for review", async () => {
+    const fixture = await createFixture(true);
+    const service = serviceWithVerifiedCallback(fixture.transactionRef, false);
+
+    const result = await service.process({
+      vnp_Amount: fixture.amount,
+      vnp_ResponseCode: "24",
+      vnp_TransactionStatus: "02",
+    });
+
+    assert.equal(result, "MANUAL_REVIEW");
+    const { order, transaction } = await readOrder(fixture.orderId);
     assert.equal(order?.status, OrderStatus.PENDING);
     assert.equal(transaction?.status, TransactionStatus.PENDING);
   });
@@ -350,7 +421,7 @@ if (!isSafeTestDb) {
 
     const ipn = serviceWithVerifiedCallback(fixture.transactionRef, true);
 
-    const booking = new BookingService(cacheStub);
+    const booking = createBookingCommands(cacheStub);
 
     const [paymentResult, releaseResult] = await Promise.allSettled([
       ipn.process({
@@ -381,19 +452,20 @@ if (!isSafeTestDb) {
       assert.equal(tt.heldCount, fixture.heldBefore);
       assert.equal(tt.soldCount, fixture.soldBefore + 1);
     } else {
-      assert.equal(order.status, OrderStatus.CANCELLED);
-      assert.equal(transaction.status, TransactionStatus.PENDING);
+      // Huy giu cho thang truoc: thanh toan den sau duoc khoi phuc thay vi mat tien
+      assert.equal(order.status, OrderStatus.PAID);
+      assert.equal(transaction.status, TransactionStatus.SUCCESS);
       assert.equal(releaseResult.status, "fulfilled");
       assert.equal(paymentResult.status, "fulfilled");
-      assert.equal(paymentResult.value, "MANUAL_REVIEW");
+      assert.equal(paymentResult.value, "LATE_RESTORED");
 
       assert.equal(tt.heldCount, fixture.heldBefore);
-      assert.equal(tt.soldCount, fixture.soldBefore);
+      assert.equal(tt.soldCount, fixture.soldBefore + 1);
     }
   });
 
-  test("IPN vs Booking Cleanup: expired order never becomes PAID", async () => {
-    const booking = new BookingService(cacheStub);
+  test("IPN vs Booking Cleanup: a late payment ends PAID exactly once", async () => {
+    const booking = createBookingCommands(cacheStub);
 
     // Don cac hold da het han cua cac test truoc.
     await booking.cleanExpiredOrders();
@@ -415,13 +487,13 @@ if (!isSafeTestDb) {
     assert.equal(cleanupResult.status, "fulfilled");
 
     if (paymentResult.status === "fulfilled") {
-      assert.equal(paymentResult.value, "MANUAL_REVIEW");
+      assert.equal(paymentResult.value, "LATE_RESTORED");
     }
 
     const { order, transaction } = await readOrder(fixture.orderId);
 
-    assert.equal(order?.status, OrderStatus.EXPIRED);
-    assert.equal(transaction?.status, TransactionStatus.PENDING);
+    assert.equal(order?.status, OrderStatus.PAID);
+    assert.equal(transaction?.status, TransactionStatus.SUCCESS);
 
     const [tt] = await db
       .select()
@@ -429,7 +501,13 @@ if (!isSafeTestDb) {
       .where(eq(ticketTypes.id, fixture.ticketTypeId));
 
     assert.equal(tt?.heldCount, fixture.heldBefore);
-    assert.equal(tt?.soldCount, fixture.soldBefore);
+    assert.equal(tt?.soldCount, fixture.soldBefore + 1);
+
+    const issued = await db
+      .select()
+      .from(tickets)
+      .where(eq(tickets.orderId, fixture.orderId));
+    assert.equal(issued.length, 1);
   });
 
   test("Seated IPN sells seat and issues ticket once", async () => {
@@ -660,18 +738,18 @@ if (!isSafeTestDb) {
     };
 
     try {
-      const service = new PaymentService();
+      const service = createPaymentUseCases().createPayment;
 
       // Fixture da co mot giao dich PENDING.
       // Goi lai lan 1.
-      const first = await service.createVnpayPayment(
+      const first = await service.execute(
         fixture.userId,
         fixture.orderId,
         "127.0.0.1",
       );
 
       // Goi lai lan 2.
-      const second = await service.createVnpayPayment(
+      const second = await service.execute(
         fixture.userId,
         fixture.orderId,
         "127.0.0.1",
@@ -712,49 +790,36 @@ if (!isSafeTestDb) {
     }
   });
 
-  test("Late successful IPN after cleanup must not issue tickets", async () => {
-    // 1. Tao mot don hang GA da het han
+  test("Late successful IPN after cleanup restores the order exactly once", async () => {
     const fixture = await createFixture(true);
+    const booking = createBookingCommands(cacheStub);
 
-    const booking = new BookingService(cacheStub);
-
-    // 2. Cleanup chay truoc khi VNPay callback
+    // Cleanup chay truoc khi VNPay callback
     await booking.cleanExpiredOrders();
-
     const before = await readOrder(fixture.orderId);
-
     assert.equal(before.order?.status, OrderStatus.EXPIRED);
 
-    // 3. Gia lap VNPay thong bao thanh toan thanh cong
     const service = serviceWithVerifiedCallback(fixture.transactionRef, true);
-
     const callback = {
       vnp_Amount: fixture.amount,
       vnp_ResponseCode: "00",
       vnp_TransactionStatus: "00",
     };
 
-    const result = await service.process(callback);
+    assert.equal(await service.process(callback), "LATE_RESTORED");
+    // Callback lap lai khong cap ve them
+    assert.equal(await service.process(callback), "ALREADY_PROCESSED");
 
-    // Don da het han phai chuyen sang doi soat
-    assert.equal(result, "MANUAL_REVIEW");
-
-    // 4. Kiem tra trang thai database
     const { order, transaction } = await readOrder(fixture.orderId);
+    assert.equal(order?.status, OrderStatus.PAID);
+    assert.equal(transaction?.status, TransactionStatus.SUCCESS);
 
-    assert.equal(order?.status, OrderStatus.EXPIRED);
-
-    assert.equal(transaction?.status, TransactionStatus.PENDING);
-
-    // 5. Khong duoc phat hanh ve
-    const issuedTickets = await db
+    const issued = await db
       .select()
       .from(tickets)
       .where(eq(tickets.orderId, fixture.orderId));
+    assert.equal(issued.length, 1);
 
-    assert.equal(issuedTickets.length, 0);
-
-    // 6. Khong duoc tao su kien ORDER_PAID
     const paidEvents = await db
       .select({ id: outbox.id })
       .from(outbox)
@@ -764,50 +829,13 @@ if (!isSafeTestDb) {
           sql`${outbox.payload} ->> 'orderId' = ${fixture.orderId}`,
         ),
       );
+    assert.equal(paidEvents.length, 1);
 
-    assert.equal(paidEvents.length, 0);
-
-    // 7. Callback lap lai cung khong duoc phat hanh ve
-    const second = await service.process(callback);
-
-    assert.equal(second, "MANUAL_REVIEW");
-
-    // 8. Kiem tra callback can doi soat da duoc luu.
-    assert.ok(transaction);
-
-    const auditRecords = await db
-      .select({
-        id: auditLog.id,
-        changes: auditLog.changes,
-      })
-      .from(auditLog)
-      .where(
-        and(
-          eq(auditLog.action, "VNPAY_IPN_MANUAL_REVIEW"),
-          eq(auditLog.targetType, "TRANSACTION"),
-          eq(auditLog.targetId, transaction.id),
-        ),
-      );
-
-    // Callback gui 2 lan chi tao 1 ban ghi doi soat.
-    assert.equal(auditRecords.length, 1);
-
-    const changes = auditRecords[0]?.changes as Record<string, unknown> | null;
-
-    assert.equal(changes?.orderId, fixture.orderId);
-
-    // 9. Kiem tra bang transactions luu callback VNPay.
-    const { transaction: savedTransaction } = await readOrder(fixture.orderId);
-
-    const savedCallback = savedTransaction?.rawCallback as Record<
-      string,
-      unknown
-    > | null;
-
-    assert.equal(savedCallback?.vnp_ResponseCode, "00");
-    assert.equal(savedCallback?.vnp_TransactionStatus, "00");
-
-    // Transaction van PENDING de cho doi soat.
-    assert.equal(savedTransaction?.status, TransactionStatus.PENDING);
+    const [tt] = await db
+      .select()
+      .from(ticketTypes)
+      .where(eq(ticketTypes.id, fixture.ticketTypeId));
+    assert.equal(tt?.heldCount, fixture.heldBefore);
+    assert.equal(tt?.soldCount, fixture.soldBefore + 1);
   });
 }

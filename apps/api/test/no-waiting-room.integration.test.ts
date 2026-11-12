@@ -5,7 +5,7 @@ import { MODULE_METADATA, PATH_METADATA } from "@nestjs/common/constants";
 import type { Type } from "@nestjs/common";
 
 import { AppModule } from "../src/app.module";
-import { BookingService } from "../src/booking/booking.service";
+import { BookingCommands } from "../src/contexts/booking/application/booking-commands.service";
 import { CreateEventRequestSchema } from "@tickethub/shared";
 
 // Hang cho ao (UC03) da bi loai bo hoan toan (AGENTS.md muc 1.3).
@@ -44,7 +44,7 @@ describe("Hang cho ao (UC03) da bi loai bo", () => {
   });
 
   it("holdSeats chi nhan userId va dto, khong nhan admissionToken", () => {
-    assert.equal(BookingService.prototype.holdSeats.length, 2);
+    assert.equal(BookingCommands.prototype.holdSeats.length, 2);
   });
 
   it("Schema tao su kien khong con truong hang cho ao", () => {

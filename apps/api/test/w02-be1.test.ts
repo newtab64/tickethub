@@ -4,9 +4,11 @@ import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { JwtService } from "@nestjs/jwt";
 import { eq } from "drizzle-orm";
-import { AuthService } from "../src/auth/auth.service";
-import { EventsService } from "../src/events/events.service";
-import { RolesGuard } from "../src/auth/guards/roles.guard";
+import { createIdentityUseCases } from "../src/contexts/identity/identity.composition";
+import { IdentityDomainError } from "../src/contexts/identity/domain/identity.errors";
+import { createOrganizerEventService } from "../src/contexts/event/event.composition";
+import { EventDomainError } from "../src/contexts/event/domain/event.errors";
+import { RolesGuard } from "../src/contexts/identity/interface/guards/roles.guard";
 import { Reflector } from "@nestjs/core";
 import { db, sqlClient } from "../src/database/db";
 import { users, outbox } from "../src/database/schema";
@@ -19,8 +21,8 @@ import {
 import { env } from "../src/config/env.config";
 
 describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
-  let authService: AuthService;
-  let eventsService: EventsService;
+  let identity: ReturnType<typeof createIdentityUseCases>;
+  let eventsService: ReturnType<typeof createOrganizerEventService>;
   let jwtService: JwtService;
   let rolesGuard: RolesGuard;
   let reflector: Reflector;
@@ -35,8 +37,8 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
       secret: env.JWT_SECRET,
       signOptions: { expiresIn: 900 },
     });
-    authService = new AuthService(jwtService);
-    eventsService = new EventsService();
+    identity = createIdentityUseCases(jwtService);
+    eventsService = createOrganizerEventService();
     reflector = new Reflector();
     rolesGuard = new RolesGuard(reflector);
   });
@@ -51,26 +53,23 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
 
   describe("1. Mật khẩu Argon2id", () => {
     it("Phải băm mật khẩu theo chuẩn Argon2id", async () => {
-      const hash = await authService.hashPassword("SecretPassword123!");
+      const hash = await identity.hasher.hash("SecretPassword123!");
       assert.ok(
         hash.startsWith("$argon2id$"),
         "Chuỗi băm phải có định dạng argon2id",
       );
 
-      const isMatch = await authService.verifyPassword(
-        hash,
-        "SecretPassword123!",
-      );
+      const isMatch = await identity.hasher.verify(hash, "SecretPassword123!");
       assert.equal(isMatch, true, "Mật khẩu đúng phải khớp");
 
-      const isWrong = await authService.verifyPassword(hash, "WrongPassword");
+      const isWrong = await identity.hasher.verify(hash, "WrongPassword");
       assert.equal(isWrong, false, "Mật khẩu sai không được khớp");
     });
   });
 
   describe("2. Đăng ký & Kích hoạt Email qua Outbox (UC01)", () => {
     it("Phải đăng ký thành công và tạo bản ghi Transactional Outbox", async () => {
-      const result = await authService.register({
+      const result = await identity.register.execute({
         email: testUserEmail,
         password: "Password123!",
         fullName: "Người Dùng Kiểm Thử",
@@ -102,15 +101,16 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
     it("Phải từ chối đăng ký trùng email với lỗi EMAIL_ALREADY_EXISTS", async () => {
       await assert.rejects(
         async () => {
-          await authService.register({
+          await identity.register.execute({
             email: testUserEmail,
             password: "Password123!",
             fullName: "Người Dùng Trùng",
             role: UserRole.BUYER,
           });
         },
-        (err: HttpErrorLike) => {
-          assert.equal(err.response?.error?.code, "EMAIL_ALREADY_EXISTS");
+        (err: unknown) => {
+          assert.ok(err instanceof IdentityDomainError);
+          assert.equal(err.code, "EMAIL_ALREADY_EXISTS");
           return true;
         },
       );
@@ -119,20 +119,21 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
     it("Chưa xác thực email thì không được phép đăng nhập (EMAIL_NOT_VERIFIED)", async () => {
       await assert.rejects(
         async () => {
-          await authService.login({
+          await identity.login.execute({
             email: testUserEmail,
             password: "Password123!",
           });
         },
-        (err: HttpErrorLike) => {
-          assert.equal(err.response?.error?.code, "EMAIL_NOT_VERIFIED");
+        (err: unknown) => {
+          assert.ok(err instanceof IdentityDomainError);
+          assert.equal(err.code, "EMAIL_NOT_VERIFIED");
           return true;
         },
       );
     });
 
     it("Xác thực email thành công và chuyển trạng thái ACTIVE", async () => {
-      const res = await authService.verifyEmail(verificationToken);
+      const res = await identity.verifyEmail.execute(verificationToken);
       assert.equal(res.status, UserStatus.ACTIVE);
 
       const user = await db.query.users.findFirst({
@@ -148,13 +149,14 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
       for (let i = 1; i <= 4; i++) {
         await assert.rejects(
           async () => {
-            await authService.login({
+            await identity.login.execute({
               email: testUserEmail,
               password: "WrongPassword",
             });
           },
-          (err: HttpErrorLike) => {
-            assert.equal(err.response?.error?.code, "INVALID_CREDENTIALS");
+          (err: unknown) => {
+            assert.ok(err instanceof IdentityDomainError);
+            assert.equal(err.code, "INVALID_CREDENTIALS");
             return true;
           },
         );
@@ -163,13 +165,14 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
       // Lần thứ 5 sai -> Phải bị khóa tài khoản
       await assert.rejects(
         async () => {
-          await authService.login({
+          await identity.login.execute({
             email: testUserEmail,
             password: "WrongPassword",
           });
         },
-        (err: HttpErrorLike) => {
-          assert.equal(err.response?.error?.code, "ACCOUNT_LOCKED");
+        (err: unknown) => {
+          assert.ok(err instanceof IdentityDomainError);
+          assert.equal(err.code, "ACCOUNT_LOCKED");
           return true;
         },
       );
@@ -177,13 +180,14 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
       // Lần thứ 6 (dù đúng mật khẩu) vẫn bị từ chối vì đang trong thời gian khóa
       await assert.rejects(
         async () => {
-          await authService.login({
+          await identity.login.execute({
             email: testUserEmail,
             password: "Password123!",
           });
         },
-        (err: HttpErrorLike) => {
-          assert.equal(err.response?.error?.code, "ACCOUNT_LOCKED");
+        (err: unknown) => {
+          assert.ok(err instanceof IdentityDomainError);
+          assert.equal(err.code, "ACCOUNT_LOCKED");
           return true;
         },
       );
@@ -196,7 +200,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
     });
 
     it("Đăng nhập thành công và cấp Access Token + Refresh Token", async () => {
-      const res = await authService.login({
+      const res = await identity.login.execute({
         email: testUserEmail,
         password: "Password123!",
       });
@@ -210,7 +214,7 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
     });
 
     it("Xoay vòng Refresh Token (Token Rotation) thành công", async () => {
-      const res = await authService.refreshToken(validRefreshToken);
+      const res = await identity.refresh.execute(validRefreshToken);
 
       assert.ok(res.accessToken, "Phải cấp accessToken mới");
       assert.ok(res.refreshToken, "Phải cấp refreshToken mới");
@@ -436,8 +440,9 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             version: 999, // Sai version
           });
         },
-        (err: HttpErrorLike) => {
-          assert.equal(err.response?.error?.code, "CONCURRENT_MODIFICATION");
+        (err: unknown) => {
+          assert.ok(err instanceof EventDomainError);
+          assert.equal(err.code, "CONCURRENT_MODIFICATION");
           return true;
         },
       );
@@ -478,8 +483,9 @@ describe("W02-BE1: Auth (UC01) & Event Management (UC07) Verification", () => {
             version: submitRes.version!,
           });
         },
-        (err: HttpErrorLike) => {
-          assert.equal(err.response?.error?.code, "EVENT_CANNOT_BE_EDITED");
+        (err: unknown) => {
+          assert.ok(err instanceof EventDomainError);
+          assert.equal(err.code, "EVENT_CANNOT_BE_EDITED");
           return true;
         },
       );
