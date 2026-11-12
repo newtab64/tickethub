@@ -1,8 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { VenuesController } from "../src/venues/venues.controller";
-import { AdminVenuesController } from "../src/venues/admin-venues.controller";
-import type { VenuesService } from "../src/venues/venues.service";
+import { VenuesController } from "../src/contexts/venue/interface/venues.controller";
+import { AdminVenuesController } from "../src/contexts/venue/interface/admin-venues.controller";
+import type { VenueQueries } from "../src/contexts/venue/application/venue-queries.service";
+import type { VenueCommands } from "../src/contexts/venue/application/venue-commands.service";
 import type {
   CreateVenueDto,
   UpdateVenueDto,
@@ -67,10 +68,12 @@ describe("Venues Controllers Unit Tests", () => {
       isDefault: dto.isDefault ?? false,
       isActive: true,
     }),
-  } as unknown as VenuesService;
+  };
+  const mockQueries = mockVenuesService as unknown as VenueQueries;
+  const mockCommands = mockVenuesService as unknown as VenueCommands;
 
   it("VenuesController getVenues returns list of curated venues", async () => {
-    const controller = new VenuesController(mockVenuesService);
+    const controller = new VenuesController(mockQueries);
     const result = await controller.getVenues({});
 
     assert.equal(result.success, true);
@@ -79,7 +82,7 @@ describe("Venues Controllers Unit Tests", () => {
   });
 
   it("VenuesController getVenueById returns venue details", async () => {
-    const controller = new VenuesController(mockVenuesService);
+    const controller = new VenuesController(mockQueries);
     const result = await controller.getVenueById("venue-uuid-1");
 
     assert.equal(result.success, true);
@@ -88,7 +91,7 @@ describe("Venues Controllers Unit Tests", () => {
   });
 
   it("VenuesController getVenueLayouts returns layouts", async () => {
-    const controller = new VenuesController(mockVenuesService);
+    const controller = new VenuesController(mockQueries);
     const result = await controller.getVenueLayouts("venue-uuid-1");
 
     assert.equal(result.success, true);
@@ -97,7 +100,7 @@ describe("Venues Controllers Unit Tests", () => {
   });
 
   it("AdminVenuesController createVenue validates and calls service", async () => {
-    const controller = new AdminVenuesController(mockVenuesService);
+    const controller = new AdminVenuesController(mockCommands);
     const newVenue: CreateVenueDto = {
       name: "Cung Điền kinh",
       shortName: "Cung ĐK",
@@ -114,7 +117,7 @@ describe("Venues Controllers Unit Tests", () => {
   });
 
   it("AdminVenuesController updateVenue updates venue data", async () => {
-    const controller = new AdminVenuesController(mockVenuesService);
+    const controller = new AdminVenuesController(mockCommands);
     const result = await controller.updateVenue("venue-uuid-1", {
       name: "SVĐ Mỹ Đình Đã Đổi Tên",
     });
@@ -124,7 +127,7 @@ describe("Venues Controllers Unit Tests", () => {
   });
 
   it("AdminVenuesController createVenueLayout creates layout for venue", async () => {
-    const controller = new AdminVenuesController(mockVenuesService);
+    const controller = new AdminVenuesController(mockCommands);
     const newLayout: CreateVenueLayoutDto = {
       name: "Sân Khấu 360",
       categoryName: "Concert",

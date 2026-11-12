@@ -3,10 +3,13 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { db, sqlClient } from "../src/database/db";
-import { TicketsService } from "../src/tickets/tickets.service";
-import { Ed25519Service } from "../src/tickets/crypto/ed25519.service";
-import { TicketsController } from "../src/tickets/tickets.controller";
-import { GateController } from "../src/tickets/gate.controller";
+import {
+  createTicketsFacade,
+  type TicketsFacade,
+} from "./helpers/tickets-facade";
+import { Ed25519QrTokenService } from "../src/contexts/ticketing/infrastructure/ed25519-qr-token.service";
+import { TicketsController } from "../src/contexts/ticketing/interface/tickets.controller";
+import { GateController } from "../src/contexts/ticketing/interface/gate.controller";
 import {
   users,
   events,
@@ -36,8 +39,8 @@ import {
 } from "@nestjs/common";
 
 describe("UC08: Dynamic Rolling QR & Gate Check-in E2E Integration Suite", () => {
-  let ed25519Service: Ed25519Service;
-  let ticketsService: TicketsService;
+  let ed25519Service: Ed25519QrTokenService;
+  let ticketsService: TicketsFacade;
   let ticketsController: TicketsController;
   let gateController: GateController;
 
@@ -72,10 +75,10 @@ describe("UC08: Dynamic Rolling QR & Gate Check-in E2E Integration Suite", () =>
   let ticketScenario6Code: string;
 
   before(async () => {
-    ed25519Service = new Ed25519Service();
-    ticketsService = new TicketsService(ed25519Service);
-    ticketsController = new TicketsController(ticketsService);
-    gateController = new GateController(ticketsService);
+    ed25519Service = new Ed25519QrTokenService();
+    ticketsService = createTicketsFacade(ed25519Service);
+    ticketsController = new TicketsController(ticketsService.buyer);
+    gateController = new GateController(ticketsService.gate);
 
     const stamp = Date.now();
 

@@ -173,7 +173,7 @@ erDiagram
         numeric total_amount
         numeric discount_amount
         numeric final_amount
-        enum status "PENDING | PAID | EXPIRED | FAILED | CANCELLED | REFUNDED"
+        enum status "PENDING | PAID | EXPIRED | FAILED | CANCELLED | REFUNDED | PAYMENT_EXPIRED_REFUND_PENDING"
         timestamptz expires_at
         timestamptz paid_at
         varchar voucher_code
@@ -516,21 +516,21 @@ CREATE INDEX idx_seats_hold_expiry ON seats(status, hold_expires_at) WHERE statu
 
 Lưu thông tin đơn hàng và thời hạn thanh toán.
 
-| Cột             | Kiểu          | Ràng buộc                                                                                                      | Diễn giải                          |
-| :-------------- | :------------ | :------------------------------------------------------------------------------------------------------------- | :--------------------------------- |
-| id              | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                                          | Khóa chính                         |
-| order_code      | VARCHAR(32)   | NOT NULL UNIQUE                                                                                                | Mã đơn hàng hiển thị               |
-| user_id         | UUID          | NOT NULL REFERENCES users(id)                                                                                  | Người mua (Bắt buộc vai trò BUYER) |
-| event_id        | UUID          | NOT NULL REFERENCES events(id)                                                                                 | Sự kiện                            |
-| total_amount    | NUMERIC(14,2) | NOT NULL CHECK (total_amount >= 0)                                                                             | Tổng tiền gốc                      |
-| discount_amount | NUMERIC(14,2) | NOT NULL DEFAULT 0 CHECK (discount_amount >= 0)                                                                | Số tiền giảm                       |
-| final_amount    | NUMERIC(14,2) | NOT NULL CHECK (final_amount >= 0)                                                                             | Số tiền thực trả                   |
-| status          | VARCHAR(20)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'EXPIRED', 'FAILED', 'CANCELLED', 'REFUNDED')) | Trạng thái đơn                     |
-| expires_at      | TIMESTAMPTZ   | NOT NULL                                                                                                       | Thời điểm hết hạn giữ chỗ          |
-| paid_at         | TIMESTAMPTZ   | NULL                                                                                                           | Thời điểm hoàn tất thanh toán      |
-| voucher_code    | VARCHAR(50)   | NULL                                                                                                           | Mã giảm giá                        |
-| created_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                         | Thời điểm tạo                      |
-| updated_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                         | Thời điểm cập nhật cuối            |
+| Cột             | Kiểu          | Ràng buộc                                                                                                                                        | Diễn giải                                                                              |
+| :-------------- | :------------ | :----------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------- |
+| id              | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                                                                            | Khóa chính                                                                             |
+| order_code      | VARCHAR(32)   | NOT NULL UNIQUE                                                                                                                                  | Mã đơn hàng hiển thị                                                                   |
+| user_id         | UUID          | NOT NULL REFERENCES users(id)                                                                                                                    | Người mua (Bắt buộc vai trò BUYER)                                                     |
+| event_id        | UUID          | NOT NULL REFERENCES events(id)                                                                                                                   | Sự kiện                                                                                |
+| total_amount    | NUMERIC(14,2) | NOT NULL CHECK (total_amount >= 0)                                                                                                               | Tổng tiền gốc                                                                          |
+| discount_amount | NUMERIC(14,2) | NOT NULL DEFAULT 0 CHECK (discount_amount >= 0)                                                                                                  | Số tiền giảm                                                                           |
+| final_amount    | NUMERIC(14,2) | NOT NULL CHECK (final_amount >= 0)                                                                                                               | Số tiền thực trả                                                                       |
+| status          | VARCHAR(40)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'EXPIRED', 'FAILED', 'CANCELLED', 'REFUNDED', 'PAYMENT_EXPIRED_REFUND_PENDING')) | Trạng thái đơn (`PAYMENT_EXPIRED_REFUND_PENDING`: thanh toán muộn, chờ hoàn tiền 100%) |
+| expires_at      | TIMESTAMPTZ   | NOT NULL                                                                                                                                         | Thời điểm hết hạn giữ chỗ                                                              |
+| paid_at         | TIMESTAMPTZ   | NULL                                                                                                                                             | Thời điểm hoàn tất thanh toán                                                          |
+| voucher_code    | VARCHAR(50)   | NULL                                                                                                                                             | Mã giảm giá                                                                            |
+| created_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                                                           | Thời điểm tạo                                                                          |
+| updated_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                                                           | Thời điểm cập nhật cuối                                                                |
 
 > **Ràng buộc nghiệp vụ toàn vẹn (Integrity Constraint)**: Cột `user_id` chỉ liên kết với bản ghi người dùng có `role = 'BUYER'`. Các tài khoản có vai trò `ADMIN`, `ORGANIZER` hoặc `GATE_STAFF` bị cấm tạo đơn hàng và sở hữu vé cá nhân nhằm ngăn ngừa xung đột lợi ích và găm vé nội bộ.
 
@@ -763,7 +763,7 @@ WHERE id = ANY($3::uuid[])
 RETURNING id;
 
 -- 4. Kiểm tra số dòng được cập nhật:
--- Nếu số dòng trả về < số ghế yêu cầu: hủy transaction (ROLLBACK) và kích hoạt vòng lặp thử lại (tối đa 10 lần) để chọn bộ ghế liền kề khác. Nếu vượt quá số lần thử hoặc không đủ sức chứa: báo lỗi SEAT_ALREADY_HELD hoặc INSUFFICIENT_TICKET_CAPACITY.
+-- Nếu số dòng trả về < số ghế yêu cầu: hủy transaction (ROLLBACK) và báo lỗi SEAT_ALREADY_HELD hoặc INSUFFICIENT_TICKET_CAPACITY. Việc chọn ghế tự động dùng FOR UPDATE SKIP LOCKED nên không có vòng lặp thử lại giới hạn số lần.
 -- Nếu số dòng trả về = số ghế yêu cầu: tạo đơn hàng PENDING và hoàn tất transaction (COMMIT).
 ```
 

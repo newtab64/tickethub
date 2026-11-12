@@ -1,5 +1,5 @@
 // apps/web/src/app/(admin)/layout.tsx
-import { AdminSidebar } from "@/components/admin/admin-sidebar";
+import { AdminSidebar } from "@/features/moderation";
 
 export default function AdminLayout({
   children,

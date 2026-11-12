@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { eq, inArray } from "drizzle-orm";
 import { db, sqlClient } from "../src/database/db";
-import { RefundsService } from "../src/refunds/refunds.service";
-import { RefundsController } from "../src/refunds/refunds.controller";
+import { createRefundUseCases } from "../src/contexts/refund/refund.composition";
+import { RefundsController } from "../src/contexts/refund/interface/refunds.controller";
 import {
   users,
   organizerProfiles,
@@ -35,7 +35,6 @@ import {
 } from "@nestjs/common";
 
 describe("UC06: Ticket Cancellation & Automated Refund Integration Tests", () => {
-  let refundsService: RefundsService;
   let refundsController: RefundsController;
 
   let buyer1: { id: string; email: string };
@@ -52,8 +51,11 @@ describe("UC06: Ticket Cancellation & Automated Refund Integration Tests", () =>
   const createdIdempKeys: string[] = [];
 
   before(async () => {
-    refundsService = new RefundsService();
-    refundsController = new RefundsController(refundsService);
+    const useCases = createRefundUseCases();
+    refundsController = new RefundsController(
+      useCases.preview,
+      useCases.request,
+    );
 
     const stamp = Date.now();
 

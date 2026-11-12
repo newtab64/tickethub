@@ -1,34 +1,13 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { VenuesController } from "../src/venues/venues.controller";
-import { AdminVenuesController } from "../src/venues/admin-venues.controller";
-import { VenuesService } from "../src/venues/venues.service";
+import { VenuesController } from "../src/contexts/venue/interface/venues.controller";
+import { AdminVenuesController } from "../src/contexts/venue/interface/admin-venues.controller";
+import { createVenueServices } from "../src/contexts/venue/venue.composition";
+import { InMemoryVenueRepository } from "./helpers/in-memory-venue.repository";
 import type Redis from "ioredis";
-import type {
-  CreateVenueDto,
-  CreateVenueLayoutDto,
-  VenueFilterQueryDto,
-} from "@tickethub/shared";
-
-interface MemoryVenue extends CreateVenueDto {
-  id: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface MemoryLayout extends CreateVenueLayoutDto {
-  id: string;
-  venueId: string;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
 
 describe("Venues Integration Flow Simulation", () => {
   it("allows Admin to create venue and layout, and Public to search and view layouts", async () => {
-    const memoryVenues: MemoryVenue[] = [];
-    const memoryLayouts: MemoryLayout[] = [];
     const cacheStore = new Map<string, string>();
 
     const mockRedis = {
@@ -47,81 +26,11 @@ describe("Venues Integration Flow Simulation", () => {
       },
     } as unknown as Redis;
 
-    const venuesService = new VenuesService(mockRedis);
-
-    // Mock DB operations to use in-memory store
-    venuesService["insertVenueToDb"] = async (dto: CreateVenueDto) => {
-      const newV = {
-        id: `v-${memoryVenues.length + 1}`,
-        ...dto,
-        thumbnailUrl: dto.thumbnailUrl || null,
-        description: dto.description || null,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      memoryVenues.push(newV);
-      return newV;
-    };
-
-    venuesService["insertVenueLayoutToDb"] = async (
-      venueId: string,
-      dto: CreateVenueLayoutDto,
-    ) => {
-      const newL = {
-        id: `layout-${memoryLayouts.length + 1}`,
-        venueId,
-        ...dto,
-        isDefault: dto.isDefault ?? false,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      memoryLayouts.push(newL);
-      return newL;
-    };
-
-    venuesService["getVenues"] = async (filters: VenueFilterQueryDto) => {
-      let filtered = [...memoryVenues];
-      if (filters.city) {
-        filtered = filtered.filter((v) => v.city === filters.city);
-      }
-      if (filters.category) {
-        filtered = filtered.filter((v) => v.category === filters.category);
-      }
-      if (filters.search) {
-        const q = filters.search.toLowerCase();
-        filtered = filtered.filter(
-          (v) =>
-            v.name.toLowerCase().includes(q) ||
-            v.shortName.toLowerCase().includes(q) ||
-            v.district.toLowerCase().includes(q),
-        );
-      }
-      return {
-        items: filtered.map((v) => ({
-          ...v,
-          layoutsCount: memoryLayouts.filter((l) => l.venueId === v.id).length,
-        })),
-        total: filtered.length,
-        page: filters.page || 1,
-        limit: filters.limit || 20,
-      };
-    };
-
-    venuesService["getVenueById"] = async (id: string) => {
-      const v = memoryVenues.find((item) => item.id === id);
-      if (!v) throw new Error("Venue not found");
-      const layouts = memoryLayouts.filter((l) => l.venueId === id);
-      return { ...v, layouts };
-    };
-
-    venuesService["getVenueLayouts"] = async (venueId: string) => {
-      return memoryLayouts.filter((l) => l.venueId === venueId);
-    };
-
-    const publicController = new VenuesController(venuesService);
-    const adminController = new AdminVenuesController(venuesService);
+    const { queries, commands } = createVenueServices(mockRedis, {
+      repo: new InMemoryVenueRepository(),
+    });
+    const publicController = new VenuesController(queries);
+    const adminController = new AdminVenuesController(commands);
 
     // 1. Admin creates Curated Venue: SVĐ Mỹ Đình
     const createVenueRes = await adminController.createVenue({

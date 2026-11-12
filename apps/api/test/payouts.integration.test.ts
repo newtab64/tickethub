@@ -5,10 +5,11 @@ import {
   BadRequestException,
   ForbiddenException,
 } from "@nestjs/common";
-import { AdminPayoutsController } from "../src/payouts/admin-payouts.controller";
-import { OrganizerPayoutsController } from "../src/payouts/organizer-payouts.controller";
-import { PayoutsService } from "../src/payouts/payouts.service";
-import { ReconciliationsService } from "../src/payouts/reconciliations.service";
+import { AdminPayoutsController } from "../src/contexts/payout/interface/admin-payouts.controller";
+import { OrganizerPayoutsController } from "../src/contexts/payout/interface/organizer-payouts.controller";
+import type { PayoutCommands } from "../src/contexts/payout/application/payout-commands.service";
+import type { PayoutQueries } from "../src/contexts/payout/application/payout-queries.service";
+import type { ReconciliationQueries } from "../src/contexts/payout/application/reconciliation-queries.service";
 import {
   PayoutStatus,
   ReconciliationStatus,
@@ -236,7 +237,7 @@ describe("Reconciliations & Payouts Integration Test Suite", () => {
         },
       };
     },
-  } as unknown as PayoutsService;
+  };
 
   // Mock ReconciliationsService
   const mockReconciliationsService = {
@@ -338,15 +339,16 @@ describe("Reconciliations & Payouts Integration Test Suite", () => {
         },
       };
     },
-  } as unknown as ReconciliationsService;
+  } as unknown as ReconciliationQueries;
 
   const adminController = new AdminPayoutsController(
-    mockPayoutsService,
+    mockPayoutsService as unknown as PayoutCommands,
+    mockPayoutsService as unknown as PayoutQueries,
     mockReconciliationsService,
   );
 
   const organizerController = new OrganizerPayoutsController(
-    mockPayoutsService,
+    mockPayoutsService as unknown as PayoutQueries,
   );
 
   const mockRequest = {

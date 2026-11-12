@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
-import { QueryProvider } from "@/providers/query-provider";
-import { SessionProvider } from "@/providers/session-provider";
+import { QueryProvider } from "@/shared/providers/query-provider";
+import { SessionProvider } from "@/features/identity";
 import "./globals.css";
 
 const inter = Inter({

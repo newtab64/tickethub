@@ -1,10 +1,11 @@
-import type { HttpErrorLike } from "./helpers/http-error";
+import { errorCodeOf } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { eq, and, inArray } from "drizzle-orm";
-import { BookingService } from "../src/booking/booking.service";
+import { createBookingCommands } from "../src/contexts/booking/booking.composition";
+import type { BookingCommands } from "../src/contexts/booking/application/booking-commands.service";
 import { db, sqlClient } from "../src/database/db";
-import type { EventReadCacheService } from "../src/events/event-read-cache.service";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
 import {
   users,
   events,
@@ -25,10 +26,10 @@ import {
 
 const cacheStub = {
   invalidate: async (_eventId: string): Promise<void> => {},
-} as EventReadCacheService;
+} as EventReadModel;
 
 describe("W03-BE1: Atomic Seat Hold (UC04) Verification", () => {
-  let bookingService: BookingService;
+  let bookingService: BookingCommands;
 
   let testBuyer1Id = "";
   let testBuyer2Id = "";
@@ -46,7 +47,7 @@ describe("W03-BE1: Atomic Seat Hold (UC04) Verification", () => {
   let buyer1SeatOrderId = "";
 
   before(async () => {
-    bookingService = new BookingService(cacheStub);
+    bookingService = createBookingCommands(cacheStub);
 
     // 1. Lấy hoặc tạo organizer profile
     let orgProfile = await db.query.organizerProfiles.findFirst();
@@ -299,10 +300,7 @@ describe("W03-BE1: Atomic Seat Hold (UC04) Verification", () => {
       );
       assert.equal(fulfilled.length, 1, "Đúng 1 yêu cầu phải thành công");
       assert.equal(rejected.length, 1, "Đúng 1 yêu cầu phải bị xung đột");
-      assert.equal(
-        rejected[0]!.reason?.response?.error?.code,
-        "SEAT_ALREADY_HELD",
-      );
+      assert.equal(errorCodeOf(rejected[0]!.reason), "SEAT_ALREADY_HELD");
 
       // Ghế phải thuộc về đúng đơn của người thắng
       const seatAfter = await db.query.seats.findFirst({
@@ -333,11 +331,8 @@ describe("W03-BE1: Atomic Seat Hold (UC04) Verification", () => {
             items: [{ ticketTypeId: standingTicketTypeId, quantity: 3 }],
           });
         },
-        (err: HttpErrorLike) => {
-          assert.equal(
-            err.response?.error?.code,
-            "INSUFFICIENT_TICKET_CAPACITY",
-          );
+        (err: unknown) => {
+          assert.equal(errorCodeOf(err), "INSUFFICIENT_TICKET_CAPACITY");
           return true;
         },
       );

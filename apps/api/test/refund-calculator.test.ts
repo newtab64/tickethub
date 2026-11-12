@@ -1,10 +1,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { RefundPolicyType } from "@tickethub/shared";
-import {
-  computeRefundPercentage,
-  calculateTicketRefundBreakdown,
-} from "../src/refunds/refund-calculator";
+import { calculateTicketRefundBreakdown } from "../src/contexts/refund/domain/refund-calculator";
+import { computeRefundPercentage } from "../src/contexts/refund/domain/refund-policy";
 
 describe("RefundCalculator", () => {
   const eventStart = new Date("2026-11-20T20:00:00.000Z");

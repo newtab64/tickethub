@@ -26,7 +26,6 @@ pnpm install
 
 ```bash
 cp apps/api/.env.example apps/api/.env
-cp apps/web/.env.example apps/web/.env
 ```
 
 4. Chạy migration và nạp dữ liệu khởi tạo:
@@ -51,8 +50,19 @@ pnpm dev
 ```
 tickethub/
 ├── apps/
-│   ├── api/          # Dịch vụ backend dùng NestJS và Fastify
-│   └── web/          # Ứng dụng web dùng Next.js App Router
+│   ├── api/          # Dịch vụ backend dùng NestJS và Fastify, tổ chức theo DDD
+│   │   └── src/
+│   │       ├── contexts/       # 12 bounded context: identity, event, venue, search, upload,
+│   │       │                   # booking, payment, refund, ticketing, moderation, payout, notification
+│   │       ├── shared-kernel/  # Hàm thuần dùng chung giữa các context
+│   │       ├── database/       # Schema Drizzle, kết nối PostgreSQL và Redis, migration, seed
+│   │       └── config/         # Cấu hình môi trường
+│   └── web/          # Ứng dụng web dùng Next.js App Router, tổ chức theo tính năng
+│       └── src/
+│           ├── app/        # Route mỏng, chỉ ghép nối
+│           ├── features/   # identity, event, booking, payment, ticketing,
+│           │               # organizer, moderation, venue (domain, api, data, ui)
+│           └── shared/     # api client, UI nền tảng, định dạng
 ├── packages/
 │   └── shared/       # Mã dùng chung giữa client và server (schema Zod, type)
 ├── docs/             # Tài liệu đặc tả kỹ thuật
@@ -64,11 +74,11 @@ tickethub/
 Các biến môi trường cần thiết được khai báo trong tệp `.env.example` của từng ứng dụng:
 
 - `apps/api/.env`: kết nối cơ sở dữ liệu (`DATABASE_URL`), Redis (`REDIS_URL`), khóa bí mật JWT, cấu hình cổng VNPay và khóa riêng ký QR Ed25519.
-- `apps/web/.env`: địa chỉ API backend (`NEXT_PUBLIC_API_URL`) và khóa công khai xác thực QR.
+- `apps/web`: không có tệp `.env.example`; đặt biến môi trường `NEXT_PUBLIC_API_URL` khi cần đổi địa chỉ API backend (mặc định `http://localhost:4000/api/v1`).
 
 ## Tài liệu liên quan
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): Kiến trúc tổng thể và các luồng xử lý chính.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): Kiến trúc tổng thể, bản đồ bounded context của backend và các luồng xử lý chính.
 - [docs/ERD.md](docs/ERD.md): Thiết kế cơ sở dữ liệu và các ràng buộc dữ liệu.
 - [docs/API_CONTRACT.md](docs/API_CONTRACT.md): Đặc tả chi tiết các endpoint API.
 - [docs/DEVELOPMENT_STANDARDS.md](docs/DEVELOPMENT_STANDARDS.md): Tiêu chuẩn phát triển và kỹ thuật hệ thống.

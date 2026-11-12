@@ -12,14 +12,13 @@ import {
   organizerProfiles,
   users,
 } from "../src/database/schema";
-import { EventReadCacheService } from "../src/events/event-read-cache.service";
-import { EventsService } from "../src/events/events.service";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
+import { createEventServices } from "../src/contexts/event/event.composition";
 import { env } from "../src/config/env.config";
 
 describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
   let redis: Redis;
-  let eventsService: EventsService;
-  let cacheService: EventReadCacheService;
+  let cacheService: EventReadModel;
 
   let organizerId = "";
   let testEventId = "";
@@ -29,8 +28,7 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
 
   before(async () => {
     redis = new Redis(env.REDIS_URL);
-    eventsService = new EventsService();
-    cacheService = new EventReadCacheService(redis, eventsService);
+    cacheService = createEventServices(redis).readModel;
 
     // 1. Tim hoac tao organizer profile
     let orgProfile = await db.query.organizerProfiles.findFirst();
@@ -279,10 +277,7 @@ describe("W03-BE2: Event Read Cache (UC02) Integration Test Suite", () => {
         },
       } as unknown as Redis;
 
-      const fallbackCache = new EventReadCacheService(
-        brokenRedis,
-        eventsService,
-      );
+      const fallbackCache = createEventServices(brokenRedis).readModel;
 
       // Goi getInventory van thanh cong
       const inv = await fallbackCache.getInventory(testEventId);

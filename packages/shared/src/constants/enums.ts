@@ -55,6 +55,8 @@ export const OrderStatus = {
   FAILED: "FAILED",
   CANCELLED: "CANCELLED",
   REFUNDED: "REFUNDED",
+  // Thanh toan thanh cong sau khi het han giu cho nhung khong khoi phuc duoc ve: cho hoan tien
+  PAYMENT_EXPIRED_REFUND_PENDING: "PAYMENT_EXPIRED_REFUND_PENDING",
 } as const;
 export type OrderStatus = (typeof OrderStatus)[keyof typeof OrderStatus];
 

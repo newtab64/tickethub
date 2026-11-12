@@ -1,12 +1,12 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { PublicEventsController } from "../src/events/events.controller";
+import { PublicEventsController } from "../src/contexts/event/interface/events.controller";
 import type {
   SeatStreamService,
   SeatStatusChangedPayload,
-} from "../src/events/seat-stream.service";
-import type { EventsService } from "../src/events/events.service";
-import type { EventReadCacheService } from "../src/events/event-read-cache.service";
+} from "../src/contexts/event/infrastructure/seat-stream.service";
+import type { PublicEventService } from "../src/contexts/event/application/public-event.service";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
 import { of, firstValueFrom } from "rxjs";
 import type { FastifyRequest } from "fastify";
 
@@ -30,8 +30,8 @@ describe("PublicEventsController SSE Seat Stream Tests", () => {
     } as unknown as SeatStreamService;
 
     const controller = new PublicEventsController(
-      {} as EventsService,
-      {} as EventReadCacheService,
+      {} as PublicEventService,
+      {} as EventReadModel,
       mockSeatStreamService,
     );
 

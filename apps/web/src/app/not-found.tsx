@@ -1,7 +1,7 @@
 // apps/web/src/app/not-found.tsx
 import Link from "next/link";
 import { Ticket } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
+import { Logo } from "@/shared/ui/logo";
 
 export default function NotFound() {
   return (

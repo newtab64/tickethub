@@ -1,10 +1,11 @@
-import type { HttpErrorLike } from "./helpers/http-error";
+import { errorCodeOf } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { eq, inArray } from "drizzle-orm";
-import { BookingService } from "../src/booking/booking.service";
+import { createBookingCommands } from "../src/contexts/booking/booking.composition";
+import type { BookingCommands } from "../src/contexts/booking/application/booking-commands.service";
 import { db, sqlClient } from "../src/database/db";
-import type { EventReadCacheService } from "../src/events/event-read-cache.service";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
 import {
   users,
   events,
@@ -24,10 +25,10 @@ import {
 
 const cacheStub = {
   invalidate: async (_eventId: string): Promise<void> => {},
-} as EventReadCacheService;
+} as EventReadModel;
 
 describe("Auto Seat Allocation (UC04) Integration Tests", () => {
-  let bookingService: BookingService;
+  let bookingService: BookingCommands;
 
   let testBuyerIds: string[] = [];
   let testEventId = "";
@@ -36,7 +37,7 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
   let concurrencyTicketTypeId = "";
 
   before(async () => {
-    bookingService = new BookingService(cacheStub);
+    bookingService = createBookingCommands(cacheStub);
 
     // 1. Tao organizer profile
     let orgProfile = await db.query.organizerProfiles.findFirst();
@@ -343,8 +344,8 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
           ],
         });
       },
-      (err: HttpErrorLike) => {
-        assert.equal(err.response?.error?.code, "INSUFFICIENT_TICKET_CAPACITY");
+      (err: unknown) => {
+        assert.equal(errorCodeOf(err), "INSUFFICIENT_TICKET_CAPACITY");
         return true;
       },
     );

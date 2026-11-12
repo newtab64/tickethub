@@ -1,5 +1,5 @@
 // apps/web/src/app/(organizer)/layout.tsx
-import { OrganizerHeader } from "@/components/organizer/organizer-header";
+import { OrganizerHeader } from "@/features/organizer";
 import Link from "next/link";
 
 export default function OrganizerLayout({

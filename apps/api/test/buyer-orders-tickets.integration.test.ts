@@ -6,7 +6,6 @@ import { Reflector } from "@nestjs/core";
 import {
   BadRequestException,
   ForbiddenException,
-  NotFoundException,
   type ExecutionContext,
 } from "@nestjs/common";
 import type { FastifyRequest } from "fastify";
@@ -33,19 +32,24 @@ import {
   RefundPolicyType,
 } from "@tickethub/shared";
 
-import { BuyerOrderService } from "../src/booking/buyer-order.service";
-import { BuyerOrderController } from "../src/booking/buyer-order.controller";
-import { TicketsService } from "../src/tickets/tickets.service";
-import { TicketsController } from "../src/tickets/tickets.controller";
-import { Ed25519Service } from "../src/tickets/crypto/ed25519.service";
-import { RolesGuard } from "../src/auth/guards/roles.guard";
+import { BookingDomainError } from "../src/contexts/booking/domain/booking.errors";
+import { createBuyerOrderQueries } from "../src/contexts/booking/booking.composition";
+import type { BuyerOrderQueries } from "../src/contexts/booking/application/buyer-order-queries.service";
+import { BuyerOrderController } from "../src/contexts/booking/interface/buyer-order.controller";
+import {
+  createTicketsFacade,
+  type TicketsFacade,
+} from "./helpers/tickets-facade";
+import { TicketsController } from "../src/contexts/ticketing/interface/tickets.controller";
+import { Ed25519QrTokenService } from "../src/contexts/ticketing/infrastructure/ed25519-qr-token.service";
+import { RolesGuard } from "../src/contexts/identity/interface/guards/roles.guard";
 
 describe("Buyer Orders & Personal Tickets E2E Integration Suite", () => {
-  let buyerOrderService: BuyerOrderService;
+  let buyerOrderService: BuyerOrderQueries;
   let buyerOrderController: BuyerOrderController;
-  let ticketsService: TicketsService;
+  let ticketsService: TicketsFacade;
   let ticketsController: TicketsController;
-  let ed25519Service: Ed25519Service;
+  let ed25519Service: Ed25519QrTokenService;
   let rolesGuard: RolesGuard;
 
   // Track entities for clean teardown
@@ -79,11 +83,11 @@ describe("Buyer Orders & Personal Tickets E2E Integration Suite", () => {
   let cancelledTicketId = "";
 
   before(async () => {
-    buyerOrderService = new BuyerOrderService();
+    buyerOrderService = createBuyerOrderQueries();
     buyerOrderController = new BuyerOrderController(buyerOrderService);
-    ed25519Service = new Ed25519Service();
-    ticketsService = new TicketsService(ed25519Service);
-    ticketsController = new TicketsController(ticketsService);
+    ed25519Service = new Ed25519QrTokenService();
+    ticketsService = createTicketsFacade(ed25519Service);
+    ticketsController = new TicketsController(ticketsService.buyer);
     rolesGuard = new RolesGuard(new Reflector());
 
     // 1. Create Users
@@ -580,11 +584,9 @@ describe("Buyer Orders & Personal Tickets E2E Integration Suite", () => {
           order1PaidId,
         ),
       (err: unknown) => {
-        assert.ok(err instanceof ForbiddenException);
-        const resp = (err as ForbiddenException).getResponse() as {
-          error?: { code?: string };
-        };
-        assert.equal(resp.error?.code, "ACCESS_DENIED");
+        assert.ok(err instanceof BookingDomainError);
+        assert.equal(err.kind, "FORBIDDEN");
+        assert.equal(err.code, "ACCESS_DENIED");
         return true;
       },
     );
@@ -607,11 +609,9 @@ describe("Buyer Orders & Personal Tickets E2E Integration Suite", () => {
           fakeOrderId,
         ),
       (err: unknown) => {
-        assert.ok(err instanceof NotFoundException);
-        const resp = (err as NotFoundException).getResponse() as {
-          error?: { code?: string };
-        };
-        assert.equal(resp.error?.code, "ORDER_NOT_FOUND");
+        assert.ok(err instanceof BookingDomainError);
+        assert.equal(err.kind, "NOT_FOUND");
+        assert.equal(err.code, "ORDER_NOT_FOUND");
         return true;
       },
     );
