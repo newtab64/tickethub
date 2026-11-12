@@ -1,4 +1,4 @@
-import { proxyBooking } from "@/lib/api/booking-proxy";
+import { proxyBooking } from "@/features/booking/server";
 
 export async function POST(request: Request) {
   return proxyBooking(request, "hold");
