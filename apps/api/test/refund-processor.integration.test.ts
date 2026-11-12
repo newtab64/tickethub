@@ -117,6 +117,8 @@ async function createPendingRefund(opts: {
         amount: 500000,
       },
       retryCount: opts.retryCount ?? 0,
+      // Khong phu thuoc dong ho cua may chu co so du lieu
+      nextRetryAt: new Date(Date.now() - 60_000),
     })
     .returning();
   scopedEventIds.add(event_!.id);
@@ -220,7 +222,8 @@ if (!isSafeTestDb) {
       isPartial: true,
     });
 
-    await processor(server.url).run();
+    const res = await processor(server.url).run();
+    assert.equal(res.completed, 1, JSON.stringify(res));
 
     assert.equal(server.requests[0]?.vnp_TransactionType, "03");
     const s = await state(f);
