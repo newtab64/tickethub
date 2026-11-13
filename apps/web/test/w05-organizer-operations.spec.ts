@@ -1,6 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
-// Response fixture bám mã PR49; test chạy với xác thực thật nhưng không thay dữ liệu BE.
+import { createHmac } from "node:crypto";
+// Response fixture bám PR49. Config frontend độc lập dùng phiên test được ký
+// bằng khóa riêng của tiến trình Next.js test; không thay xác thực ứng dụng.
 test.use({
   launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
     ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
@@ -87,6 +89,34 @@ const job = {
 };
 let session: { accessToken: string; user: object };
 test.beforeAll(async ({ request }) => {
+  if (process.env.W05_MOCK_AUTH === "1") {
+    const secret = process.env.W05_TEST_JWT_SECRET;
+    if (!secret)
+      throw new Error("Thiếu khóa phiên test từ playwright.w05.config.ts");
+    const user = {
+      id: "90000000-0000-4000-8000-000000000001",
+      fullName: "Ban tổ chức kiểm thử",
+      email: "organizer@example.test",
+      role: "ORGANIZER",
+      status: "ACTIVE",
+    };
+    const header = Buffer.from(
+      JSON.stringify({ alg: "HS256", typ: "JWT" }),
+    ).toString("base64url");
+    const payload = Buffer.from(
+      JSON.stringify({
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        exp: Math.floor(Date.now() / 1000) + 3600,
+      }),
+    ).toString("base64url");
+    const signature = createHmac("sha256", secret)
+      .update(`${header}.${payload}`)
+      .digest("base64url");
+    session = { accessToken: `${header}.${payload}.${signature}`, user };
+    return;
+  }
   const r = await request.post(`${API}/auth/login`, {
     data: { email: "organizer@tickethub.vn", password: "Password123!" },
   });

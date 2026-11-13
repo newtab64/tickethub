@@ -67,7 +67,42 @@ UI tách số vé đã check-in, số vé còn lại và số lượt quét thà
 
 Poll summary ít nhất mỗi 5 giây theo gợi ý BE; lịch sử tự cập nhật ở trang 1. Có tạm dừng/tiếp tục, làm mới, phân trang, dừng poll khi tab ẩn hoặc lỗi và cảnh báo snapshot cũ. Không nhầm thống kê trực tiếp toàn sự kiện với báo cáo theo kỳ thanh toán.
 
-## Cách chạy và kiểm tra
+## Kiểm tra frontend độc lập, không cần backend
+
+Không cần Docker, PostgreSQL, Redis, tài khoản seed hoặc worker. Tại thư mục gốc repo:
+
+```bash
+pnpm install --frozen-lockfile
+pnpm --filter @tickethub/shared build
+pnpm --filter @tickethub/web exec playwright install chromium
+pnpm --filter @tickethub/web exec playwright test --config=playwright.w05.config.ts
+```
+
+Config này tự khởi động Next.js dev và chỉ chạy 10 test W05 với response fixture và phiên đăng nhập test. Dừng tiến trình web đang chiếm cổng 3000 trước khi chạy; không bật `pnpm dev` ở thư mục gốc vì lệnh đó khởi động backend. Playwright dừng web test sau khi hoàn tất.
+
+Xem trình duyệt thực hiện thao tác:
+
+```bash
+pnpm --filter @tickethub/web exec playwright test --config=playwright.w05.config.ts --headed
+```
+
+Xem từng bước với Playwright Inspector:
+
+```bash
+pnpm --filter @tickethub/web exec playwright test --config=playwright.w05.config.ts --debug
+```
+
+Không cần tự đăng nhập trong bộ test này. Phiên được ký bằng khóa riêng của tiến trình Next.js test; route guard và xác thực ứng dụng không bị sửa hoặc tắt. Các response giả chỉ tồn tại trong trình duyệt Playwright, không có khi mở một tab Chrome thông thường. Test gồm tài khoản/cổng, phân trang, bộ lọc, xuất/tải file giả, giám sát cổng, mobile, lỗi API và refresh phiên. Không chứng minh xử lý nghiệp vụ/DB hoặc tạo tệp thật ở backend; muốn xác minh điều đó dùng live tests phía dưới.
+
+Test logic frontend không mở trình duyệt:
+
+```bash
+pnpm --filter @tickethub/web test
+```
+
+Cloud có Chromium hệ thống thì thêm `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium` trước lệnh test. Máy cá nhân đã cài browser bằng Playwright không cần biến này.
+
+## Cách chạy và kiểm tra với backend PR49
 
 Cần PostgreSQL/Redis, backend PR49 đã migrate/seed và report worker. Trong môi trường cloud đã kiểm tra bằng bản mã PR49 tách ở `/tmp/tickethub-pr49-runtime`, DB riêng `tickethub_pr49_test`, Redis DB 2, API 4001. Không thay checkout backend hiện có của nhánh FE.
 
