@@ -169,7 +169,7 @@ export function StaffManagement({ eventId }: { eventId: string }) {
             </p>
           )}
           {notice && (
-            <p role="status" className="text-sm text-emerald-700">
+            <p role="status" className="text-sm text-primary">
               {notice}
             </p>
           )}
@@ -306,7 +306,7 @@ export function StaffManagement({ eventId }: { eventId: string }) {
                     </td>
                     <td className="pr-4 whitespace-nowrap">
                       <span
-                        className={`rounded-full px-2.5 py-1 text-xs ${staff.status === "ACTIVE" ? "bg-emerald-50 text-emerald-800" : "bg-secondary text-muted-foreground"}`}
+                        className={`rounded-full px-2.5 py-1 text-xs ${staff.status === "ACTIVE" ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"}`}
                       >
                         {staff.status === "ACTIVE"
                           ? "Đang hoạt động"

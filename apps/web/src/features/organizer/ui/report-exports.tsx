@@ -119,7 +119,7 @@ export function ReportExports({
         dashboard.
       </p>
       {create.isSuccess && (
-        <p role="status" className="text-sm text-emerald-700">
+        <p role="status" className="text-sm text-primary">
           Đã gửi yêu cầu xuất báo cáo. Trạng thái sẽ tự cập nhật.
         </p>
       )}

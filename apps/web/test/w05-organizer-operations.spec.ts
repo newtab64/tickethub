@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
-import { readFile } from "node:fs/promises";
+import { readFile, mkdir } from "node:fs/promises";
+import { resolve, join } from "node:path";
 import { createHmac } from "node:crypto";
 // Response fixture bám PR49. Config frontend độc lập dùng phiên test được ký
 // bằng khóa riêng của tiến trình Next.js test; không thay xác thực ứng dụng.
@@ -9,6 +10,21 @@ test.use({
     : {},
 });
 const API = process.env.W05_API_URL || "http://localhost:4000/api/v1";
+async function captureEvidence(page: Page, file: string) {
+  if (process.env.W05_CAPTURE_EVIDENCE !== "1") return;
+  const folder = resolve(
+    test.info().project.testDir,
+    "../../../docs/evidence/w05-fe1",
+  );
+  await mkdir(folder, { recursive: true });
+  await page.screenshot({
+    path: join(folder, file),
+    fullPage: true,
+    animations: "disabled",
+    style:
+      "nextjs-portal, .tsqd-parent-container { display: none !important; }",
+  });
+}
 const eventId = "10000000-0000-4000-8000-000000000001",
   secondId = "10000000-0000-4000-8000-000000000002";
 const gateId = "20000000-0000-4000-8000-000000000001",
@@ -251,6 +267,7 @@ test("PR49 nhân viên: phân trang cổng, gán bằng userId, bỏ phân công
   const changes = await staffFixture(page);
   await page.goto("/organizer/staff");
   await expect(page.getByText("Nhân viên A", { exact: true })).toBeVisible();
+  await captureEvidence(page, "staff-management.png");
   await page.getByLabel("Cổng của Nhân viên A").selectOption(secondGate);
   await expect.poll(() => changes.length).toBe(1);
   expect(changes[0]).toEqual({
@@ -309,7 +326,11 @@ test("PR49 bộ lọc strict, tiền dạng chuỗi, hoàn âm không bị gán 
         success: true,
         data: {
           ...report,
-          summary: { ...report.summary, net_revenue: "-500000" },
+          summary: {
+            ...report.summary,
+            net_revenue: "-500000",
+            total_refunded_amount: "2300000",
+          },
         },
       },
     });
@@ -385,6 +406,8 @@ test("PR49 xuất XLSX nền, khôi phục sau F5, tải bằng Bearer qua endpo
     });
   });
   await page.goto("/organizer/dashboard");
+  await expect(page.getByText("66.67%", { exact: true })).toBeVisible();
+  await captureEvidence(page, "revenue-dashboard.png");
   await page.getByLabel("Từ ngày", { exact: true }).fill("2026-11-01");
   await page.getByLabel("Đến ngày", { exact: true }).fill("2026-11-06");
   await page.getByRole("button", { name: "Áp dụng", exact: true }).click();
@@ -487,6 +510,7 @@ test("PR49 giám sát gồm cả lượt từ chối, tự poll và cảnh báo 
   await expect(
     page.getByText("TICKET_ALREADY_USED", { exact: true }),
   ).toBeVisible();
+  await captureEvidence(page, "gate-monitor.png");
   advanced = true;
   await expect(
     page.getByText("75.00% / 4 vé còn hiệu lực", { exact: true }),

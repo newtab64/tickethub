@@ -216,11 +216,11 @@ export function RevenueDashboard({ eventId }: { eventId: string }) {
                   >
                     <span>{day.date}</span>
                     <div
-                      className="h-6 rounded bg-emerald-50 overflow-hidden"
+                      className="h-6 rounded bg-accent overflow-hidden"
                       aria-hidden="true"
                     >
                       <div
-                        className="h-full bg-emerald-600 rounded"
+                        className="h-full bg-primary rounded"
                         style={{
                           width: `${(Math.max(0, day.revenue) / maxRevenue) * 100}%`,
                         }}

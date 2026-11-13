@@ -53,7 +53,7 @@ export function OrganizerOperationsPage({
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 space-y-6">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
           Vận hành sự kiện
         </p>
         <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
@@ -72,7 +72,7 @@ export function OrganizerOperationsPage({
             key={item.view}
             href={item.href}
             aria-current={view === item.view ? "page" : undefined}
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${view === item.view ? "bg-emerald-700 text-white" : "bg-background hover:bg-secondary"}`}
+            className={`rounded-lg px-4 py-2 text-sm font-medium ${view === item.view ? "bg-primary text-primary-foreground" : "bg-background hover:bg-secondary"}`}
           >
             {item.label}
           </Link>

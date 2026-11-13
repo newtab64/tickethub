@@ -216,7 +216,7 @@ export function GateMonitoring({ eventId }: { eventId: string }) {
                     <span
                       className={
                         scan.outcome === "SUCCESS"
-                          ? "text-emerald-700"
+                          ? "text-primary"
                           : "text-destructive"
                       }
                     >
