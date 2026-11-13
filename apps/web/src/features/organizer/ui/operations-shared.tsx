@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { Button } from "@/shared/ui/button";
 import { operationsError } from "../api/organizer-operations-api";
+import type { PageMeta } from "../domain/operations";
 
 export const selectClass =
   "h-10 rounded-lg border border-input bg-background px-3 text-sm w-full disabled:opacity-50";
@@ -87,5 +88,38 @@ export function Field({
       {label}
       {children}
     </label>
+  );
+}
+
+export function Pagination({
+  meta,
+  busy,
+  onPage,
+}: {
+  meta: PageMeta;
+  busy: boolean;
+  onPage: (page: number) => void;
+}) {
+  return (
+    <nav
+      aria-label="Phân trang"
+      className="mt-5 flex items-center justify-between gap-3 text-sm"
+    >
+      <Button
+        variant="outline"
+        disabled={busy || meta.page <= 1}
+        onClick={() => onPage(meta.page - 1)}
+      >
+        Trang trước
+      </Button>
+      <span>Trang {meta.page}</span>
+      <Button
+        variant="outline"
+        disabled={busy || !meta.hasMore}
+        onClick={() => onPage(meta.page + 1)}
+      >
+        Trang sau
+      </Button>
+    </nav>
   );
 }

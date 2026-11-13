@@ -1,38 +1,98 @@
 import { test, expect, type Page } from "@playwright/test";
-
-// Fixture hợp đồng BE2, chỉ kiểm thử frontend; xác thực dùng API đăng nhập thật.
+import { readFile } from "node:fs/promises";
+// Response fixture bám mã PR49; test chạy với xác thực thật nhưng không thay dữ liệu BE.
 test.use({
   launchOptions: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH
     ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH }
     : {},
 });
-const eventId = "10000000-0000-4000-8000-000000000001";
-const secondId = "10000000-0000-4000-8000-000000000002";
-const gateId = "20000000-0000-4000-8000-000000000001";
-const secondGate = "20000000-0000-4000-8000-000000000002";
-const staffId = "30000000-0000-4000-8000-000000000001";
-const jobId = "40000000-0000-4000-8000-000000000001";
-const updatedAt = "2026-11-06T10:00:00+07:00";
-const base = "**/api/v1/organizer/events";
+const API = process.env.W05_API_URL || "http://localhost:4000/api/v1";
+const eventId = "10000000-0000-4000-8000-000000000001",
+  secondId = "10000000-0000-4000-8000-000000000002";
+const gateId = "20000000-0000-4000-8000-000000000001",
+  secondGate = "20000000-0000-4000-8000-000000000002";
+const staffId = "30000000-0000-4000-8000-000000000001",
+  assignmentId = "31000000-0000-4000-8000-000000000001",
+  jobId = "40000000-0000-4000-8000-000000000001";
+const stamp = "2026-11-06T10:00:00+07:00",
+  base = "**/api/v1/organizer/events",
+  staffBase = "**/api/v1/organizer/staff",
+  exportBase = `${base}/${eventId}/reports/exports`;
+const meta = { page: 1, limit: 20, hasMore: false };
+const staff = {
+  id: staffId,
+  fullName: "Nhân viên A",
+  email: "staff@example.com",
+  phone: null,
+  status: "ACTIVE",
+  createdAt: stamp,
+};
 const report = {
-  updatedAt,
-  revenue: 1800000,
-  ticketsSold: 3,
-  checkedIn: 2,
-  daily: [{ date: "2026-11-06", revenue: 1800000 }],
-  ticketTypes: [{ name: "VIP", sold: 3, revenue: 1800000 }],
+  summary: {
+    event_id: eventId,
+    organizer_id: staffId,
+    title: "Sự kiện W05",
+    total_sold_tickets: "3",
+    total_checked_in_tickets: "2",
+    total_cancelled_tickets: "1",
+    gross_revenue: "2100000",
+    paid_revenue: "1800000",
+    total_refunded_amount: "200000",
+    net_revenue: "1600000",
+    checkin_percentage: "66.67",
+    refreshed_at: stamp,
+  },
+  sales: [
+    {
+      ticket_type_id: gateId,
+      ticket_type_name: "VIP",
+      sale_date: "2026-11-06",
+      total_sold_tickets: "3",
+      total_checked_in_tickets: "2",
+      paid_revenue: "1800000",
+      refreshed_at: stamp,
+    },
+  ],
+  analytics: {
+    cancellationPercentage: 25,
+    fees: {
+      status: "NOT_CONFIGURED",
+      platformFee: null,
+      gatewayFee: null,
+      netPayout: null,
+    },
+  },
+  period: {
+    fromDate: "2026-11-01",
+    toDate: "2026-11-06",
+    ticketTypeId: null,
+    voucherCode: null,
+    timezone: "Asia/Ho_Chi_Minh",
+    refundBasis: "COMPLETION_DATE",
+    ticketBasis: "PAYMENT_DATE_CURRENT_STATUS",
+  },
+};
+const job = {
+  id: jobId,
+  status: "PENDING",
+  format: "xlsx",
+  createdAt: stamp,
+  expiresAt: null as string | null,
+  fromDate: "2026-11-01",
+  toDate: "2026-11-06",
+  ticketTypeId: null,
+  voucherCode: null,
+  errorMessage: null,
+  downloadUrl: null as string | null,
 };
 let session: { accessToken: string; user: object };
-
 test.beforeAll(async ({ request }) => {
-  const response = await request.post(
-    "http://localhost:4000/api/v1/auth/login",
-    { data: { email: "organizer@tickethub.vn", password: "Password123!" } },
-  );
-  expect(response.ok()).toBeTruthy();
-  session = (await response.json()).data;
+  const r = await request.post(`${API}/auth/login`, {
+    data: { email: "organizer@tickethub.vn", password: "Password123!" },
+  });
+  expect(r.ok()).toBeTruthy();
+  session = (await r.json()).data;
 });
-
 test.beforeEach(async ({ page, context }) => {
   await context.addCookies([
     {
@@ -45,8 +105,8 @@ test.beforeEach(async ({ page, context }) => {
     (user) => localStorage.setItem("tickethub_user", JSON.stringify(user)),
     session.user,
   );
-  await page.route(base, (route) =>
-    route.fulfill({
+  await page.route(base, (r) =>
+    r.fulfill({
       json: {
         success: true,
         data: {
@@ -58,55 +118,104 @@ test.beforeEach(async ({ page, context }) => {
       },
     }),
   );
+  await page.route(`${base}/${eventId}`, (r) =>
+    r.fulfill({
+      json: {
+        success: true,
+        data: { id: eventId, ticketTypes: [{ id: gateId, name: "VIP" }] },
+      },
+    }),
+  );
+  await page.route(`${exportBase}?*`, (r) =>
+    r.fulfill({ json: { success: true, data: [], meta } }),
+  );
 });
-
 async function staffFixture(page: Page) {
-  let staff = {
-    id: staffId,
-    fullName: "Nhân viên A",
-    email: "staff@example.com",
-    status: "ACTIVE",
-    gateId,
-  };
-  const changes: object[] = [];
-  await page.route(`${base}/${eventId}/staff`, async (route) => {
-    if (route.request().method() === "POST") {
-      const body = route.request().postDataJSON();
-      changes.push(body);
-      staff = {
-        ...staff,
-        fullName: body.fullName,
-        email: body.email,
-        gateId: body.gateId,
-      };
-      await route.fulfill({
-        status: 201,
-        json: { success: true, data: staff },
-      });
-    } else
-      await route.fulfill({
-        json: {
-          success: true,
-          data: {
-            items: [staff],
-            gates: [
-              { id: gateId, name: "Cổng A" },
-              { id: secondGate, name: "Cổng B" },
-            ],
-          },
-        },
-      });
+  let account = { ...staff };
+  let assigned: string | null = gateId;
+  const changes: { path: string; body: unknown }[] = [];
+  await page.route(`${staffBase}?*`, (r) =>
+    r.fulfill({ json: { success: true, data: [account], meta } }),
+  );
+  await page.route(staffBase, (r) => {
+    const body = r.request().postDataJSON();
+    changes.push({ path: "create", body });
+    account = { ...account, ...body };
+    return r.fulfill({ status: 201, json: { success: true, data: account } });
   });
-  await page.route(`${base}/${eventId}/staff/${staffId}`, async (route) => {
-    const patch = route.request().postDataJSON();
-    changes.push(patch);
-    staff = { ...staff, ...patch };
-    await route.fulfill({ json: { success: true, data: staff } });
+  await page.route(`${staffBase}/${staffId}`, (r) => {
+    const body = r.request().postDataJSON();
+    changes.push({ path: "update", body });
+    account = { ...account, ...body };
+    return r.fulfill({ json: { success: true, data: account } });
+  });
+  await page.route(`${base}/${eventId}/gates?*`, (r) => {
+    const p = Number(new URL(r.request().url()).searchParams.get("page"));
+    return r.fulfill({
+      json: {
+        success: true,
+        data: [
+          {
+            id: p === 1 ? gateId : secondGate,
+            name: p === 1 ? "Cổng A" : "Cổng B",
+            locationDesc: null,
+          },
+        ],
+        meta: { page: p, limit: 100, hasMore: p === 1 },
+      },
+    });
+  });
+  await page.route(`${base}/${eventId}/staff?*`, (r) =>
+    r.fulfill({
+      json: {
+        success: true,
+        data: assigned
+          ? [
+              {
+                id: assignmentId,
+                userId: staffId,
+                fullName: account.fullName,
+                email: account.email,
+                status: account.status,
+                gateId: assigned,
+              },
+            ]
+          : [],
+        meta: { ...meta, limit: 100 },
+      },
+    }),
+  );
+  await page.route(`${base}/${eventId}/staff`, (r) => {
+    const body = r.request().postDataJSON();
+    assigned = body.gateId;
+    changes.push({ path: "assign", body });
+    return r.fulfill({
+      json: {
+        success: true,
+        data: {
+          id: assignmentId,
+          eventId,
+          ...body,
+          staffRole: "GATE_SCANNER",
+          createdAt: stamp,
+        },
+      },
+    });
+  });
+  await page.route(`${base}/${eventId}/staff/${staffId}`, (r) => {
+    assigned = null;
+    changes.push({ path: "unassign", body: null });
+    return r.fulfill({ json: { success: true, data: { removed: true } } });
   });
   return changes;
 }
+async function reportFixture(page: Page) {
+  await page.route(`${base}/${eventId}/reports?*`, (r) =>
+    r.fulfill({ json: { success: true, data: report } }),
+  );
+}
 
-test("W05 nhân viên: tạo, gán cổng, xác nhận khóa và mở khóa", async ({
+test("PR49 nhân viên: phân trang cổng, gán bằng userId, bỏ phân công, khóa và tạo tài khoản riêng", async ({
   page,
 }) => {
   const changes = await staffFixture(page);
@@ -114,17 +223,24 @@ test("W05 nhân viên: tạo, gán cổng, xác nhận khóa và mở khóa", as
   await expect(page.getByText("Nhân viên A", { exact: true })).toBeVisible();
   await page.getByLabel("Cổng của Nhân viên A").selectOption(secondGate);
   await expect.poll(() => changes.length).toBe(1);
-  expect(changes[0]).toEqual({ gateId: secondGate });
+  expect(changes[0]).toEqual({
+    path: "assign",
+    body: { userId: staffId, gateId: secondGate },
+  });
+  await page.getByLabel("Cổng của Nhân viên A").selectOption("");
+  await expect.poll(() => changes.length).toBe(2);
+  expect(changes[1].path).toBe("unassign");
   await page
     .getByRole("button", { name: "Khóa tài khoản", exact: true })
     .click();
   await page.getByRole("button", { name: "Hủy", exact: true }).click();
-  expect(changes).toHaveLength(1);
+  expect(changes).toHaveLength(2);
   await page
     .getByRole("button", { name: "Khóa tài khoản", exact: true })
     .click();
   await page.getByRole("button", { name: "Xác nhận", exact: true }).click();
   await expect(page.getByText("Đã khóa", { exact: true })).toBeVisible();
+  expect(changes[2]).toEqual({ path: "update", body: { status: "LOCKED" } });
   await page.getByRole("button", { name: "Mở khóa", exact: true }).click();
   await page.getByRole("button", { name: "Xác nhận", exact: true }).click();
   await expect(page.getByText("Đang hoạt động", { exact: true })).toBeVisible();
@@ -134,158 +250,217 @@ test("W05 nhân viên: tạo, gán cổng, xác nhận khóa và mở khóa", as
   await page.getByLabel("Họ tên", { exact: true }).fill("Nhân viên mới");
   await page.getByLabel("Email", { exact: true }).fill("new@example.com");
   await page.getByLabel("Mật khẩu ban đầu").fill("LongPassword123!");
-  await page.getByLabel("Cổng được phân công").selectOption(gateId);
-  await page.getByRole("button", { name: "Tạo và phân công" }).click();
+  await page
+    .getByRole("button", { name: "Tạo tài khoản", exact: true })
+    .click();
   await expect(
-    page.getByText("Đã tạo tài khoản và phân công nhân viên."),
+    page.getByText(
+      "Đã tạo tài khoản. Chọn cổng ở danh sách để phân công vào sự kiện.",
+    ),
   ).toBeVisible();
-  expect(changes.at(-1)).toMatchObject({
-    fullName: "Nhân viên mới",
-    email: "new@example.com",
-    gateId,
+  expect(changes.at(-1)).toEqual({
+    path: "create",
+    body: {
+      fullName: "Nhân viên mới",
+      email: "new@example.com",
+      password: "LongPassword123!",
+      phone: "",
+    },
   });
 });
-
-test("W05 API thiếu không hiển thị số liệu hoặc thành công giả", async ({
+test("PR49 bộ lọc strict, tiền dạng chuỗi, hoàn âm không bị gán thành 0", async ({
   page,
 }) => {
-  await page.route(`${base}/${eventId}/reports?*`, (route) =>
-    route.fulfill({ status: 404, json: { success: false } }),
-  );
-  await page.goto("/organizer/dashboard");
-  await expect(
-    page.getByRole("alert").filter({ hasText: "Chức năng chưa" }),
-  ).toContainText("Chức năng chưa được máy chủ hỗ trợ");
-  await expect(page.getByText("Doanh thu thuần", { exact: true })).toHaveCount(
-    0,
-  );
-  await expect(
-    page.getByRole("button", { name: "Xuất báo cáo", exact: true }),
-  ).toHaveCount(0);
-});
-
-test("W05 báo cáo: lọc ngày, số liệu và xuất Excel nền", async ({ page }) => {
-  const periods: string[] = [];
-  await page.route(`${base}/${eventId}/reports?*`, (route) => {
-    periods.push(route.request().url());
-    return route.fulfill({ json: { success: true, data: report } });
-  });
-  let exportBody: object | null = null;
-  await page.route(`${base}/${eventId}/report-exports`, (route) => {
-    exportBody = route.request().postDataJSON();
-    expect(route.request().headers()["idempotency-key"]).toBeTruthy();
-    return route.fulfill({
-      status: 202,
-      json: {
-        success: true,
-        data: { id: jobId, status: "QUEUED", downloadUrl: null, error: null },
-      },
-    });
-  });
-  let reads = 0;
-  await page.route(`${base}/${eventId}/report-exports/${jobId}`, (route) => {
-    reads++;
-    return route.fulfill({
+  const queries: string[] = [];
+  await page.route(`${base}/${eventId}/reports?*`, (r) => {
+    queries.push(r.request().url());
+    return r.fulfill({
       json: {
         success: true,
         data: {
-          id: jobId,
-          status: reads === 1 ? "PROCESSING" : "COMPLETED",
-          downloadUrl:
-            reads === 1 ? null : "https://files.example.com/report.xlsx",
-          error: null,
+          ...report,
+          summary: { ...report.summary, net_revenue: "-500000" },
         },
       },
     });
   });
   await page.goto(`/organizer/events/${eventId}/stats`);
-  await expect(page.getByText("66.7%", { exact: true })).toBeVisible();
+  await expect(page.getByText("66.67%", { exact: true })).toBeVisible();
+  await expect(page.getByText(/-500\.000/)).toBeVisible();
   await page.getByLabel("Từ ngày", { exact: true }).fill("2026-11-01");
   await page.getByLabel("Đến ngày", { exact: true }).fill("2026-11-06");
+  await page.getByLabel("Hạng vé", { exact: true }).selectOption(gateId);
+  await page.getByLabel("Mã voucher", { exact: true }).fill(" summer ");
   await page.getByRole("button", { name: "Áp dụng", exact: true }).click();
-  await expect(
-    page.getByText("Kỳ báo cáo: 2026-11-01 đến 2026-11-06"),
-  ).toBeVisible();
-  expect(new URL(periods.at(-1)!).searchParams.get("timezone")).toBe(
-    "Asia/Ho_Chi_Minh",
-  );
-  await page.getByLabel("Định dạng báo cáo").selectOption("xlsx");
-  await page.getByRole("button", { name: "Xuất báo cáo", exact: true }).click();
-  await expect(page.getByText("Đang tạo tệp", { exact: true })).toBeVisible();
-  await page.getByLabel("Đến ngày", { exact: true }).fill("2026-11-07");
-  await page.getByRole("button", { name: "Áp dụng", exact: true }).click();
-  await expect(
-    page.getByText("Yêu cầu XLSX: 2026-11-01 đến 2026-11-06"),
-  ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Tải báo cáo" })).toHaveAttribute(
-    "href",
-    "https://files.example.com/report.xlsx",
-  );
-  expect(exportBody).toEqual({
-    from: "2026-11-01",
-    to: "2026-11-06",
-    timezone: "Asia/Ho_Chi_Minh",
-    format: "xlsx",
+  await expect
+    .poll(() => new URL(queries.at(-1)!).searchParams.get("voucherCode"))
+    .toBe("SUMMER");
+  expect(Object.fromEntries(new URL(queries.at(-1)!).searchParams)).toEqual({
+    fromDate: "2026-11-01",
+    toDate: "2026-11-06",
+    ticketTypeId: gateId,
+    voucherCode: "SUMMER",
   });
+  await expect(
+    page.getByRole("heading", { name: "Tiền thực thu theo ngày" }),
+  ).toBeVisible();
 });
-
-test("W05 đổi sự kiện không giữ số liệu sự kiện trước", async ({ page }) => {
-  await page.route(`${base}/${eventId}/reports?*`, (route) =>
-    route.fulfill({ json: { success: true, data: report } }),
+test("PR49 xuất XLSX nền, khôi phục sau F5, tải bằng Bearer qua endpoint tương đối", async ({
+  page,
+}) => {
+  await reportFixture(page);
+  let jobs: (typeof job)[] = [];
+  let complete = false;
+  let body: object | null = null;
+  await page.route(`${exportBase}?*`, (r) =>
+    r.fulfill({
+      json: {
+        success: true,
+        data: jobs.map((j) => ({
+          ...j,
+          status: complete ? "COMPLETED" : "PROCESSING",
+          downloadUrl: complete
+            ? `/api/v1/organizer/events/${eventId}/reports/exports/${jobId}/download`
+            : null,
+        })),
+        meta,
+      },
+    }),
   );
-  await page.route(`${base}/${secondId}/reports?*`, (route) =>
-    route.fulfill({
+  await page.route(exportBase, (r) => {
+    body = r.request().postDataJSON();
+    jobs = [{ ...job, ...body }];
+    return r.fulfill({ status: 202, json: { success: true, data: jobs[0] } });
+  });
+  await page.route(`${exportBase}/${jobId}`, (r) =>
+    r.fulfill({
       json: {
         success: true,
         data: {
-          ...report,
-          revenue: 0,
-          ticketsSold: 0,
-          checkedIn: 0,
-          daily: [],
-          ticketTypes: [],
+          ...job,
+          status: "COMPLETED",
+          downloadUrl: `/api/v1/organizer/events/${eventId}/reports/exports/${jobId}/download`,
         },
       },
     }),
   );
+  await page.route(`${exportBase}/${jobId}/download`, (r) => {
+    expect(r.request().headers().authorization).toBe(
+      `Bearer ${session.accessToken}`,
+    );
+    return r.fulfill({
+      contentType:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      body: Buffer.from("PK-test-workbook"),
+    });
+  });
   await page.goto("/organizer/dashboard");
-  await expect(page.getByText("66.7%", { exact: true })).toBeVisible();
-  await page.getByLabel("Sự kiện", { exact: true }).selectOption(secondId);
-  await expect(page.getByText("0.0%", { exact: true })).toBeVisible();
+  await page.getByLabel("Từ ngày", { exact: true }).fill("2026-11-01");
+  await page.getByLabel("Đến ngày", { exact: true }).fill("2026-11-06");
+  await page.getByRole("button", { name: "Áp dụng", exact: true }).click();
+  await page
+    .getByLabel("Định dạng báo cáo", { exact: true })
+    .selectOption("xlsx");
+  await page.getByRole("button", { name: "Xuất báo cáo", exact: true }).click();
+  await expect(page.getByText("Đang tạo tệp", { exact: true })).toBeVisible();
+  expect(body).toEqual({
+    fromDate: "2026-11-01",
+    toDate: "2026-11-06",
+    format: "xlsx",
+  });
+  await page.reload();
+  await expect(page.getByText("Đang tạo tệp", { exact: true })).toBeVisible();
+  complete = true;
   await expect(
-    page.getByText("Chưa có doanh thu trong khoảng thời gian này."),
-  ).toBeVisible();
-  await expect(page.getByText("66.7%", { exact: true })).toHaveCount(0);
+    page.getByRole("button", { name: "Tải báo cáo", exact: true }),
+  ).toBeEnabled({ timeout: 10000 });
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Tải báo cáo", exact: true }).click();
+  const file = await pending;
+  expect(file.suggestedFilename()).toBe(`event-report-${jobId}.xlsx`);
+  expect((await readFile((await file.path())!)).toString()).toBe(
+    "PK-test-workbook",
+  );
 });
-
-test("W05 giám sát: tạm dừng, làm mới và cảnh báo dữ liệu cũ", async ({
+test("PR49 API thiếu không giả số liệu", async ({ page }) => {
+  await page.route(`${base}/${eventId}/reports?*`, (r) =>
+    r.fulfill({ status: 404, json: { statusCode: 404, message: "Not Found" } }),
+  );
+  await page.goto("/organizer/dashboard");
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Chức năng hoặc dữ liệu" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Tiền thu sau hoàn", { exact: true }),
+  ).toHaveCount(0);
+});
+test("PR49 giám sát gồm cả lượt từ chối, tự poll và cảnh báo snapshot cũ", async ({
   page,
 }) => {
-  let fail = false;
-  await page.route(`${base}/${eventId}/gate-monitor`, (route) =>
+  let advanced = false,
+    fail = false;
+  await page.route(`${base}/${eventId}/checkins/summary`, (r) =>
     fail
-      ? route.fulfill({
-          status: 503,
-          json: {
-            success: false,
-            error: { code: "UNAVAILABLE", message: "Máy chủ tạm ngừng" },
-          },
-        })
-      : route.fulfill({
+      ? r.fulfill({ status: 503, json: { message: "Máy chủ tạm ngừng" } })
+      : r.fulfill({
           json: {
             success: true,
             data: {
-              updatedAt,
+              eventId,
+              generatedAt: stamp,
+              suggestedPollIntervalMs: 5000,
+              summary: {
+                validTickets: 4,
+                checkedInTickets: advanced ? 3 : 2,
+                remainingTickets: advanced ? 1 : 2,
+                successfulAttempts: 3,
+                rejectedAttempts: 1,
+                checkinPercentage: advanced ? 75 : 50,
+              },
               gates: [
-                { id: gateId, name: "Cổng A", checkedIn: 2, staffCount: 1 },
+                {
+                  gateId,
+                  gateName: "Cổng A",
+                  checkedInTickets: 2,
+                  activeAssignedStaff: 1,
+                  successfulAttempts: 3,
+                  rejectedAttempts: 1,
+                  lastScanAt: stamp,
+                },
               ],
-              recent: [],
+              timelineLast24Hours: [],
             },
           },
         }),
   );
+  await page.route(`${base}/${eventId}/checkins?*`, (r) =>
+    r.fulfill({
+      json: {
+        success: true,
+        data: [
+          {
+            id: jobId,
+            gateId,
+            staffId,
+            method: "QR",
+            outcome: "REJECTED",
+            reason: null,
+            errorCode: "TICKET_ALREADY_USED",
+            checkedInAt: stamp,
+          },
+        ],
+        meta,
+      },
+    }),
+  );
   await page.goto("/organizer/gate-monitor");
-  await expect(page.getByText("Cổng A", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("TICKET_ALREADY_USED", { exact: true }),
+  ).toBeVisible();
+  advanced = true;
+  await expect(
+    page.getByText("75.00% / 4 vé còn hiệu lực", { exact: true }),
+  ).toBeVisible({ timeout: 10000 });
   await page.getByRole("button", { name: "Tạm dừng", exact: true }).click();
   await expect(
     page.getByText("Đã tạm dừng cập nhật", { exact: true }),
@@ -295,19 +470,31 @@ test("W05 giám sát: tạm dừng, làm mới và cảnh báo dữ liệu cũ",
   await expect(
     page.getByText("Mất kết nối cập nhật. Dữ liệu bên dưới có thể đã cũ."),
   ).toBeVisible();
-  await expect(page.getByText("Cổng A", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("alert").filter({ hasText: "Máy chủ tạm ngừng" }),
-  ).toContainText("Máy chủ tạm ngừng");
+  await expect(page.getByText("Cổng A", { exact: true }).first()).toBeVisible();
 });
-
-test("W05 mobile: tìm nhân viên, không tràn màn hình", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
+test("PR49 phân trang tài khoản và mobile", async ({ page }) => {
   await staffFixture(page);
+  await page.route(`${staffBase}?*`, (r) => {
+    const p = Number(new URL(r.request().url()).searchParams.get("page"));
+    return r.fulfill({
+      json: {
+        success: true,
+        data: [
+          { ...staff, fullName: p === 1 ? "Trang đầu" : "Nhân viên trang hai" },
+        ],
+        meta: { page: p, limit: 20, hasMore: p === 1 },
+      },
+    });
+  });
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/organizer/staff");
-  await page.getByLabel("Tìm nhân viên").fill("không tồn tại");
+  await page.getByRole("button", { name: "Trang sau", exact: true }).click();
   await expect(
-    page.getByText("Không tìm thấy nhân viên phù hợp."),
+    page.getByText("Nhân viên trang hai", { exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Tìm trên trang nhân viên hiện tại").fill("không có");
+  await expect(
+    page.getByText("Không tìm thấy nhân viên phù hợp trên trang này."),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -315,126 +502,104 @@ test("W05 mobile: tìm nhân viên, không tràn màn hình", async ({ page }) =
     ),
   ).toBeTruthy();
 });
-
-test("W05 trạng thái rỗng và kiểm soát quyền khi chưa đăng nhập", async ({
-  page,
-  context,
-}) => {
-  await page.route(base, (route) =>
-    route.fulfill({ json: { success: true, data: { items: [] } } }),
-  );
-  await page.goto("/organizer/staff");
-  await expect(
-    page.getByText("Bạn chưa có sự kiện.", { exact: false }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Thêm nhân viên", exact: true }),
-  ).toHaveCount(0);
-  await context.clearCookies();
-  await page.goto("/organizer/dashboard");
-  await expect(page).toHaveURL(/\/auth\?redirect=/);
-});
-
-test("W05 tạo tài khoản lỗi không báo thành công", async ({ page }) => {
+test("PR49 tạo tài khoản lỗi Nest không báo thành công", async ({ page }) => {
   await staffFixture(page);
-  await page.route(`${base}/${eventId}/staff`, (route) =>
-    route.request().method() === "POST"
-      ? route.fulfill({
-          status: 409,
-          json: {
-            success: false,
-            error: { code: "EMAIL_EXISTS", message: "Email đã tồn tại" },
-          },
-        })
-      : route.fallback(),
+  await page.route(staffBase, (r) =>
+    r.fulfill({
+      status: 409,
+      json: {
+        statusCode: 409,
+        message: "EMAIL_ALREADY_EXISTS",
+        error: "Conflict",
+      },
+    }),
   );
   await page.goto("/organizer/staff");
   await page
     .getByRole("button", { name: "Thêm nhân viên", exact: true })
     .click();
-  await page.getByLabel("Họ tên", { exact: true }).fill("Nhân viên trùng");
-  await page.getByLabel("Email", { exact: true }).fill("staff@example.com");
+  await page.getByLabel("Họ tên", { exact: true }).fill("A");
+  await page.getByLabel("Email", { exact: true }).fill("a@example.com");
   await page.getByLabel("Mật khẩu ban đầu").fill("LongPassword123!");
-  await page.getByLabel("Cổng được phân công").selectOption(gateId);
-  await page.getByRole("button", { name: "Tạo và phân công" }).click();
+  await page
+    .getByRole("button", { name: "Tạo tài khoản", exact: true })
+    .click();
   await expect(
-    page.getByText("Email đã tồn tại", { exact: true }),
+    page.getByText("Email đã tồn tại. Hãy dùng tài khoản khác."),
   ).toBeVisible();
   await expect(
-    page.getByText("Đã tạo tài khoản và phân công nhân viên."),
-  ).toHaveCount(0);
-  await expect(page.getByLabel("Họ tên", { exact: true })).toHaveValue(
-    "Nhân viên trùng",
-  );
+    page.getByRole("button", { name: "Tạo tài khoản", exact: true }),
+  ).toBeEnabled();
 });
-
-test("W05 xuất CSV thất bại và không tự gửi lại yêu cầu", async ({ page }) => {
-  await page.route(`${base}/${eventId}/reports?*`, (route) =>
-    route.fulfill({ json: { success: true, data: report } }),
-  );
-  let creates = 0;
-  await page.route(`${base}/${eventId}/report-exports`, (route) => {
-    creates++;
-    expect(route.request().postDataJSON().format).toBe("csv");
-    return route.fulfill({
-      status: 202,
-      json: {
-        success: true,
-        data: { id: jobId, status: "QUEUED", downloadUrl: null, error: null },
-      },
-    });
-  });
-  await page.route(`${base}/${eventId}/report-exports/${jobId}`, (route) =>
-    route.fulfill({
-      json: {
-        success: true,
-        data: {
-          id: jobId,
-          status: "FAILED",
-          downloadUrl: null,
-          error: "EXPORT_FAILED",
-        },
-      },
+test("PR49 job EXPIRED và lỗi 410 không tải tệp giả", async ({ page }) => {
+  await reportFixture(page);
+  await page.route(`${exportBase}?*`, (r) =>
+    r.fulfill({
+      json: { success: true, data: [{ ...job, status: "COMPLETED" }], meta },
     }),
   );
+  await page.route(`${exportBase}/${jobId}`, (r) =>
+    r.fulfill({
+      json: { success: true, data: { ...job, status: "COMPLETED" } },
+    }),
+  );
+  await page.route(`${exportBase}/${jobId}/download`, (r) =>
+    r.fulfill({ status: 410, json: { message: "EXPORT_EXPIRED" } }),
+  );
   await page.goto("/organizer/dashboard");
-  await page.getByRole("button", { name: "Xuất báo cáo", exact: true }).click();
+  await page.getByRole("button", { name: "Tải báo cáo", exact: true }).click();
   await expect(
-    page.getByText("Xuất báo cáo thất bại. Bạn có thể tạo yêu cầu mới."),
+    page.getByText("Tệp báo cáo đã hết hạn. Vui lòng tạo báo cáo mới."),
   ).toBeVisible();
-  await expect(page.getByRole("link", { name: "Tải báo cáo" })).toHaveCount(0);
-  expect(creates).toBe(1);
 });
-
-test("W05 giám sát tự cập nhật theo chu kỳ", async ({ page }) => {
-  let reads = 0;
-  let advanced = false;
-  await page.route(`${base}/${eventId}/gate-monitor`, (route) => {
-    reads++;
-    return route.fulfill({
-      json: {
-        success: true,
-        data: {
-          updatedAt,
-          gates: [
-            {
-              id: gateId,
-              name: "Cổng A",
-              checkedIn: advanced ? 3 : 2,
-              staffCount: 1,
-            },
-          ],
-          recent: [],
-        },
-      },
+test("PR49 danh sách rỗng và redirect khi chưa đăng nhập", async ({
+  page,
+  context,
+}) => {
+  await page.route(base, (r) =>
+    r.fulfill({ json: { success: true, data: { items: [] } } }),
+  );
+  await page.goto("/organizer/staff");
+  await expect(
+    page.getByText("Bạn chưa có sự kiện.", { exact: false }),
+  ).toBeVisible();
+  await context.clearCookies();
+  await page.goto("/organizer/dashboard");
+  await expect(page).toHaveURL(/\/auth\?redirect=/);
+});
+test("PR49 tải tệp refresh token một lần khi 401", async ({ page }) => {
+  await reportFixture(page);
+  await page.route(`${exportBase}?*`, (r) =>
+    r.fulfill({
+      json: { success: true, data: [{ ...job, status: "COMPLETED" }], meta },
+    }),
+  );
+  await page.route(`${exportBase}/${jobId}`, (r) =>
+    r.fulfill({
+      json: { success: true, data: { ...job, status: "COMPLETED" } },
+    }),
+  );
+  let calls = 0,
+    refresh = 0;
+  await page.route("**/api/v1/auth/refresh", (r) => {
+    refresh++;
+    return r.fulfill({
+      json: { success: true, data: { accessToken: "test-refreshed-token" } },
     });
   });
-  await page.goto("/organizer/gate-monitor");
-  await expect(page.getByText("2", { exact: true })).toBeVisible();
-  const initialReads = reads;
-  advanced = true;
-  await expect(page.getByText("3", { exact: true })).toBeVisible({
-    timeout: 10000,
+  await page.route(`${exportBase}/${jobId}/download`, (r) => {
+    calls++;
+    if (calls === 1)
+      return r.fulfill({ status: 401, json: { message: "Unauthorized" } });
+    expect(r.request().headers().authorization).toBe(
+      "Bearer test-refreshed-token",
+    );
+    return r.fulfill({ body: "protected-by-refresh", contentType: "text/csv" });
   });
-  expect(reads).toBeGreaterThan(initialReads);
+  await page.goto("/organizer/dashboard");
+  const pending = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Tải báo cáo", exact: true }).click();
+  await pending;
+  expect(calls).toBe(2);
+  expect(refresh).toBe(1);
 });

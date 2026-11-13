@@ -35,12 +35,21 @@ export function OrganizerOperationsPage({
     queryKey: ["organizer", user?.id, "operation-events"],
     queryFn: ({ signal }) => organizerOperationsApi.events(signal),
     retry: false,
-    enabled: !isLoading,
+    enabled: !isLoading && (!user || user.role === "ORGANIZER"),
     staleTime: 0,
   });
   const eventId = selected || events.data?.[0]?.id || "";
   const event = events.data?.find((item) => item.id === eventId);
   const title = navigation.find((item) => item.view === view)!.label;
+  if (!isLoading && user && user.role !== "ORGANIZER")
+    return (
+      <div className="mx-auto max-w-[1200px] px-4 py-8">
+        <p role="alert" className={panelClass}>
+          Các chức năng vận hành W05 chỉ dành cho tài khoản Ban tổ chức. Vui
+          lòng đăng nhập tài khoản ORGANIZER.
+        </p>
+      </div>
+    );
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 space-y-6">
       <header className="space-y-2">

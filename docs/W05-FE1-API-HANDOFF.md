@@ -1,137 +1,119 @@
-# W05-FE1: bàn giao giao diện và API cho BE2
+# W05-FE1: tích hợp backend PR #49
 
-## Phạm vi và trạng thái
+## Nguồn đối chiếu và phạm vi
 
-Theo dòng W05-FE1 của dutyRoster.xlsx: quản lý nhân viên, báo cáo doanh thu UC09, xuất CSV/Excel nền và giám sát cổng. Chỉ thay đổi frontend theo yêu cầu người dùng. Không triển khai phần camera/QR của FE2.
+Frontend được sửa theo [PR newtab64/tickethub#49](https://github.com/newtab64/tickethub/pull/49), head `ff96dd378850072830fcab73aa5620c6c8b42d71` tại lúc kiểm tra. Đã đọc controller, schema, staff service, reporting service, truy vấn SQL và tài liệu `docs/testing/w05-be2-integration.md` trong PR. Hợp đồng đề xuất cũ của FE1 đã được thay bằng hợp đồng thực tế này.
 
-Giao diện: `/organizer/staff`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/organizer/gate-monitor`. Các route dùng kiểm tra phiên và vai trò ORGANIZER/ADMIN hiện có. API client dùng Bearer token, refresh cookie và xử lý lỗi hiện có. Danh sách sự kiện lấy API thật, không dùng danh sách mock của màn hình sự kiện cũ.
+Chỉ thay đổi frontend và test/tài liệu frontend. Không merge hoặc sao chép mã API PR49 vào nhánh FE, không sửa workflow, schema DB hoặc lockfile. Backend hiện có trên nền `unstable` của nhánh FE chưa có module W05; để chạy tích hợp phải bật backend PR49 cùng các migration/phần W04 mà PR kế thừa.
 
-**Đây là hợp đồng đề xuất để BE2 xác nhận và triển khai, chưa phải API đang có.** Backend hiện chỉ cung cấp `GET /api/v1/organizer/events` và các API chi tiết/cập nhật sự kiện liên quan. Không dùng `/gate/scan`, `/gate/lookup` hoặc inventory công khai để suy diễn báo cáo. Giao diện hiển thị lỗi khi endpoint chưa tồn tại, không tạo tài khoản, doanh thu hoặc tệp giả. Test trình duyệt với response fixture chỉ xác minh frontend, không chứng minh tích hợp backend W05.
+Các route: `/organizer/staff`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/organizer/gate-monitor`. Dùng danh sách sự kiện thật. W05 chỉ cho ORGANIZER theo `@Roles("ORGANIZER")` của PR49; ADMIN không được xem các màn hình chức năng này dù layout organizer hiện cho ADMIN đi qua.
 
-## Quy ước chung
+## Nhân viên và cổng
 
-- Prefix `/api/v1/organizer/events/:eventId`; UUID hợp lệ.
-- Mọi endpoint mới yêu cầu Bearer token và xác thực quyền sở hữu sự kiện phía máy chủ. Không tin eventId/userId/role từ trình duyệt. ADMIN tuân theo chính sách truy cập của backend.
-- Thành công: `{ "success": true, "data": ... }`. Lỗi: `{ "success": false, "error": { "code": "...", "message": "..." } }`.
-- 400: dữ liệu không hợp lệ; 401: hết phiên; 403: không có quyền; 404: không tìm thấy; 409: trùng email/tranh chấp; 429: giới hạn tần suất; 501: chưa hỗ trợ. Không trả HTTP 200 với payload giả khi dịch vụ lỗi.
-- Đếm là số nguyên không âm; tiền là số VND hữu hạn không âm. Timestamp ISO 8601 có múi giờ. Giao diện kiểm tra runtime schema tại `apps/web/src/features/organizer/domain/operations.ts`.
+| API sau `/api/v1`                                       | Frontend sử dụng                                                |
+| ------------------------------------------------------- | --------------------------------------------------------------- |
+| GET `/organizer/staff?page=1&limit=20`                  | Danh sách tài khoản của BTC; giữ `meta` phân trang              |
+| POST `/organizer/staff`                                 | `{email,fullName,password,phone?}`; không gửi eventId/gateId    |
+| PATCH `/organizer/staff/:userId`                        | `{status:"ACTIVE"                                               | "LOCKED"}`; khóa tài khoản toàn cục |
+| GET `/organizer/events/:eventId/gates?page=1&limit=100` | Duyệt các trang theo `meta.hasMore`, không dừng cứng ở 100 cổng |
+| POST `/organizer/events/:eventId/gates`                 | `{name,locationDesc?}`                                          |
+| GET `/organizer/events/:eventId/staff?page=1&limit=100` | Phân công sự kiện; duyệt hết theo meta                          |
+| POST `/organizer/events/:eventId/staff`                 | `{userId,gateId}`; tạo hoặc thay cổng                           |
+| DELETE `/organizer/events/:eventId/staff/:userId`       | Bỏ phân công sự kiện                                            |
 
-## Danh sách sự kiện hiện có
+Tạo tài khoản và phân công là hai thao tác độc lập: UI không báo đã phân công khi chỉ tạo tài khoản thành công. Tài khoản có thể tạo ngay cả khi chưa có cổng. Họ tên 1..150 ký tự, email tối đa 255 và chuyển chữ thường, mật khẩu 12..128 ký tự, điện thoại tối đa 20. Không giữ mật khẩu ở localStorage/log.
 
-`GET /api/v1/organizer/events`: frontend đọc `data.items[].{id,title}`, bỏ qua các trường bổ sung. Backend hiện xác minh hồ sơ BTC trước khi trả danh sách; lỗi xác minh vẫn hiển thị nguyên trạng.
+ID phân công `event_staff.id` khác `userId`. Adapter ghép bằng userId; PATCH và DELETE dùng user ID. Tài khoản LOCKED không được gán cổng mới. Trạng thái khóa được xác nhận trong dialog và ghi rõ tác động toàn bộ sự kiện. Tìm kiếm hiện áp dụng trên trang tài khoản đang xem; phân trang theo hasMore, không giả tổng số bản ghi.
 
-## Nhân viên soát vé
+## Báo cáo UC09
 
-| Method | Path sau prefix   | Dữ liệu                                                            |
-| ------ | ----------------- | ------------------------------------------------------------------ |
-| GET    | `/staff`          | `{ items: Staff[], gates: Gate[] }`                                |
-| POST   | `/staff`          | Body `{ fullName, email, password, gateId }`, HTTP 201 trả `Staff` |
-| PATCH  | `/staff/:staffId` | Body `{ gateId? , status? }`, HTTP 200 trả `Staff`                 |
+`GET /organizer/events/:eventId/reports?fromDate=YYYY-MM-DD&toDate=YYYY-MM-DD&ticketTypeId=UUID&voucherCode=SUMMER`
 
-`Staff = { id: UUID, fullName: string, email: string, status: "ACTIVE" | "LOCKED", gateId: UUID | null }`.
-`id` là user ID của nhân viên, không phải ID dòng event_staff. `Gate = { id: UUID, name: string }`.
+Schema BE là strict. Không gửi các trường cũ `from`, `to`, `timezone`. Ngày bao gồm trọn hai đầu theo Việt Nam; ticketTypeId/voucherCode là tùy chọn, voucher trim/chuyển hoa, tối đa 50 ký tự. Danh sách hạng vé từ API chi tiết sự kiện organizer.
 
-- Họ tên 2..100 ký tự sau trim, email hợp lệ, mật khẩu 12..128 ký tự. Không trả mật khẩu/hash trong response hoặc log. Backend băm mật khẩu và gán role GATE_STAFF, tạo phân công nguyên tử.
-- Cổng phải thuộc eventId, nhân viên phải được phép quản lý bởi BTC này. Không được đổi vai trò hoặc trạng thái của tài khoản người mua/BTC bằng endpoint này.
-- Trùng email trả 409, không tự động chiếm tài khoản có sẵn. Muốn hỗ trợ tài khoản có sẵn cần hợp đồng riêng.
-- `LOCKED` là khóa tài khoản toàn cục, không chỉ bỏ phân công ở sự kiện. Backend phải chặn phiên/token còn hiệu lực khi scan/lookup và đăng nhập. BE2 cần chốt chính sách nhân viên dùng chung nhiều BTC trước khi triển khai; không cho một BTC khóa tài khoản thuộc BTC khác.
-- Giao diện xác nhận trước khi khóa/mở khóa, chỉ thông báo thành công sau response, tải lại danh sách sau mutation. Chưa có cổng thì không cho tạo nhân viên.
+Payload giữ nguyên cấu trúc BE `{summary,sales,analytics,period}`:
 
-## Báo cáo doanh thu
+- `summary.total_sold_tickets`: vé SOLD/CHECKED_IN, không bao gồm CANCELLED.
+- `total_checked_in_tickets`, `checkin_percentage`: nhóm vé của kỳ thanh toán và trạng thái hiện tại.
+- `paid_revenue`: tiền thực thu đã phân bổ voucher theo ngày thanh toán.
+- `total_refunded_amount`: tiền hoàn COMPLETED theo ngày hoàn tất, không gán ngược ngày giao dịch gốc.
+- `net_revenue`: tiền thu trừ hoàn, **có thể âm**, chưa trừ phí. UI dùng nhãn “Tiền thu sau hoàn”, không gọi là khoản chi trả cuối cùng.
+- `analytics.cancellationPercentage`: tỷ lệ hủy; phí trả `NOT_CONFIGURED` và null, UI không đổi null thành 0.
+- `sales[].paid_revenue`: gộp theo sale_date cho biểu đồ tiền thực thu và theo ticket_type_id cho bảng hạng vé. Không dùng sales làm biểu đồ doanh thu sau hoàn vì nó không chứa các dòng hoàn tiền.
+- `summary.refreshed_at`: thời điểm dữ liệu được cập nhật, không phải lúc request. Độ trễ MV + cache có thể khoảng 6 phút; nút làm mới không ép worker refresh.
+- `summary:null`: chưa có snapshot tổng hợp, hiển thị trạng thái chờ, không giả tất cả chỉ số bằng 0.
 
-`GET /reports?from=YYYY-MM-DD&to=YYYY-MM-DD&timezone=Asia%2FHo_Chi_Minh`
+Adapter kiểm tra runtime các số SQL có thể là chuỗi; timestamp từ raw SQL có dạng `2026-11-13 06:39:59.498245+00` trong khi Drizzle trả ISO. Cả hai được xử lý, không vô hiệu hóa kiểm tra payload.
 
-`from`, `to` là ngày Việt Nam, gồm cả hai đầu. Backend chuyển thành `[from 00:00 +07:00, ngày sau to 00:00 +07:00)`; không tính theo timezone máy chủ. Từ ngày không được sau đến ngày.
+## Xuất báo cáo nền và tải có xác thực
 
-```json
-{
-  "updatedAt": "2026-11-06T10:00:00+07:00",
-  "revenue": 1800000,
-  "ticketsSold": 3,
-  "checkedIn": 2,
-  "daily": [{ "date": "2026-11-06", "revenue": 1800000 }],
-  "ticketTypes": [{ "name": "VIP", "sold": 3, "revenue": 1800000 }]
-}
-```
+- POST `/organizer/events/:eventId/reports/exports`: `{format:"csv"|"xlsx",fromDate,toDate,ticketTypeId?,voucherCode?}`, HTTP 202; không dùng đường dẫn `/report-exports` hoặc yêu cầu Idempotency-Key không có trong PR.
+- GET cùng đường dẫn với `?page=1&limit=20`: lịch sử có meta, chỉ job của người yêu cầu. UI khôi phục từ đây sau F5.
+- GET `.../reports/exports/:exportId`: trạng thái trước lúc tải.
+- GET `.../reports/exports/:exportId/download`: tệp nhị phân, yêu cầu Bearer token.
 
-- `revenue`: doanh thu thuần của thanh toán thành công trong kỳ, trừ hoàn tiền hoàn tất liên quan, phân bổ voucher theo giá thực trả. Không tính giữ chỗ, đơn chờ, thanh toán lỗi hoặc đếm IPN lặp.
-- `ticketsSold`: vé còn hiệu lực (SOLD/CHECKED_IN) thuộc các thanh toán trong kỳ. `checkedIn`: tập con đã vào cổng của chính các vé đó, không phải mọi lượt scan trong kỳ. `checkedIn <= ticketsSold`; mẫu số 0 hiển thị 0%.
-- `daily`: ngày tăng dần, duy nhất, doanh thu theo ngày thanh toán, hoàn tiền áp vào giao dịch gốc. `ticketTypes`: cùng phạm vi và cách tính. Tổng các nhóm/ngày phải khớp tổng chung. Trả ngày thiếu là 0 hoặc bỏ ngày không giao dịch; không trả trùng ngày.
-- `updatedAt` là thời điểm dữ liệu tổng hợp thực sự được cập nhật, không chỉ giờ trả HTTP. BE2 phụ trách materialized view/cache theo phân công; UI không yêu cầu biết chi tiết triển khai.
-- Khoảng rỗng trả tổng 0 và mảng rỗng. Frontend hiển thị kỳ đang áp dụng riêng với bản nháp bộ lọc.
+Trạng thái: PENDING, PROCESSING, COMPLETED, FAILED, EXPIRED. UI poll danh sách mỗi 3 giây khi trang hiện tại có job đang chờ/xử lý và tab đang mở; dừng khi lỗi và cho cập nhật lại. Phân trang lịch sử và bộ lọc lưu trong job giúp phân biệt kỳ xuất với kỳ dashboard đang xem. Backend giới hạn 3 job pending/processing cho mỗi tài khoản; frontend không tự retry POST.
 
-## Xuất CSV/Excel bất đồng bộ
+Không mở downloadUrl tương đối trực tiếp bằng thẻ a hoặc gửi token trong query URL. UI gọi endpoint download chuẩn hóa bằng eventId/exportId, kèm Bearer và cơ chế refresh 401 hiện có, rồi tải Blob. Không dùng URL tùy ý do response cung cấp. Lỗi 409 chưa xong, 410 hết hạn, 404 thiếu file không tạo tệp HTML/JSON giả. Có xử lý EXPIRED/FAILED và tải lại lịch sử sau F5.
 
-`POST /report-exports` với header `Idempotency-Key: UUID`, body `{ from, to, timezone: "Asia/Ho_Chi_Minh", format: "csv" | "xlsx" }`. HTTP 202 trả `ExportJob`.
-
-`GET /report-exports/:jobId`: HTTP 200 trả `ExportJob`.
-
-```json
-{
-  "id": "10000000-0000-4000-8000-000000000001",
-  "status": "QUEUED",
-  "downloadUrl": null,
-  "error": null
-}
-```
-
-- Chu trình `QUEUED -> PROCESSING -> COMPLETED | FAILED`; `COMPLETED` bắt buộc có `downloadUrl` HTTPS có chữ ký và hạn dùng; `FAILED` có mã/thông báo lỗi an toàn. Không trả URL javascript/data/http hoặc credential trong URL.
-- Job thuộc người dùng và sự kiện; GET không làm lộ job của BTC khác. Lặp cùng idempotency key/body phải trả cùng job; khác body trả 409. Frontend không tự retry POST khi mất kết nối.
-- UI poll mỗi 3 giây khi mở trang, dừng khi kết thúc/lỗi đọc trạng thái, có nút kiểm tra lại; không tạo job đồng bộ trong trình duyệt. Kỳ và định dạng lúc gửi được giữ bên cạnh trạng thái để tránh nhầm khi đổi bộ lọc.
-- Backend tạo CSV UTF-8/Excel đúng định dạng, chống CSV formula injection, bảo vệ dữ liệu cá nhân, đặt Content-Disposition attachment. Không trả HTML đội lốt xlsx. Job và tệp cần TTL/rate limit phù hợp.
-- Hiện trạng job ở trong bộ nhớ trang; rời trang/tải lại sẽ mất theo dõi trên UI. API danh sách job và khôi phục qua URL là phần bổ sung nếu cần, chưa có hợp đồng.
+API và worker phải trỏ cùng DB, cùng `REPORT_EXPORT_DIR`; nếu không worker vẫn tạo file nhưng API tải trả 404. Job lấy snapshot tại lúc worker chạy, số liệu có thể khác lần xem dashboard trước đó.
 
 ## Giám sát cổng
 
-`GET /gate-monitor` trả snapshot nhất quán của cả sự kiện (không dùng bộ lọc kỳ doanh thu):
+- GET `/organizer/events/:eventId/checkins/summary`: `generatedAt`, `suggestedPollIntervalMs`, `summary`, `gates`, `timelineLast24Hours`.
+- GET `/organizer/events/:eventId/checkins?page=1&limit=20`: lịch sử có meta, bao gồm SUCCESS và REJECTED.
 
-```json
-{
-  "updatedAt": "2026-11-06T10:00:00+07:00",
-  "gates": [
-    {
-      "id": "10000000-0000-4000-8000-000000000001",
-      "name": "Cổng A",
-      "checkedIn": 2,
-      "staffCount": 1
-    }
-  ],
-  "recent": [
-    {
-      "id": "20000000-0000-4000-8000-000000000001",
-      "gateName": "Cổng A",
-      "staffName": "Nhân viên A",
-      "checkedInAt": "2026-11-06T09:59:58+07:00"
-    }
-  ]
-}
+UI tách số vé đã check-in, số vé còn lại và số lượt quét thành công/từ chối. Theo từng cổng có checkedInTickets, activeAssignedStaff, successfulAttempts, rejectedAttempts, lastScanAt. Cho phép gateId/gateName null, không tự bịa tên cổng/nhân viên. Lịch sử API chỉ có staffId nên UI hiển thị mã nhân viên, không giả tên. Có bảng lưu lượng 24 giờ.
+
+Poll summary ít nhất mỗi 5 giây theo gợi ý BE; lịch sử tự cập nhật ở trang 1. Có tạm dừng/tiếp tục, làm mới, phân trang, dừng poll khi tab ẩn hoặc lỗi và cảnh báo snapshot cũ. Không nhầm thống kê trực tiếp toàn sự kiện với báo cáo theo kỳ thanh toán.
+
+## Cách chạy và kiểm tra
+
+Cần PostgreSQL/Redis, backend PR49 đã migrate/seed và report worker. Trong môi trường cloud đã kiểm tra bằng bản mã PR49 tách ở `/tmp/tickethub-pr49-runtime`, DB riêng `tickethub_pr49_test`, Redis DB 2, API 4001. Không thay checkout backend hiện có của nhánh FE.
+
+Có thể chuẩn bị bản backend ở thư mục riêng mà không merge vào nhánh frontend:
+
+```bash
+# Tại repo FE
+mkdir -p ../tickethub-be2-w05
+git fetch https://github.com/newtab64/tickethub.git refs/pull/49/head:refs/remotes/upstream/pr-49
+git archive refs/remotes/upstream/pr-49 | tar -x -C ../tickethub-be2-w05
 ```
 
-- `checkedIn`: tổng check-in thành công duy nhất tại cổng. `staffCount`: nhân viên được phân công có tài khoản ACTIVE, không phải chỉ số online.
-- `recent`: tối đa 50 check-in thành công gần nhất, mới nhất trước; ID duy nhất của lượt check-in. Không lộ ticketCode, QR token hoặc thông tin liên hệ người mua.
-- Frontend poll 5 giây, dừng khi ẩn tab hoặc lỗi, có tạm dừng/tiếp tục và làm mới. Khi lỗi giữ snapshot cũ kèm cảnh báo và thời điểm cập nhật; không gắn nhãn đang trực tiếp khi mất kết nối. Nếu cần SSE, BE2 và FE1 phải thống nhất endpoint/event/auth riêng.
+Chỉ dùng thư mục đích mới/rỗng; chạy pnpm install frozen trong bản backend. Khởi động PostgreSQL/Redis bằng Docker Compose của repo FE; tạo DB test riêng chưa tồn tại. Đặt DATABASE_URL vào DB đó và REDIS_URL vào Redis DB riêng, chạy shared build, API build, db:migrate, db:seed trong bản backend. Không migrate đè lên DB có dữ liệu đang dùng của nhánh khác.
 
-## Tiêu chí nghiệm thu khi BE2 sẵn sàng
+Ba tiến trình cần chạy với môi trường nhất quán:
 
-1. BTC A tạo, gán lại cổng, khóa/mở khóa nhân viên thành công; BTC B không đọc/sửa được. Nhân viên bị khóa không thể tiếp tục scan với token cũ.
-2. Số liệu báo cáo khớp DB với voucher, hoàn tiền, thanh toán lỗi, IPN lặp và giao dịch sát 00:00 UTC+7.
-3. Xuất cả CSV và Excel đi qua trạng thái nền, tải tệp đúng kỳ, đúng quyền; kiểm tra job thất bại, URL hết hạn và mất kết nối.
-4. Check-in thật cập nhật đúng cổng, không đếm quét lặp; giám sát hiển thị trong chu kỳ poll kế tiếp. Kiểm tra lỗi mạng và ẩn tab.
-5. Kiểm tra mobile, thao tác bàn phím, trạng thái rỗng/tải/lỗi và redirect khi chưa đăng nhập/sai vai trò.
+```bash
+# Terminal API, tại bản backend PR49; giữ DATABASE_URL/REDIS_URL đã đặt cho DB test
+PORT=4001 REPORT_EXPORT_DIR=/tmp/w05-report-files pnpm --filter @tickethub/api start
 
-## Chạy kiểm tra frontend
+# Terminal worker, tại cùng bản backend, cùng DATABASE_URL/REDIS_URL và thư mục tệp
+REPORT_EXPORT_DIR=/tmp/w05-report-files ENABLE_REPORT_EMAIL_DELIVERY=false pnpm --filter @tickethub/api start:report-worker
 
-Từ thư mục gốc repo, dùng pnpm đã pin trong package.json:
+# Terminal web, tại repo FE
+NEXT_PUBLIC_API_URL=http://localhost:4001/api/v1 pnpm --filter @tickethub/web dev
+```
+
+Đăng nhập tài khoản seed `organizer@tickethub.vn` với mật khẩu seed `Password123!`, mở ba route ở đầu tài liệu. Khi đổi NEXT_PUBLIC_API_URL phải khởi động lại dev web. Trên Windows PowerShell, đặt từng biến bằng `$env:TEN_BIEN='...'` thay cú pháp prefix Bash.
+
+Kiểm tra frontend và hợp đồng (10 test Chromium có fixture response):
 
 ```bash
 pnpm --filter @tickethub/web test
 pnpm --filter @tickethub/web exec tsc --noEmit
 pnpm --filter @tickethub/web lint
-pnpm --filter @tickethub/web test:e2e test/w05-organizer-operations.spec.ts --project=chromium --workers=1
+W05_API_URL=http://localhost:4001/api/v1 pnpm --filter @tickethub/web test:e2e test/w05-organizer-operations.spec.ts --project=chromium --workers=1
 ```
 
-Test trình duyệt cần API, web đang chạy và tài khoản BTC seed của môi trường phát triển. Test dùng đăng nhập thật, thay response API W05 bằng fixture qua Playwright route; không sửa DB hoặc tạo nhân viên thật. Với Chromium hệ thống của cloud, đặt `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`. Nếu chưa có server, cấu hình Playwright hiện tại chạy bản build production, vì vậy cần build trước.
+Kiểm tra tích hợp thật, không mock response:
 
-Trong môi trường cloud hiện tại, build production bị chặn bởi quyền truy cập Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`). Kiểm thử giao diện chạy với Next.js dev và phông dự phòng. Cần áp dụng quyền mạng đã đề xuất trong cài đặt môi trường rồi chạy lại `pnpm --filter @tickethub/web build`. Không đổi layout hoặc tắt xác minh TLS để né lỗi môi trường.
+```bash
+W05_API_URL=http://localhost:4001/api/v1 W05_LIVE_TESTS=1 pnpm --filter @tickethub/web test:e2e test/w05-backend.integration.spec.ts --project=chromium --workers=1
+```
 
-Đã đối chiếu backend thật: danh sách sự kiện trả 200; `/staff`, `/reports`, `/gate-monitor` trả 404. Chưa thể xác nhận tạo tài khoản, số liệu báo cáo, check-in thật hoặc tải tệp thật cho W05 cho đến khi BE2 hoàn tất hợp đồng trên. Cần FE2 review chéo theo quy định dự án trước khi merge.
+Chỉ bật live tests với DB kiểm thử riêng. Suite tạo tài khoản/cổng fixture; sau test bỏ phân công và khóa tài khoản. Backend không có API xóa tài khoản/cổng nên giữ các bản ghi fixture trong DB test. Suite yêu cầu report worker để hoàn tất job và kiểm tra nội dung CSV/XLSX tải thật. Không gửi email/payment/provider thật.
+
+Cloud dùng Chromium hệ thống thì thêm `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`. Test mặc định dùng `http://localhost:3000`; giữ API/web đang chạy để Playwright tái sử dụng. Build production vẫn cần quyền tải Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`); không thay logic ứng dụng hoặc tắt TLS để né lỗi môi trường.
+
+Cần review chéo FE2 trước merge. Tích hợp đã đối chiếu với head PR49 nêu trên; nếu BE2 đổi hợp đồng ở commit sau, cần kiểm tra lại adapter và test.
