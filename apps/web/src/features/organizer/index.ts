@@ -17,3 +17,4 @@ export { OrganizerHeader } from "./ui/organizer-header";
 export { OrganizerEventsPage } from "./ui/events-page";
 export { CreateEventWizardPage } from "./ui/new-event-page";
 export { OrganizerProfilePage } from "./ui/profile-page";
+export { OrganizerOperationsPage } from "./ui/operations-page";
