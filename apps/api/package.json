@@ -43,6 +43,6 @@
     "drizzle-kit": "^0.31.11",
     "tsc-watch": "^7.2.1",
     "tsx": "^4.23.15",
-    "typescript": "^7.0.2"
+    "typescript": "^6.0.3"
   }
 }
