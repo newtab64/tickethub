@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { QueryProvider } from "@/shared/providers/query-provider";
+import { PwaRegistrar } from "@/shared/ui/pwa-registrar";
 import { SessionProvider } from "@/features/identity";
 import "./globals.css";
 
@@ -22,6 +23,7 @@ export const metadata: Metadata = {
   title: "Mua vé hòa nhạc, thể thao và sân khấu trên tickethub!",
   description:
     "Khám phá và đặt vé chính thức các đêm nhạc, liveshow, kịch sân khấu và giải đấu thể thao trên toàn quốc.",
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({
@@ -40,6 +42,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <QueryProvider>
+          <PwaRegistrar />
           <SessionProvider>{children}</SessionProvider>
         </QueryProvider>
       </body>
