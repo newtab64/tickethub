@@ -913,6 +913,15 @@ hoặc
 
 - Response 200: Trả về thông tin sự kiện đã cập nhật.
 
+#### `GET /api/v1/admin/events/control`
+
+Lấy trạng thái hiện tại của sự kiện cho màn hình điều khiển khẩn cấp. Chỉ tài khoản `ADMIN` được gọi với Bearer token.
+
+- Query params: `status` (`PUBLISHED` hoặc `SUSPENDED`, tùy chọn), `page` (mặc định 1, tối đa 10000), `eventId` (UUID, tùy chọn).
+- Danh sách mặc định gồm sự kiện đã công bố và đã đình chỉ, tối đa 20 mục mỗi trang. Khi có `eventId`, truy vấn theo mã và bỏ qua bộ lọc trạng thái. Sự kiện không tồn tại trả danh sách rỗng.
+- Response 200: `{ "success": true, "data": { "items": [...], "hasMore": false } }`. Mỗi mục có `id`, `title`, `status`, `version`, `endTime` (ISO 8601) và `rejectionReason` (chuỗi hoặc null).
+- Giao diện gửi `version` quan sát được khi đình chỉ hoặc khôi phục. Khi có xung đột phiên bản, tải lại dữ liệu trước khi xác nhận lại.
+
 #### `POST /api/v1/admin/events/:id/kill-switch`
 
 Kích hoạt dừng khẩn cấp sự kiện vi phạm (Emergency Kill Switch). Chuyển trạng thái sự kiện sang `SUSPENDED`, hủy toàn bộ các đơn hàng chưa thanh toán (`PENDING` sang `CANCELLED`), giải phóng toàn bộ ghế ngồi đang bị giữ (`HELD` sang `AVAILABLE`), reset số lượng giữ vé đứng GA về 0, xóa cache sự kiện trên Redis và ghi nhật ký kiểm toán bất biến `audit_log`.

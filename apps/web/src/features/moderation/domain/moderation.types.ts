@@ -1,9 +1,28 @@
-export interface AuditLogEntry {
+export interface ReviewDecision {
   id: string;
-  action:
-    "APPROVE_ORGANIZER" | "REJECT_ORGANIZER" | "APPROVE_EVENT" | "REJECT_EVENT";
-  targetName: string;
-  actorEmail: string;
+  decision: "APPROVE" | "REJECT";
+  version: number;
   reason?: string;
-  timestamp: string;
+}
+
+export interface AdminPendingOrganizer {
+  id: string;
+  organizationName: string;
+  representativeName: string;
+  taxCode: string;
+  businessLicenseUrl: string | null;
+  status: "PENDING_VERIFICATION";
+  version: number;
+  createdAt: string;
+  email: string;
+}
+
+export interface AdminPendingEvent {
+  id: string;
+  title: string;
+  organizationName: string;
+  status: "PENDING_APPROVAL";
+  version: number;
+  startTime: string;
+  createdAt: string;
 }
