@@ -51,7 +51,7 @@ export function AdminSidebar() {
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm hover:bg-secondary aria-[current=page]:bg-secondary aria-[current=page]:font-semibold"
+              className="flex min-h-9 items-center gap-2 rounded-md px-2 text-sm transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:bg-secondary aria-[current=page]:font-semibold"
             >
               <Icon aria-hidden="true" className="size-4 shrink-0" />
               {label}
@@ -59,28 +59,31 @@ export function AdminSidebar() {
           );
         })}
       </nav>
-      <div className="flex items-center gap-1 border-t pt-2">
-        <Link
-          href="/"
-          aria-label="Trang mua vé"
-          className="rounded-md p-2 hover:bg-secondary"
-        >
-          <Home aria-hidden="true" className="size-4" />
-        </Link>
-        <span className="min-w-0 flex-1 truncate text-xs">
+      <div className="border-t pt-2">
+        <p className="truncate px-2 text-xs text-muted-foreground">
           {user?.fullName}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Đăng xuất"
-          onClick={async () => {
-            await logout();
-            router.replace("/auth");
-          }}
-        >
-          <LogOut aria-hidden="true" className="size-4" />
-        </Button>
+        </p>
+        <div className="mt-1 flex items-center gap-1">
+          <Link
+            href="/"
+            aria-label="Về trang chủ"
+            className="flex min-h-9 min-w-0 flex-1 items-center gap-2 rounded-lg px-2 text-sm font-medium hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <Home aria-hidden="true" className="size-4 shrink-0" />
+            Về trang chủ
+          </Link>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Đăng xuất"
+            onClick={async () => {
+              await logout();
+              router.replace("/auth");
+            }}
+          >
+            <LogOut aria-hidden="true" className="size-4" />
+          </Button>
+        </div>
       </div>
     </aside>
   );

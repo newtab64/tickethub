@@ -12,6 +12,7 @@ async function readData<T>(response: APIResponse, status = 200): Promise<T> {
 test("W06 FE1: kiểm duyệt, đình chỉ, khôi phục và quyết toán qua API thật", async ({
   page,
   request,
+  baseURL,
 }) => {
   const organizer = await readData<{ accessToken: string }>(
     await request.post(`${api}/auth/login`, {
@@ -31,7 +32,7 @@ test("W06 FE1: kiểm duyệt, đình chỉ, khôi phục và quyết toán qua 
         slug: `w06-${suffix}`,
         description: "Dữ liệu kiểm thử quy trình quản trị W06.",
         category: "CONCERT",
-        bannerUrl: "https://example.com/test.jpg",
+        bannerUrl: new URL("/images/events/vn/anh-trai.jpg", baseURL).href,
         venueName: "Địa điểm kiểm thử",
         venueAddress: "Địa chỉ kiểm thử",
         city: "Hà Nội",
@@ -83,7 +84,19 @@ test("W06 FE1: kiểm duyệt, đình chỉ, khôi phục và quyết toán qua 
 
   await page.getByRole("link", { name: "Điều khiển sự kiện" }).click();
   await page.getByRole("link", { name: new RegExp(title) }).click();
-  await expect(page.getByText(/Đã công bố.*Phiên bản/)).toBeVisible();
+  await expect(
+    page.getByRole("article").getByText("Đã công bố", { exact: true }),
+  ).toBeVisible();
+  const poster = page.getByRole("img", { name: `Ảnh sự kiện ${title}` });
+  await expect(poster).toBeVisible();
+  await expect
+    .poll(() =>
+      poster.evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
+  await expect(
+    page.getByRole("link", { name: "Quay lại danh sách sự kiện" }),
+  ).toHaveAttribute("href", "/admin/events/control");
 
   const reason = "Diễn tập đình chỉ sự kiện trên dữ liệu kiểm thử";
   await page.getByRole("button", { name: "Kích hoạt Kill Switch" }).click();

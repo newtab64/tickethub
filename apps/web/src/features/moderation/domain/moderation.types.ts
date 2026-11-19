@@ -20,6 +20,7 @@ export interface AdminPendingOrganizer {
 export interface AdminPendingEvent {
   id: string;
   title: string;
+  bannerUrl?: string | null;
   organizationName: string;
   status: "PENDING_APPROVAL";
   version: number;

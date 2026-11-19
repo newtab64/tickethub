@@ -306,6 +306,7 @@ export class DrizzleModerationQuery implements ModerationQueryPort {
       .select({
         id: events.id,
         title: events.title,
+        bannerUrl: events.bannerUrl,
         organizerId: events.organizerId,
         organizationName: organizerProfiles.organizationName,
         status: events.status,
@@ -331,6 +332,7 @@ export class DrizzleModerationQuery implements ModerationQueryPort {
       .select({
         id: events.id,
         title: events.title,
+        bannerUrl: events.bannerUrl,
         status: events.status,
         version: events.version,
         endTime: events.endTime,

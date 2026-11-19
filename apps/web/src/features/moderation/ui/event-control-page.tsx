@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ArrowLeft, CalendarDays, RotateCcw, ShieldAlert } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   EventControlQuerySchema,
@@ -14,6 +15,8 @@ import { ApiError } from "@/shared/api/client";
 import { formatDateTimeVi } from "@/shared/lib/format-vi";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import { AdminEventPoster } from "./admin-event-poster";
+import { EventControlStatus } from "./event-control-status";
 import { PageNavigation } from "@/shared/ui/page-navigation";
 import {
   Dialog,
@@ -45,11 +48,22 @@ const auditLabels: Record<string, string> = {
 export function EventControlPage({ eventId }: { eventId: string }) {
   const validId = EventControlQuerySchema.safeParse({ eventId }).success;
   return (
-    <section className="space-y-5 p-4 sm:p-6">
-      <Link className="text-sm underline" href="/admin/events/control">
-        Danh sách sự kiện
-      </Link>
-      <h1 className="text-xl font-semibold">Điều khiển khẩn cấp</h1>
+    <section className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+      <header className="space-y-3">
+        <Button
+          asChild
+          variant="outline"
+          className="min-h-10 rounded-full px-4"
+        >
+          <Link href="/admin/events/control">
+            <ArrowLeft aria-hidden="true" />
+            Quay lại danh sách sự kiện
+          </Link>
+        </Button>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          Điều khiển khẩn cấp
+        </h1>
+      </header>
       {validId ? (
         <EventControl key={eventId} eventId={eventId} />
       ) : (
@@ -123,56 +137,74 @@ function EventControl({ eventId }: { eventId: string }) {
 
   return (
     <>
-      <article className="space-y-4 rounded-lg border bg-background p-4">
-        <div>
-          <h2 className="break-words text-lg font-semibold">{item.title}</h2>
-          <p className="break-all font-mono text-xs text-muted-foreground">
-            {eventId}
-          </p>
+      <article className="grid overflow-hidden rounded-2xl border bg-background md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="relative aspect-video overflow-hidden bg-muted md:aspect-auto md:min-h-64">
+          <AdminEventPoster
+            event={item}
+            sizes="(min-width: 1024px) 410px, (min-width: 768px) 35vw, 95vw"
+            labeled
+          />
         </div>
-        <p className="text-sm">
-          {item.status === "PUBLISHED"
-            ? "Đã công bố"
-            : item.status === "SUSPENDED"
-              ? "Đang đình chỉ"
-              : item.status}
-          {" · "}Phiên bản {item.version} · Kết thúc{" "}
-          {formatDateTimeVi(item.endTime)}
-        </p>
-        {item.rejectionReason && (
-          <p className="whitespace-pre-wrap break-words text-sm">
-            {item.rejectionReason}
+        <div className="min-w-0 space-y-4 p-4 sm:p-6">
+          <EventControlStatus status={item.status} />
+          <div>
+            <h2 className="break-words text-xl font-bold leading-snug sm:text-2xl">
+              {item.title}
+            </h2>
+            <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+              {eventId}
+            </p>
+          </div>
+          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <CalendarDays aria-hidden="true" className="size-4 shrink-0" />
+            <span>
+              Kết thúc {formatDateTimeVi(item.endTime)} · Phiên bản{" "}
+              {item.version}
+            </span>
           </p>
-        )}
-        {(item.status === "PUBLISHED" ||
-          (item.status === "SUSPENDED" && !ended)) && (
-          <Button
-            variant={kind === "suspend" ? "destructive" : "default"}
-            disabled={mutation.isPending || event.isFetching}
-            onClick={() => {
-              mutation.reset();
-              setResult(null);
-              setConfirmation({ kind, version: item.version });
-            }}
-          >
-            {kind === "suspend" ? "Kích hoạt Kill Switch" : "Khôi phục mở bán"}
-          </Button>
-        )}
-        {item.status === "SUSPENDED" && ended && (
-          <p className="text-sm">Sự kiện đã kết thúc.</p>
-        )}
-        {mutation.isError && !confirmation && (
-          <p role="alert" className="text-destructive">
-            {mutation.error.message}
-          </p>
-        )}
-        {result && (
-          <p role="status" className="text-sm">
-            {result === "resumed"
-              ? "Đã khôi phục mở bán."
-              : `Đã đình chỉ sự kiện, hủy ${result.cancelledPendingOrdersCount} đơn chờ và giải phóng ${result.totalReleasedHoldsCount} chỗ giữ (${result.releasedHeldSeatsCount} ghế, ${result.releasedHeldStandingCount} vé đứng).`}
-          </p>
-        )}
+          {item.rejectionReason && (
+            <p className="whitespace-pre-wrap break-words text-sm">
+              {item.rejectionReason}
+            </p>
+          )}
+          {(item.status === "PUBLISHED" ||
+            (item.status === "SUSPENDED" && !ended)) && (
+            <Button
+              className="min-h-10 rounded-full px-4"
+              variant={kind === "suspend" ? "destructive" : "default"}
+              disabled={mutation.isPending || event.isFetching}
+              onClick={() => {
+                mutation.reset();
+                setResult(null);
+                setConfirmation({ kind, version: item.version });
+              }}
+            >
+              {kind === "suspend" ? (
+                <ShieldAlert aria-hidden="true" />
+              ) : (
+                <RotateCcw aria-hidden="true" />
+              )}
+              {kind === "suspend"
+                ? "Kích hoạt Kill Switch"
+                : "Khôi phục mở bán"}
+            </Button>
+          )}
+          {item.status === "SUSPENDED" && ended && (
+            <p className="text-sm">Sự kiện đã kết thúc.</p>
+          )}
+          {mutation.isError && !confirmation && (
+            <p role="alert" className="text-destructive">
+              {mutation.error.message}
+            </p>
+          )}
+          {result && (
+            <p role="status" className="text-sm">
+              {result === "resumed"
+                ? "Đã khôi phục mở bán."
+                : `Đã đình chỉ sự kiện, hủy ${result.cancelledPendingOrdersCount} đơn chờ và giải phóng ${result.totalReleasedHoldsCount} chỗ giữ (${result.releasedHeldSeatsCount} ghế, ${result.releasedHeldStandingCount} vé đứng).`}
+            </p>
+          )}
+        </div>
       </article>
       <EventAudit eventId={eventId} />
       {confirmation && (

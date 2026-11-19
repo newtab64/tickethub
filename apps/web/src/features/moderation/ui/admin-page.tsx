@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import Link from "next/link";
+import { AdminEventPoster } from "./admin-event-poster";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Search, X } from "lucide-react";
@@ -53,6 +54,7 @@ type QueueRow = {
   statusLabel: string;
   badgeClass: string;
   pending: boolean;
+  event?: AdminPendingEvent;
   searchText: string;
 };
 
@@ -75,17 +77,19 @@ function Workspace() {
     <>
       <nav
         aria-label="Hàng đợi kiểm duyệt"
-        className="flex flex-wrap gap-4 border-b bg-background p-3 text-sm"
+        className="flex flex-wrap gap-2 border-b bg-background px-4 py-3 text-sm"
       >
         <Link
           href="/admin/moderation"
           aria-current={view === "organizers" ? "page" : undefined}
+          className="rounded-full border border-transparent px-4 py-2 font-medium text-muted-foreground transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:border-primary/20 aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
         >
           Hồ sơ ban tổ chức
         </Link>
         <Link
           href="/admin/moderation?view=events"
           aria-current={view === "events" ? "page" : undefined}
+          className="rounded-full border border-transparent px-4 py-2 font-medium text-muted-foreground transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-ring aria-[current=page]:border-primary/20 aria-[current=page]:bg-accent aria-[current=page]:text-accent-foreground"
         >
           Sự kiện chờ duyệt
         </Link>
@@ -174,6 +178,7 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
     return (events ?? []).map((event) => ({
       id: event.id,
       title: event.title,
+      event,
       subtitle: event.organizationName,
       meta: formatDateTimeVi(event.startTime),
       statusLabel: "Chờ duyệt",
@@ -288,25 +293,37 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
                 return (
                   <tr
                     key={r.id}
-                    onClick={() => {
-                      setSelectedId(r.id);
-                      setLastIndex(visible.indexOf(r));
-                      setRejectFor(null);
-                    }}
-                    aria-selected={active}
-                    className={`cursor-pointer border-b border-border/60 [&>td]:px-3 [&>td]:py-1.5 ${
+                    className={`border-b border-border/60 [&>td]:px-3 [&>td]:py-1.5 ${
                       active
                         ? "bg-primary/5 shadow-[inset_2px_0_0_var(--primary)]"
                         : "bg-background hover:bg-secondary/50"
                     }`}
                   >
                     <td className="max-w-0">
-                      <div className="font-medium text-foreground truncate">
-                        {r.title}
-                      </div>
-                      <div className="text-muted-foreground truncate">
-                        {r.subtitle}
-                      </div>
+                      <button
+                        type="button"
+                        aria-pressed={active}
+                        className="flex w-full cursor-pointer items-center gap-3 rounded-md py-1 text-left focus-visible:outline-2 focus-visible:outline-ring"
+                        onClick={() => {
+                          setSelectedId(r.id);
+                          setLastIndex(visible.indexOf(r));
+                          setRejectFor(null);
+                        }}
+                      >
+                        {r.event && (
+                          <span className="relative aspect-video w-14 shrink-0 overflow-hidden rounded-md bg-muted sm:w-20">
+                            <AdminEventPoster event={r.event} sizes="80px" />
+                          </span>
+                        )}
+                        <span className="min-w-0">
+                          <span className="block truncate font-semibold text-foreground">
+                            {r.title}
+                          </span>
+                          <span className="block truncate text-muted-foreground">
+                            {r.subtitle}
+                          </span>
+                        </span>
+                      </button>
                     </td>
                     <td className="font-mono tabular-nums text-muted-foreground">
                       {r.meta}
@@ -431,6 +448,15 @@ function DetailPanel({
 
   return (
     <div className="flex flex-col min-h-full">
+      {event && (
+        <div className="relative aspect-video overflow-hidden bg-muted">
+          <AdminEventPoster
+            event={event}
+            sizes="(min-width: 1024px) 384px, 100vw"
+            labeled
+          />
+        </div>
+      )}
       <div className="p-4 border-b border-border">
         <span className={`${BADGE_BASE} ${row.badgeClass}`}>
           {row.statusLabel}

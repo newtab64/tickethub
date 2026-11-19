@@ -32,6 +32,7 @@ export type EventControlQuery = z.infer<typeof EventControlQuerySchema>;
 export interface EventControlItem {
   id: string;
   title: string;
+  bannerUrl?: string | null;
   status: string;
   version: number;
   endTime: string;
