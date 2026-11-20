@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-/** Dang ky Service Worker de ho tro che do ngoai tuyen PWA (W06-FE2). */
+/** Dang ky Service Worker (chi luu /faq, /guide va tep tinh, xem public/sw.js) va cho phep cai app len man hinh chinh. */
 export function PwaRegistrar() {
   useEffect(() => {
     if (

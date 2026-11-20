@@ -53,15 +53,35 @@ describe("W06-FE2: Toi uu Offline PWA, Trang phap ly/FAQ va Huong dan su dung", 
       );
     });
 
-    it("Service Worker (sw.js) precache /my-tickets, /faq, /guide va khong cache luong SSE", () => {
+    it("Service Worker chi luu /faq, /guide va tep tinh, khong luu trang rieng tu hay luong SSE", () => {
       const swPath = path.join(webRoot, "public", "sw.js");
       assert.equal(fs.existsSync(swPath), true);
 
       const swContent = fs.readFileSync(swPath, "utf8");
-      assert.equal(swContent.includes('"/my-tickets"'), true);
-      assert.equal(swContent.includes('"/faq"'), true);
-      assert.equal(swContent.includes('"/guide"'), true);
-      assert.equal(swContent.includes("/seats/stream"), true);
+      assert.equal(
+        swContent.includes('PRECACHE_PAGES = ["/faq", "/guide"]'),
+        true,
+      );
+      assert.equal(swContent.includes("/_next/static/"), true);
+      for (const privatePath of [
+        "/my-tickets",
+        "/checkout",
+        "/admin",
+        "/organizer",
+        "/buyer",
+        "/images/",
+      ]) {
+        const quoted = [
+          `"${privatePath}`,
+          `'${privatePath}`,
+          "`" + privatePath,
+        ];
+        assert.equal(
+          quoted.some((q) => swContent.includes(q)),
+          false,
+          `sw.js khong duoc cache ${privatePath}`,
+        );
+      }
     });
 
     it("Root layout khai bao manifest va gan PwaRegistrar goi navigator.serviceWorker.register", () => {

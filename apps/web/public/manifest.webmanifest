@@ -1,7 +1,7 @@
 {
-  "name": "TicketHub - Đặt vé sự kiện & Soát vé PWA",
+  "name": "TicketHub - Đặt vé sự kiện",
   "short_name": "TicketHub",
-  "description": "Nền tảng đặt vé sự kiện trực tuyến, chọn ghế thời gian thực và soát vé QR động ngoại tuyến.",
+  "description": "Đặt vé sự kiện trực tuyến, nhận vé điện tử và mã QR động ngay trên điện thoại.",
   "start_url": "/my-tickets",
   "scope": "/",
   "display": "standalone",
