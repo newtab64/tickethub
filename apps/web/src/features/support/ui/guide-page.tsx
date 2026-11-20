@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   BookOpen,
@@ -19,8 +18,6 @@ interface GuideStep {
   title: string;
   description: string;
   checklist: string[];
-  imageSrc: string;
-  imageAlt: string;
 }
 
 const GUIDE_BY_ROLE: Record<
@@ -50,8 +47,6 @@ const GUIDE_BY_ROLE: Record<
           "Hệ thống tự động khóa ghế độc quyền trong 5 phút (300 giây) qua Redis TTL",
           "Theo dõi trạng thái ghế cập nhật thời gian thực qua luồng SSE",
         ],
-        imageSrc: "/images/events/vn/anh-trai.jpg",
-        imageAlt: "Chọn khu vực ghế trên sơ đồ sự kiện",
       },
       {
         stepNumber: "02",
@@ -63,8 +58,6 @@ const GUIDE_BY_ROLE: Record<
           "Vé tự động đồng bộ vào mục Vé của tôi trên cả máy tính và điện thoại",
           "Hỗ trợ lưu bộ nhớ đệm PWA để mở vé dưới 2 giây khi mạng 3G yếu",
         ],
-        imageSrc: "/images/events/vn/ha-anh-tuan.jpg",
-        imageAlt: "Thanh toán và nhận vé điện tử",
       },
       {
         stepNumber: "03",
@@ -76,8 +69,6 @@ const GUIDE_BY_ROLE: Record<
           "Nếu điện thoại hết pin, cung cấp Mã vé và 4 số cuối SĐT cho nhân viên cổng",
           "Có thể gửi yêu cầu hoàn vé trực tuyến theo đúng mốc thời gian UC06",
         ],
-        imageSrc: "/images/events/vn/den-vau.jpg",
-        imageAlt: "Xuất trình mã QR động tại cổng",
       },
     ],
   },
@@ -98,8 +89,6 @@ const GUIDE_BY_ROLE: Record<
           "Thiết lập các hạng vé CAT 1 đến CAT 5 gắn với từng phân khu khán đài",
           "Cấu hình thời điểm mở bán và kích hoạt phòng chờ ảo khi lưu lượng cao",
         ],
-        imageSrc: "/images/events/vn/soobin.jpg",
-        imageAlt: "Khởi tạo sự kiện và cấu hình sơ đồ",
       },
       {
         stepNumber: "02",
@@ -111,8 +100,6 @@ const GUIDE_BY_ROLE: Record<
           "Xuất báo cáo đối soát doanh thu định dạng CSV/Excel bất đồng bộ",
           "Nhận thanh toán quyết toán tự động sau khi đối soát giao dịch VNPay",
         ],
-        imageSrc: "/images/events/vn/vleague-cahn.jpg",
-        imageAlt: "Giám sát doanh thu và tỷ lệ check-in",
       },
     ],
   },
@@ -133,8 +120,6 @@ const GUIDE_BY_ROLE: Record<
           "Hỗ trợ kết nối đầu đọc mã vạch cầm tay qua cổng USB hoặc Bluetooth",
           "Kiểm tra âm lượng và phản hồi rung trước khi đón khán giả",
         ],
-        imageSrc: "/images/events/vn/saigon-heat.jpg",
-        imageAlt: "Chọn cổng trực trên ứng dụng soát vé",
       },
       {
         stepNumber: "02",
@@ -146,8 +131,6 @@ const GUIDE_BY_ROLE: Record<
           "Màn hình Vàng/Đỏ kèm rung cảnh báo kép: Kiểm tra thời điểm check-in trước đó",
           "Chuyển sang tab Tra cứu thủ công khi khách hỏng màn hình hoặc hết pin",
         ],
-        imageSrc: "/images/events/vn/kich-idecaf.jpg",
-        imageAlt: "Quét mã QR và tra cứu thủ công tại cổng",
       },
     ],
   },
@@ -235,27 +218,20 @@ export function SystemGuidePage() {
           </Link>
         </div>
 
-        {/* Danh sach cac buoc kem hinh anh minh hoa */}
+        {/* Danh sach cac buoc */}
         <div className="space-y-4">
           {currentGuide.steps.map((step) => (
             <article
               key={step.stepNumber}
               className="bg-card border border-border rounded-lg overflow-hidden shadow-sm grid grid-cols-1 md:grid-cols-12"
             >
-              <div className="md:col-span-4 relative min-h-[200px] bg-surface-dark">
-                <Image
-                  src={step.imageSrc}
-                  alt={step.imageAlt}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 380px"
-                  className="object-cover opacity-90"
-                />
-                <div className="absolute top-3 left-3 px-2.5 py-1 rounded bg-surface-dark/90 text-white font-mono text-[12px] font-bold border border-white/15">
-                  Bước {step.stepNumber}
-                </div>
+              <div className="md:col-span-1 flex items-start md:items-center justify-start md:justify-center p-5 pb-0 md:p-0 md:bg-muted">
+                <span className="size-9 rounded-full bg-primary text-white font-bold text-[14px] inline-flex items-center justify-center">
+                  {step.stepNumber}
+                </span>
               </div>
 
-              <div className="md:col-span-8 p-5 sm:p-6 flex flex-col justify-center space-y-3">
+              <div className="md:col-span-11 p-5 sm:p-6 flex flex-col justify-center space-y-3">
                 <h3 className="text-[16px] font-bold text-foreground">
                   {step.title}
                 </h3>

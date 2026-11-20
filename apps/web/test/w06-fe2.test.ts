@@ -109,7 +109,7 @@ describe("W06-FE2: Toi uu Offline PWA, Trang phap ly/FAQ va Huong dan su dung", 
       assert.equal(content.includes("hàng chờ ảo"), false);
     });
 
-    it("Trang /guide su dung next/image, giu cho 5 phut va tro dung route /gate/scanner", () => {
+    it("Trang /guide khong dung anh su kien trang tri, giu cho 5 phut va tro dung route /gate/scanner", () => {
       const routePath = path.join(
         webRoot,
         "src",
@@ -130,7 +130,8 @@ describe("W06-FE2: Toi uu Offline PWA, Trang phap ly/FAQ va Huong dan su dung", 
       assert.equal(fs.existsSync(featurePath), true);
 
       const content = fs.readFileSync(featurePath, "utf8");
-      assert.equal(content.includes('from "next/image"'), true);
+      assert.equal(content.includes('from "next/image"'), false);
+      assert.equal(content.includes("/images/events/"), false);
       assert.equal(content.includes("Người mua vé"), true);
       assert.equal(content.includes("Ban tổ chức"), true);
       assert.equal(content.includes("Nhân viên soát vé"), true);
