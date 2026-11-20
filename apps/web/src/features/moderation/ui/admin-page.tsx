@@ -27,6 +27,13 @@ import type {
 } from "../domain/moderation.types";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/shared/ui/dialog";
 
 // Ham an thong tin ca nhan (Decree 13/2023/ND-CP)
 function maskIdentifier(val?: string): string {
@@ -131,6 +138,10 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [rejectFor, setRejectFor] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{
+    kind: "APPROVE" | "REJECT";
+    reason?: string;
+  } | null>(null);
   const [lastIndex, setLastIndex] = useState(0);
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -141,6 +152,7 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
     },
     onSuccess: async (_, decision) => {
       setRejectFor(null);
+      setConfirm(null);
       const updates = [
         queryClient.invalidateQueries({
           queryKey: isOrg ? ["adminOrganizers"] : ["adminPendingEvents"],
@@ -209,13 +221,30 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
   const approve = useCallback(() => {
     if (!selected?.pending || version === undefined || mutation.isPending)
       return;
-    mutation.mutate({ id: selected.id, decision: "APPROVE", version });
+    mutation.reset();
+    setConfirm({ kind: "APPROVE" });
   }, [selected, mutation, version]);
+
+  const submitConfirmed = () => {
+    if (!selected || version === undefined || !confirm || mutation.isPending)
+      return;
+    mutation.mutate(
+      confirm.kind === "APPROVE"
+        ? { id: selected.id, decision: "APPROVE", version }
+        : {
+            id: selected.id,
+            decision: "REJECT",
+            reason: confirm.reason,
+            version,
+          },
+    );
+  };
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const el = e.target as HTMLElement;
       if (
+        confirm ||
         el.tagName === "INPUT" ||
         el.tagName === "TEXTAREA" ||
         e.metaKey ||
@@ -252,7 +281,7 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [visible, selectedIndex, selected, approve]);
+  }, [visible, selectedIndex, selected, approve, confirm]);
 
   const mutationError =
     mutation.isError && mutation.variables?.id === selected?.id
@@ -367,13 +396,8 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
               onStartReject={() => setRejectFor(selected.id)}
               onCancelReject={() => setRejectFor(null)}
               onReject={(reason) => {
-                if (version !== undefined)
-                  mutation.mutate({
-                    id: selected.id,
-                    decision: "REJECT",
-                    reason,
-                    version,
-                  });
+                mutation.reset();
+                setConfirm({ kind: "REJECT", reason });
               }}
             />
           ) : (
@@ -398,6 +422,65 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
           <Kbd>/</Kbd> tìm kiếm
         </span>
       </footer>
+      {confirm && selected && (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !mutation.isPending) setConfirm(null);
+          }}
+        >
+          <DialogContent showCloseButton={false}>
+            <DialogTitle>
+              {confirm.kind === "APPROVE"
+                ? isOrg
+                  ? "Xác nhận phê duyệt hồ sơ"
+                  : "Xác nhận duyệt mở bán"
+                : "Xác nhận từ chối"}
+            </DialogTitle>
+            <DialogDescription className="break-words">
+              {selected.title}.{" "}
+              {confirm.kind === "APPROVE"
+                ? isOrg
+                  ? "Ban tổ chức sẽ được cấp quyền tạo sự kiện."
+                  : "Sự kiện sẽ được công bố và mở bán ngay."
+                : "Ban tổ chức sẽ nhận được lý do từ chối bên dưới."}
+            </DialogDescription>
+            {confirm.kind === "REJECT" && (
+              <p className="whitespace-pre-wrap break-words rounded-md bg-muted p-3 text-sm">
+                {confirm.reason}
+              </p>
+            )}
+            {mutationError && (
+              <p role="alert" className="text-sm text-destructive">
+                {mutationError}
+              </p>
+            )}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={mutation.isPending}
+                onClick={() => setConfirm(null)}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="button"
+                autoFocus
+                variant={confirm.kind === "REJECT" ? "destructive" : "default"}
+                disabled={mutation.isPending}
+                onClick={submitConfirmed}
+              >
+                {mutation.isPending
+                  ? "Đang xử lý..."
+                  : confirm.kind === "APPROVE"
+                    ? "Xác nhận duyệt"
+                    : "Xác nhận từ chối"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
@@ -543,7 +626,7 @@ function DetailPanel({
                   className="flex-1"
                   disabled={busy}
                 >
-                  {busy ? "Đang xử lý..." : "Xác nhận từ chối"}
+                  {busy ? "Đang xử lý..." : "Tiếp tục"}
                 </Button>
                 <Button type="button" variant="ghost" onClick={onCancelReject}>
                   Hủy

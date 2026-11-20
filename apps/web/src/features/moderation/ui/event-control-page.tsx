@@ -137,35 +137,37 @@ function EventControl({ eventId }: { eventId: string }) {
 
   return (
     <>
-      <article className="grid overflow-hidden rounded-xl border bg-background md:grid-cols-[7rem_minmax(0,1fr)]">
-        <div className="relative aspect-video overflow-hidden bg-muted md:m-3 md:self-start md:rounded-md">
+      <article className="grid overflow-hidden rounded-xl border bg-background md:grid-cols-[8rem_minmax(0,1fr)]">
+        <div className="relative aspect-video overflow-hidden bg-muted md:m-3 md:self-center md:rounded-md">
           <AdminEventPoster
             event={item}
-            sizes="(min-width: 768px) 112px, 95vw"
+            sizes="(min-width: 768px) 128px, 95vw"
             labeled
           />
         </div>
-        <div className="min-w-0 space-y-2 p-3">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h2 className="break-words text-base font-bold leading-snug sm:text-lg">
-              {item.title}
-            </h2>
-            <EventControlStatus status={item.status} />
-          </div>
-          <div>
-            <p className="break-all font-mono text-xs text-muted-foreground">
-              {eventId}
+        <div className="grid min-w-0 gap-2 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-x-4">
+          <div className="min-w-0 space-y-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h2 className="break-words text-base font-bold leading-snug sm:text-lg">
+                {item.title}
+              </h2>
+              <EventControlStatus status={item.status} />
+            </div>
+            <div>
+              <p className="break-all font-mono text-xs text-muted-foreground">
+                {eventId}
+              </p>
+            </div>
+            <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <CalendarDays aria-hidden="true" className="size-4 shrink-0" />
+              <span>
+                Kết thúc {formatDateTimeVi(item.endTime)} · Phiên bản{" "}
+                {item.version}
+              </span>
             </p>
           </div>
-          <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-            <CalendarDays aria-hidden="true" className="size-4 shrink-0" />
-            <span>
-              Kết thúc {formatDateTimeVi(item.endTime)} · Phiên bản{" "}
-              {item.version}
-            </span>
-          </p>
           {item.rejectionReason && (
-            <p className="whitespace-pre-wrap break-words text-sm">
+            <p className="whitespace-pre-wrap break-words text-sm md:col-span-2">
               {item.rejectionReason}
             </p>
           )}
@@ -190,15 +192,15 @@ function EventControl({ eventId }: { eventId: string }) {
             </Button>
           )}
           {item.status === "SUSPENDED" && ended && (
-            <p className="text-sm">Sự kiện đã kết thúc.</p>
+            <p className="text-sm md:col-span-2">Sự kiện đã kết thúc.</p>
           )}
           {mutation.isError && !confirmation && (
-            <p role="alert" className="text-destructive">
+            <p role="alert" className="text-destructive md:col-span-2">
               {mutation.error.message}
             </p>
           )}
           {result && (
-            <p role="status" className="text-sm">
+            <p role="status" className="text-sm md:col-span-2">
               {result === "resumed"
                 ? "Đã khôi phục mở bán."
                 : `Đã đình chỉ sự kiện, hủy ${result.cancelledPendingOrdersCount} đơn chờ và giải phóng ${result.totalReleasedHoldsCount} chỗ giữ (${result.releasedHeldSeatsCount} ghế, ${result.releasedHeldStandingCount} vé đứng).`}
