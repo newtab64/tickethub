@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight, CalendarDays, House, Search } from "lucide-react";
+import { ArrowRight, House, Search } from "lucide-react";
 import { EventControlQuerySchema } from "@tickethub/shared";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -31,7 +31,7 @@ export function EventControlList() {
   });
 
   return (
-    <section className="mx-auto w-full max-w-6xl space-y-6 p-4 sm:p-6 lg:p-8">
+    <section className="mx-auto w-full max-w-6xl space-y-4 p-4 sm:p-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
           Điều khiển sự kiện
@@ -47,7 +47,7 @@ export function EventControlList() {
           </Link>
         </Button>
       </header>
-      <div className="flex flex-wrap items-end gap-4 rounded-xl border bg-background p-4">
+      <div className="flex flex-wrap items-end gap-3 rounded-xl border bg-background p-3">
         <label className="grid gap-1.5 text-sm">
           Trạng thái
           <select
@@ -111,46 +111,64 @@ export function EventControlList() {
       {events.data && (
         <>
           {events.data.items.length > 0 ? (
-            <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {events.data.items.map((event) => (
-                <li key={event.id} className="min-w-0">
-                  <Link
-                    href={`/admin/events/${event.id}/control`}
-                    prefetch={false}
-                    className="group flex h-full flex-col overflow-hidden rounded-2xl border bg-background transition-[border-color,box-shadow] hover:border-primary/50 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-                  >
-                    <div className="relative aspect-video overflow-hidden bg-muted">
-                      <AdminEventPoster
-                        event={event}
-                        sizes="(min-width: 1280px) 340px, (min-width: 640px) 45vw, 95vw"
-                      />
-                      <div className="absolute top-3 left-3 rounded-full bg-background">
+            <div className="overflow-hidden rounded-xl border bg-background">
+              <table className="w-full text-xs">
+                <thead className="bg-muted text-muted-foreground">
+                  <tr className="text-left [&>th]:h-8 [&>th]:px-3 [&>th]:font-semibold">
+                    <th>Sự kiện</th>
+                    <th className="hidden w-44 sm:table-cell">Kết thúc</th>
+                    <th className="w-36">Trạng thái</th>
+                    <th className="w-28 text-right">
+                      <span className="sr-only">Thao tác</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {events.data.items.map((event) => (
+                    <tr
+                      key={event.id}
+                      className="border-b border-border/60 bg-background last:border-b-0 hover:bg-secondary/50 [&>td]:px-3 [&>td]:py-1.5"
+                    >
+                      <td className="max-w-0">
+                        <Link
+                          href={`/admin/events/${event.id}/control`}
+                          prefetch={false}
+                          className="group flex items-center gap-3 rounded-md py-1 focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          <span className="relative aspect-video w-12 shrink-0 overflow-hidden rounded-md bg-muted sm:w-16">
+                            <AdminEventPoster event={event} sizes="64px" />
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block truncate font-semibold text-foreground">
+                              {event.title}
+                            </span>
+                            <span className="block truncate text-muted-foreground sm:hidden">
+                              Kết thúc {formatDateTimeVi(event.endTime)}
+                            </span>
+                          </span>
+                        </Link>
+                      </td>
+                      <td className="hidden font-mono tabular-nums text-muted-foreground sm:table-cell">
+                        {formatDateTimeVi(event.endTime)}
+                      </td>
+                      <td className="whitespace-nowrap">
                         <EventControlStatus status={event.status} />
-                      </div>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-2 p-4">
-                      <h2 className="break-words text-base font-bold leading-snug">
-                        {event.title}
-                      </h2>
-                      <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <CalendarDays
-                          aria-hidden="true"
-                          className="size-4 shrink-0"
-                        />
-                        Kết thúc {formatDateTimeVi(event.endTime)}
-                      </p>
-                      <span className="mt-auto flex items-center gap-2 pt-2 text-sm font-semibold text-primary">
-                        Mở điều khiển{" "}
-                        <ArrowRight
-                          aria-hidden="true"
-                          className="size-4 transition-transform motion-safe:group-hover:translate-x-1"
-                        />
-                      </span>
-                    </div>
-                  </Link>
-                </li>
-              ))}
-            </ul>
+                      </td>
+                      <td className="text-right">
+                        <Link
+                          href={`/admin/events/${event.id}/control`}
+                          prefetch={false}
+                          className="inline-flex items-center gap-1 font-semibold text-primary focus-visible:outline-2 focus-visible:outline-ring"
+                        >
+                          Mở
+                          <ArrowRight aria-hidden="true" className="size-3.5" />
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <p className="rounded-xl border border-dashed bg-background p-8 text-center text-muted-foreground">
               Không có sự kiện phù hợp.
