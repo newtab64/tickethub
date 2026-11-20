@@ -93,6 +93,7 @@ export async function apiClient<T>(
   endpoint: string,
   options?: RequestInit,
   _isRetry = false,
+  _mode: "json" | "envelope" | "blob" = "json",
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -138,9 +139,12 @@ export async function apiClient<T>(
         endpoint,
         { ...options, headers: retryHeaders },
         true,
+        _mode,
       );
     }
   }
+
+  if (response.ok && _mode === "blob") return (await response.blob()) as T;
 
   const payload = (await response
     .json()
@@ -149,11 +153,32 @@ export async function apiClient<T>(
   if (!response.ok || (payload && payload.success === false)) {
     throw new ApiError(
       response.status,
-      payload?.error?.code || "UNKNOWN_ERROR",
-      payload?.error?.message || "Không thể xử lý yêu cầu từ máy chủ tickethub",
+      payload?.error?.code ||
+        (payload as { message?: string })?.message ||
+        "UNKNOWN_ERROR",
+      payload?.error?.message ||
+        (payload as { message?: string })?.message ||
+        "Không thể xử lý yêu cầu từ máy chủ tickethub",
       payload?.error?.details,
     );
   }
 
+  if (_mode === "envelope") return payload as T;
   return payload && "data" in payload ? payload.data : (payload as T);
+}
+
+/** Giữ meta phân trang của API BE2 ở ngoài data. */
+export function apiEnvelope<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
+  return apiClient<T>(endpoint, options, false, "envelope");
+}
+
+/** Tải tệp với cùng Bearer token và cơ chế refresh như request JSON. */
+export function apiBlob(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<Blob> {
+  return apiClient<Blob>(endpoint, options, false, "blob");
 }

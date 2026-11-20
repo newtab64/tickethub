@@ -76,6 +76,15 @@ export function OrganizerHeader() {
               <Calendar className="size-3.5 sm:size-4" />
               <span>Sự kiện</span>
             </Link>
+            <Link
+              href="/organizer/dashboard"
+              className="rounded-md px-2 py-2 text-xs sm:text-sm hover:bg-secondary"
+              aria-current={
+                pathname === "/organizer/dashboard" ? "page" : undefined
+              }
+            >
+              Báo cáo & vận hành
+            </Link>
           </nav>
         </div>
 
