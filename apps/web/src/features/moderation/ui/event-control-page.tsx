@@ -137,21 +137,23 @@ function EventControl({ eventId }: { eventId: string }) {
 
   return (
     <>
-      <article className="grid overflow-hidden rounded-2xl border bg-background md:grid-cols-[12rem_minmax(0,1fr)]">
-        <div className="relative aspect-video overflow-hidden bg-muted md:m-6 md:self-start md:rounded-lg">
+      <article className="grid overflow-hidden rounded-xl border bg-background md:grid-cols-[7rem_minmax(0,1fr)]">
+        <div className="relative aspect-video overflow-hidden bg-muted md:m-3 md:self-start md:rounded-md">
           <AdminEventPoster
             event={item}
-            sizes="(min-width: 768px) 192px, 95vw"
+            sizes="(min-width: 768px) 112px, 95vw"
             labeled
           />
         </div>
-        <div className="min-w-0 space-y-4 p-4 sm:p-6">
-          <EventControlStatus status={item.status} />
-          <div>
-            <h2 className="break-words text-xl font-bold leading-snug sm:text-2xl">
+        <div className="min-w-0 space-y-2 p-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="break-words text-base font-bold leading-snug sm:text-lg">
               {item.title}
             </h2>
-            <p className="mt-1 break-all font-mono text-xs text-muted-foreground">
+            <EventControlStatus status={item.status} />
+          </div>
+          <div>
+            <p className="break-all font-mono text-xs text-muted-foreground">
               {eventId}
             </p>
           </div>
@@ -170,7 +172,7 @@ function EventControl({ eventId }: { eventId: string }) {
           {(item.status === "PUBLISHED" ||
             (item.status === "SUSPENDED" && !ended)) && (
             <Button
-              className="min-h-10 rounded-full px-4"
+              className="min-h-9 rounded-full px-4"
               variant={kind === "suspend" ? "destructive" : "default"}
               disabled={mutation.isPending || event.isFetching}
               onClick={() => {
