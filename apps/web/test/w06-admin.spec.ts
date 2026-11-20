@@ -99,7 +99,7 @@ test("W06 FE1: kiểm duyệt, đình chỉ, khôi phục và quyết toán qua 
   ).toHaveAttribute("href", "/admin/events/control");
 
   const reason = "Diễn tập đình chỉ sự kiện trên dữ liệu kiểm thử";
-  await page.getByRole("button", { name: "Kích hoạt Kill Switch" }).click();
+  await page.getByRole("button", { name: "Tạm dừng bán vé" }).click();
   await page.getByLabel("Lý do đình chỉ").fill(reason);
   await page.getByRole("button", { name: "Tiếp tục" }).click();
   const confirm = page.getByRole("button", { name: "Xác nhận đình chỉ" });

@@ -39,7 +39,7 @@ type EventAction = {
 };
 
 const auditLabels: Record<string, string> = {
-  EVENT_KILL_SWITCH_ACTIVATED: "Kích hoạt Kill Switch",
+  EVENT_KILL_SWITCH_ACTIVATED: "Tạm dừng bán vé",
   EVENT_RESUMED: "Khôi phục mở bán",
   EVENT_APPROVED: "Duyệt sự kiện",
   EVENT_REJECTED: "Từ chối sự kiện",
@@ -137,11 +137,11 @@ function EventControl({ eventId }: { eventId: string }) {
 
   return (
     <>
-      <article className="grid overflow-hidden rounded-2xl border bg-background md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="relative aspect-video overflow-hidden bg-muted md:aspect-auto md:min-h-64">
+      <article className="grid overflow-hidden rounded-2xl border bg-background md:grid-cols-[12rem_minmax(0,1fr)]">
+        <div className="relative aspect-video overflow-hidden bg-muted md:m-6 md:self-start md:rounded-lg">
           <AdminEventPoster
             event={item}
-            sizes="(min-width: 1024px) 410px, (min-width: 768px) 35vw, 95vw"
+            sizes="(min-width: 768px) 192px, 95vw"
             labeled
           />
         </div>
@@ -184,9 +184,7 @@ function EventControl({ eventId }: { eventId: string }) {
               ) : (
                 <RotateCcw aria-hidden="true" />
               )}
-              {kind === "suspend"
-                ? "Kích hoạt Kill Switch"
-                : "Khôi phục mở bán"}
+              {kind === "suspend" ? "Tạm dừng bán vé" : "Khôi phục mở bán"}
             </Button>
           )}
           {item.status === "SUSPENDED" && ended && (
@@ -252,7 +250,7 @@ function EventConfirmation({
     >
       <DialogContent showCloseButton={false}>
         <DialogTitle>
-          {suspend ? "Kích hoạt Kill Switch" : "Khôi phục mở bán"}
+          {suspend ? "Tạm dừng bán vé" : "Khôi phục mở bán"}
         </DialogTitle>
         <DialogDescription className="break-words">
           {item.title}.{" "}
