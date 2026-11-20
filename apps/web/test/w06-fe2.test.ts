@@ -182,6 +182,20 @@ describe("W06-FE2: Toi uu Offline PWA, Trang phap ly/FAQ va Huong dan su dung", 
       assert.equal(GUIDE_BY_ROLE.staff.ctaHref, "/gate/scanner");
     });
 
+    it("Khong con lien ket den cac trang chinh sach khong ton tai (/terms, /privacy, /help, /guarantee, /support)", () => {
+      const walk = (dir: string): string[] =>
+        fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+          const full = path.join(dir, entry.name);
+          if (entry.isDirectory()) return walk(full);
+          return /\.tsx?$/.test(entry.name) ? [full] : [];
+        });
+      const dead = /href="\/(terms|privacy|help|guarantee|support)"/;
+      const offenders = walk(path.join(webRoot, "src")).filter((file) =>
+        dead.test(fs.readFileSync(file, "utf8")),
+      );
+      assert.deepEqual(offenders, []);
+    });
+
     it("Trang /faq va /guide khong dung next/image, khong dung anh su kien trang tri", () => {
       for (const file of [
         "guide-page.tsx",
