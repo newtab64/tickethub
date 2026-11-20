@@ -79,7 +79,7 @@ test("W06 FE1: kiểm duyệt, đình chỉ, khôi phục và quyết toán qua 
       response.url().endsWith(`/admin/events/${id}/review`) &&
       response.request().method() === "POST",
   );
-  await page.getByRole("button", { name: /Duyệt/i }).click();
+  await page.getByRole("button", { name: /Duyệt mở bán/ }).click();
   await page.getByRole("button", { name: "Xác nhận duyệt" }).click();
   expect((await approved).ok()).toBe(true);
 
