@@ -147,18 +147,16 @@ function EventControl({ eventId }: { eventId: string }) {
         </div>
         <div className="grid min-w-0 gap-2 p-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center md:gap-x-4">
           <div className="min-w-0 space-y-2">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h2 className="break-words text-base font-bold leading-snug sm:text-lg">
-                {item.title}
-              </h2>
-              <EventControlStatus status={item.status} />
-            </div>
+            <h2 className="break-words text-base font-bold leading-snug sm:text-lg">
+              {item.title}
+            </h2>
             <div>
               <p className="break-all font-mono text-xs text-muted-foreground">
                 {eventId}
               </p>
             </div>
             <p className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+              <EventControlStatus status={item.status} />
               <CalendarDays aria-hidden="true" className="size-4 shrink-0" />
               <span>
                 Kết thúc {formatDateTimeVi(item.endTime)} · Phiên bản{" "}
