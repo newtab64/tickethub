@@ -26,6 +26,7 @@ import {
   releaseOnPageLeave,
 } from "../api/booking-client";
 import { useSession } from "@/features/identity";
+import { useSeatStream } from "./use-seat-stream";
 
 /** Trang thai va hanh dong cua man hinh dat ve cho mot su kien. */
 export function useBookingScreen(event: EventItem) {
@@ -36,6 +37,10 @@ export function useBookingScreen(event: EventItem) {
 
   const mapKey = useMemo(() => getEventVenueMapKey(event), [event]);
   const allListings = useMemo(() => getEventListings(event), [event]);
+  const seatStream = useSeatStream({
+    eventId: event.id,
+    enabled: Boolean(event.id),
+  });
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -253,6 +258,7 @@ export function useBookingScreen(event: EventItem) {
     handleStartHold,
     handleCancelHold,
     formatCountdown,
+    seatStream,
   };
 }
 

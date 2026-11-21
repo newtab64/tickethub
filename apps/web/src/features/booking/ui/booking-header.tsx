@@ -7,7 +7,8 @@ import type { BookingScreen } from "./use-booking-screen";
 
 /** Thanh dau trang: thong tin su kien, tim kiem va tai khoan. */
 export function BookingHeader({ vm }: { vm: BookingScreen }) {
-  const { event, user, isAdmin, isOrganizer, isSaved, setIsSaved } = vm;
+  const { event, user, isAdmin, isOrganizer, isSaved, setIsSaved, seatStream } =
+    vm;
 
   return (
     <header className="h-[64px] border-b border-[#dfe3e5] bg-white px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0 z-30">
@@ -119,6 +120,27 @@ export function BookingHeader({ vm }: { vm: BookingScreen }) {
         )}
 
         {/* Auth State */}
+        <span
+          className={`hidden xl:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border ${
+            seatStream.isConnected
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+              : "bg-slate-50 text-slate-600 border-slate-200"
+          }`}
+          title={
+            seatStream.isConnected
+              ? "Trạng thái ghế đang được cập nhật trực tiếp"
+              : "Trạng thái ghế đang tự động làm mới định kỳ"
+          }
+        >
+          <span
+            className={`size-1.5 rounded-full ${
+              seatStream.isConnected
+                ? "bg-emerald-500 animate-pulse"
+                : "bg-amber-500"
+            }`}
+          />
+          {seatStream.isConnected ? "Cập nhật trực tiếp" : "Tự động làm mới"}
+        </span>
         {!user ? (
           <>
             <Link
