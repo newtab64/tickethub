@@ -12,3 +12,5 @@ export {
 } from "./domain/booking-rules";
 export type { HoldErrorInfo } from "./domain/booking-rules";
 export { BookingPage } from "./ui/booking-page";
+export { default as BuyerOrderDetailPage } from "./ui/buyer-order-detail-page";
+export { default as BuyerOrdersPage } from "./ui/buyer-orders-page";
