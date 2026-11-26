@@ -5,6 +5,9 @@ import {
   type CheckoutOrder,
 } from "@tickethub/shared";
 
+/** Thời gian giữ chỗ chuẩn của một đơn, tính bằng giây. */
+export const HOLD_SECONDS = 300;
+
 export function remainingSeconds(deadline: number, now = Date.now()): number {
   return Math.max(0, Math.ceil((deadline - now) / 1000));
 }

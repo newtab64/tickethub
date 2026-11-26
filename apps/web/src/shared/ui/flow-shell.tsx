@@ -6,19 +6,26 @@ import { useEffect, type ReactNode } from "react";
 import { ReceiptText } from "lucide-react";
 import { ZodError } from "zod";
 import { ApiError } from "@/shared/api/client";
+import { cn } from "@/shared/lib/utils";
 import { Logo } from "./logo";
 
 export function FlowShell({
   title,
   children,
   footer,
+  className,
+  mainClassName,
 }: {
-  title: string;
+  title?: string;
   children: ReactNode;
   footer?: ReactNode;
+  className?: string;
+  mainClassName?: string;
 }) {
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className={cn("min-h-screen bg-background text-foreground", className)}
+    >
       <header className="px-4 pt-3 sm:px-6">
         <nav
           className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-3 rounded-full border border-border bg-background px-4 shadow-sm sm:px-6"
@@ -34,10 +41,17 @@ export function FlowShell({
           </Link>
         </nav>
       </header>
-      <main className="mx-auto max-w-[1248px] px-4 pt-8 pb-12 sm:px-6 sm:pt-10">
-        <h1 className="mb-6 text-2xl font-bold tracking-tight sm:mb-8 sm:text-3xl">
-          {title}
-        </h1>
+      <main
+        className={cn(
+          "mx-auto max-w-[1248px] px-4 pt-8 pb-12 sm:px-6 sm:pt-10",
+          mainClassName,
+        )}
+      >
+        {title && (
+          <h1 className="mb-6 text-2xl font-bold tracking-tight sm:mb-8 sm:text-3xl">
+            {title}
+          </h1>
+        )}
         {children}
       </main>
       {footer}

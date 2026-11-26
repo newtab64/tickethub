@@ -3,6 +3,7 @@ import {
   expect,
   type APIRequestContext,
   type Page,
+  type Locator,
 } from "@playwright/test";
 import { createHmac } from "node:crypto";
 import {
@@ -57,6 +58,19 @@ async function loginBrowser(page: Page) {
     user,
   );
 }
+const top = async (locator: Locator) => (await locator.boundingBox())!.y;
+
+/** Tổng tiền bên trái và nút thanh toán bên phải phải cùng đáy. */
+async function expectAligned(page: Page) {
+  const total = (await page.getByTestId("checkout-total").boundingBox())!;
+  const pay = (await page
+    .getByRole("button", { name: "Thanh toán ngay qua VNPay" })
+    .boundingBox())!;
+  expect(
+    Math.abs(total.y + total.height - (pay.y + pay.height)),
+  ).toBeLessThanOrEqual(1);
+}
+
 async function cancelHold(page: Page) {
   await page
     .getByRole("button", { name: "Hủy giao dịch", exact: true })
@@ -186,13 +200,50 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
   });
   const summary = page.getByRole("complementary", { name: "Tóm tắt đơn hàng" });
   const payment = page.getByRole("region", { name: "Thông tin thanh toán" });
-  expect((await payment.boundingBox())!.x).toBeLessThan(
-    (await summary.boundingBox())!.x,
+  // Desktop: tóm tắt bên trái, thao tác bên phải, các khối cùng đáy.
+  expect((await summary.boundingBox())!.x).toBeLessThan(
+    (await payment.boundingBox())!.x,
   );
-  await page.setViewportSize({ width: 390, height: 844 });
+  await expectAligned(page);
+  // Mobile theo luồng mua: mã giảm giá đứng ngay trên giá.
+  await page.setViewportSize({ width: 320, height: 700 });
+  const total = page.getByTestId("checkout-total");
   await expect
-    .poll(async () => (await summary.boundingBox())!.y)
-    .toBeLessThan((await payment.boundingBox())!.y);
+    .poll(
+      async () =>
+        (await top(page.getByLabel("Mã giảm giá"))) < (await top(total)),
+    )
+    .toBe(true);
+  expect(await top(summary.getByRole("img"))).toBeLessThan(
+    await top(payment.getByText("Họ và tên")),
+  );
+  expect(
+    (await total.getByTestId("checkout-total-amount").boundingBox())!.height,
+  ).toBeLessThan(40);
+  const bar = page.getByRole("button", { name: "Thanh toán", exact: true });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await expect(bar).toBeVisible();
+  // Thanh nổi rộng bằng đúng các khối bên trong thẻ, ở cả điện thoại và tablet.
+  for (const width of [320, 390, 700]) {
+    await page.setViewportSize({ width, height: 700 });
+    const pill = (await page.getByTestId("mobile-pay-bar").boundingBox())!;
+    const block = (await total.boundingBox())!;
+    expect([pill.x, pill.width]).toEqual([block.x, block.width]);
+  }
+  // Đúng cỡ chữ và bo góc của mockup: tên và gợi ý không gãy dòng trên 390px.
+  await page.setViewportSize({ width: 390, height: 844 });
+  for (const text of [
+    payment.getByRole("definition").first(),
+    payment.getByText("Quét bằng app ngân hàng"),
+  ])
+    expect((await text.boundingBox())!.height).toBeLessThan(30);
+  await expect(total).toHaveCSS("border-top-left-radius", "16px");
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page
+    .getByRole("button", { name: "Thanh toán ngay qua VNPay" })
+    .scrollIntoViewIfNeeded();
+  await expect(bar).toBeHidden();
+  await page.setViewportSize({ width: 390, height: 844 });
 
   await expect
     .poll(() =>
@@ -266,8 +317,55 @@ test("Vé có ghế hiển thị vị trí hệ thống tự phân bổ", async 
   await loginBrowser(page);
   await page.goto(`/checkout?orderId=${order.orderId}`);
   await expect(page.getByText(order.orderCode, { exact: true })).toBeVisible();
-  await expect(page.getByText(/Hàng .* - Ghế/)).toHaveCount(2);
+  await expect(page.getByText(/Hàng .*, ghế/)).toHaveCount(2);
   await cancelHold(page);
+});
+
+test("Sáu ghế và tên sự kiện dài không làm lệch hai cột", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request, 6, true);
+  await loginBrowser(page);
+  await page.route("**/booking/orders/*", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.event.title = "Đại nhạc hội ".repeat(12);
+    await route.fulfill({ response, json: body });
+  });
+  await page.setViewportSize({ width: 1280, height: 860 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const list = page.getByLabel("Danh sách ghế");
+  await expect(list).toBeVisible();
+  expect(await list.evaluate((e) => e.scrollHeight > e.clientHeight)).toBe(
+    true,
+  );
+  await expectAligned(page);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("Tài khoản thiếu họ tên không hiện dấu kiểm giả", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.addInitScript(
+    (value) =>
+      localStorage.setItem(
+        "tickethub_user",
+        JSON.stringify({ ...(value as object), fullName: "" }),
+      ),
+    user,
+  );
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const payment = page.getByRole("region", { name: "Thông tin thanh toán" });
+  await expect(payment.getByText("Chưa cập nhật")).toBeVisible();
+  await expect(payment.getByLabel("Đã có thông tin")).toHaveCount(1);
 });
 
 test("Mất kết nối thanh toán giữ nguyên đơn và không báo thành công", async ({
@@ -287,6 +385,7 @@ test("Mất kết nối thanh toán giữ nguyên đơn và không báo thành c
       .getByRole("alert")
       .filter({ hasText: "Không kết nối được máy chủ thanh toán" }),
   ).toBeVisible();
+  await expectAligned(page);
   await expect(page).toHaveURL(
     new RegExp(`/checkout\\?orderId=${order.orderId}`),
   );
