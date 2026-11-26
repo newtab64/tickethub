@@ -22,6 +22,8 @@ export const ticketTypes = pgTable("ticket_types", {
   heldCount: integer("held_count").notNull().default(0),
   soldCount: integer("sold_count").notNull().default(0),
   isSeated: boolean("is_seated").notNull().default(true),
+  // Ma data-zone tren so do cua su kien.
+  mapZone: varchar("map_zone", { length: 50 }),
   saleStartTime: timestamp("sale_start_time", { withTimezone: true }).notNull(),
   saleEndTime: timestamp("sale_end_time", { withTimezone: true }).notNull(),
   maxPerOrder: integer("max_per_order").notNull().default(6),

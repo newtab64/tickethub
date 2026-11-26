@@ -10,8 +10,8 @@ export class PublicEventService {
     return this.events.listPublished(query.limit ?? 20);
   }
 
-  async getPublicEventBySlug(slug: string) {
-    const event = await this.events.findPublishedBySlug(slug);
+  async getPublicEvent(identifier: string) {
+    const event = await this.events.findPublished(identifier);
     if (!event) throw eventErrors.publicEventNotFound();
     return event;
   }

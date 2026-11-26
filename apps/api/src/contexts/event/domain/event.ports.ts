@@ -59,7 +59,7 @@ export interface EventRepository {
     version: number | undefined;
   }>;
   listPublished(limit: number): Promise<EventWithTicketTypes[]>;
-  findPublishedBySlug(slug: string): Promise<EventWithTicketTypes | null>;
+  findPublished(identifier: string): Promise<EventWithTicketTypes | null>;
 }
 
 /** Cong doc cho cac mo hinh doc (so do ghe, ton kho). */

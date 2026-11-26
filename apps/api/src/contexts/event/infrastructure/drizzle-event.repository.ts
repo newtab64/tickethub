@@ -40,6 +40,9 @@ export class DrizzleOrganizerProfileLookup implements OrganizerProfileLookup {
   }
 }
 
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export class DrizzleEventRepository implements EventRepository {
   async slugExists(slug: string) {
     const existing = await db.query.events.findFirst({
@@ -248,13 +251,17 @@ export class DrizzleEventRepository implements EventRepository {
     });
   }
 
-  async findPublishedBySlug(slug: string) {
+  async findPublished(identifier: string) {
+    // Chuoi dang UUID chi so voi id: slug trung UUID khong chiem duoc lien ket.
+    const column = UUID_PATTERN.test(identifier) ? events.id : events.slug;
     const event = await db.query.events.findFirst({
       where: and(
-        eq(events.slug, slug),
+        eq(column, identifier),
         eq(events.status, EventStatus.PUBLISHED),
       ),
-      with: { ticketTypes: true },
+      with: {
+        ticketTypes: { orderBy: (t, { asc }) => [asc(t.sortOrder)] },
+      },
     });
     return event ?? null;
   }

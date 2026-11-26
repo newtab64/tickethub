@@ -12,3 +12,4 @@ export * from "./schemas/buyer-order.schema";
 export * from "./schemas/venue.schema";
 export * from "./schemas/payout.schema";
 export * from "./schemas/checkout.schema";
+export * from "./schemas/public-event.schema";
