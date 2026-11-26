@@ -46,11 +46,11 @@ Quy ước cho code mới: dùng class theo token (`text-foreground`, `text-mute
 
 ## 2. Typography
 
-| Mục                | Giá trị                                                 |
-| :----------------- | :------------------------------------------------------ |
-| Font chữ           | Inter (`--font-sans`), có tiếng Việt                    |
-| Font số/mã         | JetBrains Mono (`--font-mono`), dùng cho mã đơn, số ghế |
-| Letter-spacing nền | `-0.005em`                                              |
+| Mục                | Giá trị                                              |
+| :----------------- | :--------------------------------------------------- |
+| Font chữ           | Inter (`--font-sans`), có tiếng Việt                 |
+| Số và mã           | Inter với `tabular-nums` cho đồng hồ, số ghế, mã đơn |
+| Letter-spacing nền | `-0.005em`                                           |
 
 Thang cỡ chữ đang dùng:
 

@@ -65,14 +65,14 @@ export function CheckoutDrawer({
                 <Timer className="size-4.5" />
                 <span>Đang giữ chỗ • Mã {holdOrderCode}</span>
               </div>
-              <span className="font-mono text-[16px] font-extrabold text-primary">
+              <span className="tabular-nums text-[16px] font-extrabold text-primary">
                 {formatCountdown(holdSecondsLeft)}
               </span>
             </div>
             {allocatedSeats.length > 0 && (
               <div className="text-[12px] font-medium text-emerald-800 border-t border-emerald-200/60 pt-1.5 flex items-center justify-between">
                 <span>Vị trí ghế đã cấp tự động:</span>
-                <span className="font-mono font-bold">
+                <span className="tabular-nums font-bold">
                   Hàng {allocatedSeats[0]?.rowLabel} - Ghế{" "}
                   {allocatedSeats.map((s) => s.seatNumber).join(", ")}
                 </span>

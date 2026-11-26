@@ -148,7 +148,7 @@ export function EventControlList() {
                           </span>
                         </Link>
                       </td>
-                      <td className="hidden font-mono tabular-nums text-muted-foreground sm:table-cell">
+                      <td className="hidden tabular-nums text-muted-foreground sm:table-cell">
                         {formatDateTimeVi(event.endTime)}
                       </td>
                       <td className="whitespace-nowrap">

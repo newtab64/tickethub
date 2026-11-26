@@ -354,7 +354,7 @@ function QueueView({ kind }: { kind: "organizers" | "events" }) {
                         </span>
                       </button>
                     </td>
-                    <td className="font-mono tabular-nums text-muted-foreground">
+                    <td className="tabular-nums text-muted-foreground">
                       {r.meta}
                     </td>
                     <td>
@@ -705,7 +705,7 @@ function Kbd({
 }) {
   return (
     <kbd
-      className={`inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border text-[10px] font-mono ${
+      className={`inline-flex items-center justify-center min-w-4 h-4 px-1 rounded border text-[10px] tabular-nums ${
         tone === "onPrimary"
           ? "border-white/30 bg-white/10 text-white"
           : "border-border bg-secondary text-muted-foreground"

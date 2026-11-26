@@ -151,7 +151,7 @@ function EventControl({ eventId }: { eventId: string }) {
               {item.title}
             </h2>
             <div>
-              <p className="break-all font-mono text-xs text-muted-foreground">
+              <p className="break-all tabular-nums text-xs text-muted-foreground">
                 {eventId}
               </p>
             </div>

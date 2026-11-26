@@ -110,7 +110,7 @@ function MyTicketsContent() {
               <CheckCircle2 className="size-3.5" /> Vé hợp lệ • Đã thanh toán
               qua VNPay
             </span>
-            <span className="text-[12px] font-mono font-bold text-muted-foreground">
+            <span className="text-[12px] tabular-nums font-bold text-muted-foreground">
               MÃ ĐƠN #{orderCode}
             </span>
           </div>
@@ -154,7 +154,7 @@ function MyTicketsContent() {
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                 Hàng ghế
               </span>
-              <span className="font-mono font-bold text-[15px] text-foreground">
+              <span className="tabular-nums font-bold text-[15px] text-foreground">
                 {rowLabel || "Tự do"}
               </span>
             </div>
@@ -162,7 +162,7 @@ function MyTicketsContent() {
               <span className="block text-[11px] uppercase tracking-wider text-muted-foreground font-semibold">
                 Số ghế ({quantity} vé)
               </span>
-              <span className="font-mono font-bold text-[15px] text-primary">
+              <span className="tabular-nums font-bold text-[15px] text-primary">
                 {seatNumbers}
               </span>
             </div>
@@ -237,7 +237,7 @@ function MyTicketsContent() {
               <h3 className="text-[17px] font-extrabold text-slate-900 pt-1">
                 {activeEvent.title}
               </h3>
-              <p className="text-[12px] text-slate-500 font-mono">
+              <p className="text-[12px] text-slate-500 tabular-nums">
                 MÃ ĐƠN #{orderCode}
               </p>
             </div>

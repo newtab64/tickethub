@@ -236,7 +236,7 @@ function OrderDetail({ id }: { id: string }) {
                     <span className="block text-sm">
                       {ticket.seatInfo.formattedLabel}
                     </span>
-                    <span className="block font-mono text-xs break-all">
+                    <span className="block tabular-nums text-xs break-all">
                       {ticket.ticketCode}
                     </span>
                     <span className="block text-sm">

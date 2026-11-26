@@ -102,12 +102,12 @@ export function EventsTableViews({ vm }: { vm: OrganizerEventsScreen }) {
               </h3>
               <p className="text-xs text-muted-foreground">
                 Máy chủ trả về mã lỗi{" "}
-                <code className="font-mono text-destructive">
+                <code className="tabular-nums text-destructive">
                   INTERNAL_SERVER_ERROR (HTTP 500)
                 </code>
                 . Vui lòng kiểm tra kết nối mạng hoặc thử lại sau giây lát.
               </p>
-              <p className="text-[11px] text-muted-foreground font-mono">
+              <p className="text-[11px] text-muted-foreground tabular-nums">
                 Mã yêu cầu: req_01HZX890ABCDEF • {new Date().toISOString()}
               </p>
             </div>
