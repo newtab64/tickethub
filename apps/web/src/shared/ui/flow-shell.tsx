@@ -1,14 +1,21 @@
+"use client";
+
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 import { ReceiptText } from "lucide-react";
+import { ZodError } from "zod";
+import { ApiError } from "@/shared/api/client";
 import { Logo } from "./logo";
 
 export function FlowShell({
   title,
   children,
+  footer,
 }: {
   title: string;
   children: ReactNode;
+  footer?: ReactNode;
 }) {
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -33,19 +40,35 @@ export function FlowShell({
         </h1>
         {children}
       </main>
+      {footer}
     </div>
   );
 }
 
+function errorMessage(error: unknown): string {
+  if (error instanceof ZodError)
+    return "Máy chủ trả về dữ liệu không hợp lệ. Vui lòng thử lại sau.";
+  return error instanceof Error
+    ? error.message
+    : "Không thể tải dữ liệu. Vui lòng thử lại.";
+}
+
 export function FlowError({ error }: { error: unknown }) {
+  const router = useRouter();
+  const unauthorized = error instanceof ApiError && error.status === 401;
+  // apiClient đã thử làm mới token: còn 401 thì phải đăng nhập lại.
+  useEffect(() => {
+    if (!unauthorized) return;
+    const current = window.location.pathname + window.location.search;
+    router.replace(`/auth?redirect=${encodeURIComponent(current)}`);
+  }, [unauthorized, router]);
+
   return (
     <p
       role="alert"
       className="rounded-xl border border-destructive bg-background p-4 text-destructive"
     >
-      {error instanceof Error
-        ? error.message
-        : "Không thể tải dữ liệu. Vui lòng thử lại."}
+      {errorMessage(error)}
     </p>
   );
 }

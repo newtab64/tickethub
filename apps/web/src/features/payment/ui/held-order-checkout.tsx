@@ -3,14 +3,21 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { EventPoster } from "@/features/event";
-import { CalendarDays, Clock3, CreditCard, MapPin } from "lucide-react";
+import { EventPoster, getEventById } from "@/features/event";
+import {
+  CalendarDays,
+  Clock3,
+  CreditCard,
+  LockKeyhole,
+  MapPin,
+  ShieldCheck,
+} from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CheckoutOrderSchema,
   VnpayPaymentResponseSchema,
 } from "@tickethub/shared";
-import { apiClient, getAccessToken } from "@/shared/api/client";
+import { ApiError, apiClient, getAccessToken } from "@/shared/api/client";
 import { useSession } from "@/features/identity";
 import {
   remainingSeconds,
@@ -18,50 +25,103 @@ import {
   dateTime,
   safePaymentUrl,
   orderStatusLabel,
+  formatTimer,
+  zoneLabel,
+  paymentFailureMessage,
 } from "../domain/order-checkout";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { Button } from "@/shared/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogTitle,
+} from "@/shared/ui/dialog";
+import { CheckoutFooter } from "./checkout-footer";
+
+// Khai báo ngoài component để ref chỉ cuộn khi lỗi xuất hiện, không theo nhịp đồng hồ.
+const scrollToError = (node: HTMLElement | null) =>
+  node?.scrollIntoView({ block: "nearest" });
 
 function Checkout({ orderId }: { orderId: string }) {
   const router = useRouter();
   const { user } = useSession();
   const [now, setNow] = useState(Date.now);
-  const [deadline, setDeadline] = useState<number | null>(null);
   const [cancelError, setCancelError] = useState<unknown>(null);
   const [voucher, setVoucher] = useState("");
   const [voucherMessage, setVoucherMessage] = useState("");
   const [redirecting, setRedirecting] = useState(false);
+  // null: đóng hộp xác nhận; href null: bấm hủy, không phải bấm liên kết.
+  const [leaveRequest, setLeaveRequest] = useState<{
+    href: string | null;
+  } | null>(null);
   const leavingForPayment = useRef(false);
   const releasing = useRef(false);
   const cleanupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const query = useQuery({
     queryKey: ["checkout", orderId],
-    queryFn: async () => {
-      const order = CheckoutOrderSchema.parse(
+    queryFn: async () =>
+      CheckoutOrderSchema.parse(
         await apiClient<unknown>(
           `/booking/orders/${encodeURIComponent(orderId)}`,
         ),
-      );
-      // Không cho đồng hồ máy khách kéo dài thời gian giữ chỗ của server.
-      setDeadline(
-        Math.min(
-          Date.parse(order.expiresAt),
-          Date.now() + order.remainingSeconds * 1000,
-        ),
-      );
-      return order;
-    },
+      ),
     retry: false,
     refetchOnWindowFocus: false,
   });
   const order = query.data;
-  const seconds = deadline === null ? null : remainingSeconds(deadline, now);
+  // Tính từ số giây server trả về: đồng hồ máy khách lệch giờ không ảnh hưởng.
+  const deadline = order
+    ? query.dataUpdatedAt + order.remainingSeconds * 1000
+    : null;
+  const seconds =
+    deadline === null
+      ? null
+      : remainingSeconds(deadline, Math.max(now, query.dataUpdatedAt));
   const active = order?.status === "PENDING" && seconds !== null && seconds > 0;
+  // Trang sự kiện hiện chỉ có danh mục tĩnh, đơn ngoài danh mục về trang chủ.
+  const eventPath =
+    order && getEventById(order.event.id) ? `/events/${order.event.id}` : "/";
+  const { refetch } = query;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 500);
     return () => clearInterval(timer);
   }, []);
+
+  // Bấm Back từ VNPay có thể khôi phục trang từ bfcache với nút còn bị khóa.
+  useEffect(() => {
+    const restore = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      leavingForPayment.current = false;
+      setRedirecting(false);
+      void refetch();
+    };
+    window.addEventListener("pageshow", restore);
+    return () => window.removeEventListener("pageshow", restore);
+  }, [refetch]);
+
+  // Rời checkout sẽ trả chỗ, nên hỏi lại trước khi đi theo một liên kết.
+  useEffect(() => {
+    if (order?.status !== "PENDING") return;
+    const askBeforeLeaving = (event: MouseEvent) => {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey) return;
+      if (event.shiftKey || event.altKey) return;
+      const link =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      if (!(link instanceof HTMLAnchorElement) || link.target === "_blank")
+        return;
+      if (link.href === window.location.href) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setLeaveRequest({ href: link.href });
+    };
+    document.addEventListener("click", askBeforeLeaving, true);
+    return () => document.removeEventListener("click", askBeforeLeaving, true);
+  }, [order?.status]);
 
   useEffect(() => {
     if (!order || order.status !== "PENDING") return;
@@ -115,10 +175,8 @@ function Checkout({ orderId }: { orderId: string }) {
       body: JSON.stringify({ orderId: order.id }),
     })
       .catch(() => undefined)
-      .finally(() =>
-        router.replace(`/events/${order.event.slug}?holdExpired=1`),
-      );
-  }, [order, seconds, router]);
+      .finally(() => router.replace(`${eventPath}?holdExpired=1`));
+  }, [order, seconds, eventPath, router]);
 
   const payment = useMutation({
     mutationFn: async () => {
@@ -170,7 +228,7 @@ function Checkout({ orderId }: { orderId: string }) {
           method: "POST",
           body: JSON.stringify({ orderId: order.id }),
         });
-        router.replace(`/events/${order.event.slug}`);
+        router.replace(eventPath);
       } catch (error) {
         releasing.current = false;
         throw error;
@@ -178,6 +236,29 @@ function Checkout({ orderId }: { orderId: string }) {
     },
     onError: setCancelError,
   });
+
+  const payDisabled =
+    !active ||
+    seconds === null ||
+    seconds <= 45 ||
+    payment.isPending ||
+    redirecting ||
+    cancel.isPending;
+  const paymentError =
+    payment.error instanceof ApiError
+      ? new ApiError(
+          payment.error.status,
+          payment.error.code,
+          paymentFailureMessage(payment.error.status),
+        )
+      : payment.error;
+  const confirmLeave = () => {
+    const href = leaveRequest?.href;
+    setLeaveRequest(null);
+    // Điều hướng đi sẽ unmount trang, effect phía trên tự trả chỗ.
+    if (href) router.push(href);
+    else cancel.mutate();
+  };
 
   if (query.isPending) return <p role="status">Đang tải đơn giữ chỗ...</p>;
   if (query.error)
@@ -215,9 +296,7 @@ function Checkout({ orderId }: { orderId: string }) {
           aria-label="Thời gian giữ chỗ"
           className={`rounded-lg px-3 py-1 font-sans text-2xl leading-none font-bold tracking-tight tabular-nums sm:text-[28px] ${expiring ? "bg-destructive/10" : "bg-accent text-accent-foreground"}`}
         >
-          {seconds === null
-            ? "--:--"
-            : `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`}
+          {seconds === null ? "--:--" : formatTimer(seconds)}
         </span>
         {expiring && (
           <p role="alert" className="w-full text-sm">
@@ -289,7 +368,7 @@ function Checkout({ orderId }: { orderId: string }) {
                   <p className="col-span-2 row-start-2 text-xs text-muted-foreground">
                     {item.ticketType.isSeated
                       ? item.seat
-                        ? `Khu ${item.seat.zoneName} - Hàng ${item.seat.rowLabel} - Ghế ${item.seat.seatNumber}`
+                        ? `${zoneLabel(item.seat.zoneName)} - Hàng ${item.seat.rowLabel} - Ghế ${item.seat.seatNumber}`
                         : "Vị trí ghế chưa được xác nhận"
                       : `Khu vực: ${item.ticketType.name} (Vé đứng)`}
                   </p>
@@ -317,6 +396,23 @@ function Checkout({ orderId }: { orderId: string }) {
               </div>
             </dl>
           </div>
+          <ul className="col-span-full space-y-3 border-t border-border p-3 text-xs text-muted-foreground lg:px-6 lg:py-5">
+            <li className="flex gap-2">
+              <ShieldCheck
+                aria-hidden="true"
+                className="size-4 shrink-0 text-primary"
+              />
+              Vé chính hãng, hợp lệ tại cổng soát vé sự kiện.
+            </li>
+            <li className="flex gap-2">
+              <LockKeyhole
+                aria-hidden="true"
+                className="size-4 shrink-0 text-primary"
+              />
+              Thanh toán qua VNPay. Nếu đã trừ tiền mà không thể cấp vé, hệ
+              thống hoàn tiền cho bạn.
+            </li>
+          </ul>
         </aside>
         <section
           className="space-y-5 rounded-xl border border-border bg-background p-4 sm:p-6 lg:col-start-1 lg:row-start-1"
@@ -390,18 +486,16 @@ function Checkout({ orderId }: { orderId: string }) {
               </div>
             </div>
           </div>
-          {payment.error && <FlowError error={payment.error} />}
+          {paymentError && (
+            // Nút thanh toán trên mobile nằm xa vị trí lỗi.
+            <div ref={scrollToError} className="scroll-mb-24 lg:scroll-mb-4">
+              <FlowError error={paymentError} />
+            </div>
+          )}
           {cancelError !== null && <FlowError error={cancelError} />}
           <Button
             className="h-11 w-full font-semibold"
-            disabled={
-              !active ||
-              seconds === null ||
-              seconds <= 45 ||
-              payment.isPending ||
-              redirecting ||
-              cancel.isPending
-            }
+            disabled={payDisabled}
             onClick={() => payment.mutate()}
           >
             {payment.isPending || redirecting
@@ -414,12 +508,46 @@ function Checkout({ orderId }: { orderId: string }) {
             disabled={
               !active || payment.isPending || redirecting || cancel.isPending
             }
-            onClick={() => cancel.mutate()}
+            onClick={() => setLeaveRequest({ href: null })}
           >
             {cancel.isPending ? "Đang hủy..." : "Hủy giao dịch"}
           </Button>
         </section>
       </div>
+      <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-between gap-3 border-t border-border bg-background px-4 py-3 shadow-lg lg:hidden">
+        <p className="text-xs text-muted-foreground">
+          Tổng thanh toán
+          <span className="block text-base font-bold text-foreground tabular-nums">
+            {money(order.finalAmount)}
+          </span>
+        </p>
+        <Button
+          className="h-11 px-5 font-semibold"
+          disabled={payDisabled}
+          onClick={() => payment.mutate()}
+        >
+          Thanh toán
+        </Button>
+      </div>
+      <Dialog
+        open={leaveRequest !== null}
+        onOpenChange={(open) => !open && setLeaveRequest(null)}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogTitle>Hủy giữ chỗ?</DialogTitle>
+          <DialogDescription>
+            Vé đang giữ sẽ được trả lại kho để người khác đặt mua.
+          </DialogDescription>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLeaveRequest(null)}>
+              Ở lại thanh toán
+            </Button>
+            <Button variant="destructive" onClick={confirmLeave}>
+              Hủy giữ chỗ
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -445,7 +573,7 @@ function CheckoutRoute() {
 }
 export default function CheckoutPage() {
   return (
-    <FlowShell title="Thanh toán">
+    <FlowShell title="Thanh toán" footer={<CheckoutFooter />}>
       <Suspense fallback={<p>Đang tải...</p>}>
         <CheckoutRoute />
       </Suspense>

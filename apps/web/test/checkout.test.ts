@@ -5,6 +5,9 @@ import {
   remainingSeconds,
   paymentState,
   safePaymentUrl,
+  formatTimer,
+  zoneLabel,
+  paymentFailureMessage,
 } from "../src/features/payment/domain/order-checkout.ts";
 
 test("Countdown uses deadline and catches elapsed time after suspended tab", () => {
@@ -50,4 +53,19 @@ test("Checkout never accepts fabricated or incomplete fallback orders", () => {
     false,
   );
   assert.equal(CheckoutOrderSchema.safeParse({}).success, false);
+});
+test("Timer and zone labels are formatted once", () => {
+  assert.equal(formatTimer(299), "04:59");
+  assert.equal(formatTimer(0), "00:00");
+  assert.equal(zoneLabel("VIP A"), "Khu VIP A");
+  assert.equal(zoneLabel("Khu VIP A"), "Khu VIP A");
+});
+test("Payment failures map each status to a safe message", () => {
+  assert.match(paymentFailureMessage(0), /kết nối/);
+  assert.match(paymentFailureMessage(401), /đăng nhập/);
+  assert.match(paymentFailureMessage(403), /quyền/);
+  assert.match(paymentFailureMessage(404), /Không tìm thấy đơn hàng/);
+  assert.match(paymentFailureMessage(409), /hết hạn giữ chỗ/);
+  assert.match(paymentFailureMessage(429), /quá nhanh/);
+  assert.match(paymentFailureMessage(500), /Không thể tạo thanh toán/);
 });

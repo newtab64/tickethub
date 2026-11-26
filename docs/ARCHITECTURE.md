@@ -282,20 +282,20 @@ Mỗi `page.tsx` không quá 40 dòng. Các thư mục cũ `components/`, `lib/`
 
 ### Mẫu tổ chức màn hình lớn
 
-Màn hình có nhiều trạng thái (đặt vé, thanh toán, đăng nhập 3 bước, danh sách sự kiện, trình tạo sự kiện) được tách thành:
+Màn hình có nhiều trạng thái (đặt vé, đăng nhập 3 bước, danh sách sự kiện, trình tạo sự kiện) được tách thành:
 
 - Một hook `use-<tên>-screen.ts` giữ toàn bộ trạng thái, hiệu ứng và hành động, trả về một đối tượng `vm`.
-- Các khối giao diện thuần trình bày nhận `vm` (ví dụ `checkout-header.tsx`, `payment-modal.tsx`, `wizard-step-1.tsx`), mỗi khối chỉ destructure phần nó dùng.
-- Logic không phụ thuộc React (ví dụ phân tích phản hồi giữ chỗ, tính tổng tiền, đánh giá mã giảm giá, lọc và sắp xếp sự kiện) nằm ở `domain/` và có test không cần trình duyệt.
-- Lời gọi mạng nằm ở `api/` (ví dụ `booking-client.ts`, `checkout-client.ts`, `auth-api.ts`).
+- Các khối giao diện thuần trình bày nhận `vm` (ví dụ `booking-header.tsx`, `wizard-step-1.tsx`), mỗi khối chỉ destructure phần nó dùng.
+- Logic không phụ thuộc React (ví dụ phân tích phản hồi giữ chỗ, trạng thái thanh toán, lọc và sắp xếp sự kiện) nằm ở `domain/` và có test không cần trình duyệt.
+- Lời gọi mạng nằm ở `api/` (ví dụ `booking-client.ts`, `auth-api.ts`).
 
 ### Hiện trạng cần lưu ý
 
 Các điểm sau phản ánh trạng thái triển khai hiện tại, không phải thay đổi của đợt tái cấu trúc:
 
-- Dữ liệu tạm: danh mục sự kiện và hạng vé (`features/event/data`), dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`), mã giảm giá và phí dịch vụ tính ở client (`features/payment/domain/checkout-rules.ts`). Cần thay bằng API khi backend sẵn sàng.
-- Bản đồ 21 trang trong tiêu chuẩn dự án (19 trang cốt lõi cùng `/faq` và `/guide`) mới triển khai một phần: các route `/events`, `/buyer/orders`, `/buyer/orders/[id]`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/my-tickets` thay cho `/buyer/orders`, `/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).
-- Màn hình thanh toán hiện dùng cửa sổ phụ (modal) để nhập thông tin người nhận và chọn phương thức, và khi tạo thanh toán lỗi sẽ chuyển tới `/buyer/orders/[id]?paymentSuccess=true`. Cả hai điểm này cần được rà soát theo quy chuẩn trang thanh toán độc lập và xử lý lỗi thanh toán.
+- Dữ liệu tạm: danh mục sự kiện và hạng vé (`features/event/data`), dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`). Cần thay bằng API khi backend sẵn sàng.
+- Bản đồ 21 trang trong tiêu chuẩn dự án (19 trang cốt lõi cùng `/faq` và `/guide`) mới triển khai một phần: các route `/events`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).
+- Trang thanh toán chưa áp dụng mã giảm giá mới, chưa nhập số điện thoại người nhận và chưa chọn phương thức VNPay trên trang: backend chưa nhận các dữ liệu này tại endpoint tạo thanh toán.
 
 ## Ranh giới vai trò và Ma trận phân quyền
 

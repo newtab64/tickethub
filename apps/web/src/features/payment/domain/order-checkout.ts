@@ -8,6 +8,40 @@ export function remainingSeconds(deadline: number, now = Date.now()): number {
   return Math.max(0, Math.ceil((deadline - now) / 1000));
 }
 
+/** Định dạng số giây thành MM:SS cho đồng hồ giữ chỗ. */
+export function formatTimer(seconds: number): string {
+  const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+/** Tên khu trong dữ liệu có thể đã bắt đầu bằng "Khu". */
+export function zoneLabel(zoneName: string): string {
+  return zoneName.startsWith("Khu") ? zoneName : `Khu ${zoneName}`;
+}
+
+/**
+ * Thông báo khi tạo thanh toán thất bại, theo mã HTTP (0 là mất kết nối).
+ * Không hiển thị thông điệp thô từ backend.
+ */
+export function paymentFailureMessage(status: number): string {
+  switch (status) {
+    case 0:
+      return "Không kết nối được máy chủ thanh toán. Vui lòng kiểm tra mạng và thử lại.";
+    case 401:
+      return "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để thanh toán.";
+    case 403:
+      return "Tài khoản của bạn không có quyền thanh toán đơn hàng này.";
+    case 404:
+      return "Không tìm thấy đơn hàng. Vui lòng quay lại trang đặt vé và chọn vé lại.";
+    case 409:
+      return "Đơn hàng đã hết hạn giữ chỗ hoặc không còn ở trạng thái chờ thanh toán. Vui lòng đặt vé lại.";
+    case 429:
+      return "Bạn thao tác quá nhanh. Vui lòng thử lại sau ít giây.";
+    default:
+      return "Không thể tạo thanh toán lúc này. Vui lòng thử lại sau.";
+  }
+}
+
 export function paymentState(
   status: OrderStatus,
 ): "success" | "failed" | "processing" | "refunded" | "refund_pending" {

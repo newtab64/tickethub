@@ -159,6 +159,11 @@ export const BuyerOrderSummarySchema = z.object({
   ticketCount: z.number().int().nonnegative(),
 });
 
+export const BuyerOrderPageSchema = z.object({
+  data: BuyerOrderSummarySchema.array(),
+  meta: z.object({ totalPages: z.number().int().nonnegative() }),
+});
+
 export const BuyerOrderDetailSchema = z.object({
   id: z.string().uuid(),
   orderCode: z.string(),

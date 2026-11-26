@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { BuyerOrderSummarySchema, OrderStatus } from "@tickethub/shared";
-import { apiClient } from "@/shared/api/client";
+import { BuyerOrderPageSchema, OrderStatus } from "@tickethub/shared";
+import { apiEnvelope } from "@/shared/api/client";
 import { money, dateTime, orderStatusLabel } from "@/features/payment";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { Button } from "@/shared/ui/button";
@@ -15,13 +15,14 @@ export default function OrdersPage() {
   const query = useQuery({
     queryKey: ["buyer-orders", page, status],
     queryFn: async () =>
-      BuyerOrderSummarySchema.array().parse(
-        await apiClient<unknown>(
+      BuyerOrderPageSchema.parse(
+        await apiEnvelope<unknown>(
           `/buyer/orders?page=${page}&limit=10${status ? `&status=${status}` : ""}`,
         ),
       ),
     retry: false,
   });
+  const orders = query.data?.data;
   return (
     <FlowShell title="Đơn hàng của tôi">
       <label className="mb-5 flex flex-wrap items-center gap-3 text-sm font-semibold">
@@ -51,7 +52,7 @@ export default function OrdersPage() {
           </Button>
         </>
       )}
-      {query.data?.length === 0 && (
+      {orders?.length === 0 && (
         <p>
           Chưa có đơn hàng phù hợp.{" "}
           <Link className="underline text-primary" href="/">
@@ -60,7 +61,7 @@ export default function OrdersPage() {
         </p>
       )}
       <ul className="grid gap-4 lg:grid-cols-2">
-        {query.data?.map((order) => (
+        {orders?.map((order) => (
           <li
             key={order.id}
             className="min-w-0 rounded-xl border border-border bg-background p-4 sm:p-5"
@@ -111,7 +112,11 @@ export default function OrdersPage() {
         <span>Trang {page}</span>
         <Button
           variant="outline"
-          disabled={!query.data || query.data.length < 10 || query.isFetching}
+          disabled={
+            !query.data ||
+            page >= query.data.meta.totalPages ||
+            query.isFetching
+          }
           onClick={() => setPage((p) => p + 1)}
         >
           Trang sau

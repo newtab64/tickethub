@@ -57,6 +57,17 @@ async function loginBrowser(page: Page) {
     user,
   );
 }
+async function cancelHold(page: Page) {
+  await page
+    .getByRole("button", { name: "Hủy giao dịch", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Hủy giữ chỗ", exact: true })
+    .click();
+  // Sự kiện seed không nằm trong danh mục tĩnh nên đích là trang chủ.
+  await expect(page).toHaveURL(/localhost:3000\/$/);
+}
 async function hold(request: APIRequestContext, quantity = 1, seated = false) {
   const response = await request.get(`${api}/events`);
   const events = await response.json();
@@ -144,10 +155,7 @@ test("F5 giữ nguyên đơn và deadline, sau đó vẫn hủy chủ động đ
   expect(after.status).toBe("PENDING");
   expect(after.expiresAt).toBe(before.expiresAt);
   expect(releases).toHaveLength(0);
-  await page
-    .getByRole("button", { name: "Hủy giao dịch", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/events\//);
+  await cancelHold(page);
   const cancelled = (
     await (
       await request.get(`${api}/buyer/orders/${held.orderId}`, {
@@ -173,7 +181,7 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
     "Chưa hỗ trợ áp dụng mã giảm giá",
   );
   await page.screenshot({
-    path: "../../artifacts/w04-checkout-desktop.png",
+    path: test.info().outputPath("w04-checkout-desktop.png"),
     fullPage: true,
   });
   const summary = page.getByRole("complementary", { name: "Tóm tắt đơn hàng" });
@@ -194,13 +202,10 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
     )
     .toBe(true);
   await page.screenshot({
-    path: "../../artifacts/w04-checkout-mobile.png",
+    path: test.info().outputPath("w04-checkout-mobile.png"),
     fullPage: true,
   });
-  await page
-    .getByRole("button", { name: "Hủy giao dịch", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/events\//);
+  await cancelHold(page);
   const actual = BuyerOrderDetailSchema.parse(
     (
       await (
@@ -230,9 +235,17 @@ test("URL báo thành công không thay thế xác nhận backend và thoát tra
   ).toHaveCount(0);
   await page.goto(`/checkout?orderId=${order.orderId}`);
   await expect(page.getByText(order.orderCode, { exact: true })).toBeVisible();
-  await page
-    .getByRole("link", { name: "Đơn hàng của tôi", exact: true })
-    .click();
+  const ordersLink = page.getByRole("link", {
+    name: "Đơn hàng của tôi",
+    exact: true,
+  });
+  const dialog = page.getByRole("dialog");
+  await ordersLink.click();
+  await dialog.getByRole("button", { name: "Ở lại thanh toán" }).click();
+  await expect(page).toHaveURL(/\/checkout\?orderId=/);
+  await ordersLink.click();
+  await dialog.getByRole("button", { name: "Hủy giữ chỗ" }).click();
+  await expect(page).toHaveURL(/\/buyer\/orders$/);
   await expect
     .poll(async () => {
       const payload = await (
@@ -254,10 +267,7 @@ test("Vé có ghế hiển thị vị trí hệ thống tự phân bổ", async 
   await page.goto(`/checkout?orderId=${order.orderId}`);
   await expect(page.getByText(order.orderCode, { exact: true })).toBeVisible();
   await expect(page.getByText(/Hàng .* - Ghế/)).toHaveCount(2);
-  await page
-    .getByRole("button", { name: "Hủy giao dịch", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/events\//);
+  await cancelHold(page);
 });
 
 test("Mất kết nối thanh toán giữ nguyên đơn và không báo thành công", async ({
@@ -275,7 +285,7 @@ test("Mất kết nối thanh toán giữ nguyên đơn và không báo thành c
   await expect(
     page
       .getByRole("alert")
-      .filter({ hasText: "Máy chủ API hiện chưa phản hồi" }),
+      .filter({ hasText: "Không kết nối được máy chủ thanh toán" }),
   ).toBeVisible();
   await expect(page).toHaveURL(
     new RegExp(`/checkout\\?orderId=${order.orderId}`),
@@ -286,6 +296,20 @@ test("Mất kết nối thanh toán giữ nguyên đơn và không báo thành c
     })
   ).json();
   expect(result.data.status).toBe("PENDING");
+});
+
+test("Máy khách chạy nhanh giờ không làm hủy đơn", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.clock.install({ time: Date.now() + 6 * 60_000 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  await expect(page.getByRole("timer")).toContainText(/0[45]:[0-5][0-9]/);
+  await expect(
+    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
+  ).toBeEnabled();
 });
 
 test("Đồng hồ cảnh báo và hết hạn giải phóng đơn thật", async ({
@@ -306,6 +330,9 @@ test("Đồng hồ cảnh báo và hết hạn giải phóng đơn thật", asyn
   ).toBeVisible();
   await page.clock.fastForward(60_000);
   await expect(page).toHaveURL(/holdExpired=1/);
+  await expect(
+    page.getByRole("alert").filter({ hasText: "đã hết hạn" }),
+  ).toBeVisible();
   const result = await (
     await request.get(`${api}/buyer/orders/${order.orderId}`, {
       headers: headers(),
@@ -408,7 +435,7 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
   await expect(page.getByText("Tỷ lệ hoàn: 100%")).toBeVisible();
   await page.getByLabel("Lý do hủy").fill("Kiểm thử W04 hoàn một phần vé");
   await page.screenshot({
-    path: "../../artifacts/w04-refund-preview.png",
+    path: test.info().outputPath("w04-refund-preview.png"),
     fullPage: true,
   });
   await page

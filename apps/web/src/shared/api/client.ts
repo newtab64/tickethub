@@ -94,6 +94,7 @@ export async function apiClient<T>(
   endpoint: string,
   options?: RequestInit,
   _isRetry = false,
+  _mode: "json" | "envelope" = "json",
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -139,6 +140,7 @@ export async function apiClient<T>(
         endpoint,
         { ...options, headers: retryHeaders },
         true,
+        _mode,
       );
     }
   }
@@ -158,5 +160,14 @@ export async function apiClient<T>(
     );
   }
 
+  if (_mode === "envelope") return payload as T;
   return payload && "data" in payload ? payload.data : (payload as T);
+}
+
+/** Giữ meta phân trang nằm ngoài data. */
+export function apiEnvelope<T>(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<T> {
+  return apiClient<T>(endpoint, options, false, "envelope");
 }
