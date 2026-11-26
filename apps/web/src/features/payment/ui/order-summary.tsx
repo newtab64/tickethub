@@ -51,16 +51,17 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
         <ul
           className={cn(
             checkoutGroup,
-            scrolls && "max-h-[9.9rem] overflow-y-auto short:max-h-[8.75rem]",
+            scrolls &&
+              "lg:max-h-[9.9rem] lg:overflow-y-auto short:max-h-[8.75rem]",
           )}
           {...(scrolls && { tabIndex: 0, "aria-label": "Danh sách ghế" })}
         >
           {rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-h-17 flex-[1_0_auto] items-center gap-3.5 px-4 short:min-h-[4.25rem]"
+              className="flex min-h-17 flex-[1_0_auto] items-center gap-3.5 px-4 max-[359px]:gap-2 max-[359px]:px-3 short:min-h-[4.25rem]"
             >
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-accent text-lg font-bold text-accent-foreground tabular-nums short:size-10">
+              <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-accent text-lg font-bold text-accent-foreground tabular-nums max-[359px]:size-9 max-[359px]:text-base short:size-10">
                 {row.badge}
               </span>
               <span className="min-w-0 flex-1">
@@ -71,7 +72,9 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
                   {row.detail}
                 </span>
               </span>
-              <span className="shrink-0 tabular-nums">{money(row.amount)}</span>
+              <span className="shrink-0 tabular-nums max-[359px]:text-[13px]">
+                {money(row.amount)}
+              </span>
             </li>
           ))}
         </ul>
@@ -91,12 +94,12 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
       <CheckoutCell className="order-7 justify-end">
         <p
           data-testid="checkout-total"
-          className="flex h-15 items-center justify-between gap-3 rounded-xl bg-muted pr-4 pl-5 font-semibold short:h-13"
+          className="flex h-15 items-center justify-between gap-3 rounded-xl bg-muted pr-4 pl-5 font-semibold max-[399px]:gap-2 max-[399px]:pr-3 max-[399px]:pl-4 max-[359px]:pl-3 max-[359px]:text-[13px] short:h-13"
         >
           <span>Tổng thanh toán</span>
           <strong
             data-testid="checkout-total-amount"
-            className="text-2xl font-bold tracking-tight whitespace-nowrap tabular-nums lg:text-[28px]"
+            className="text-2xl font-bold tracking-tight whitespace-nowrap tabular-nums max-[399px]:text-xl max-[359px]:text-base lg:text-[28px]"
           >
             {money(order.finalAmount)}
           </strong>

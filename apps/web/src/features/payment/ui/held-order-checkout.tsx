@@ -322,7 +322,8 @@ function Checkout({ orderId }: { orderId: string }) {
                 </div>
               )}
               {cancelError !== null && (
-                <div className="mb-3">
+                // Nút hủy nằm ở đầu trang, lỗi hiện cạnh nút thanh toán.
+                <div ref={scrollToError} className="mb-3 scroll-mb-24">
                   <FlowError error={cancelError} />
                 </div>
               )}
@@ -341,16 +342,16 @@ function Checkout({ orderId }: { orderId: string }) {
       {/* Mép thanh trùng mép các khối trong thẻ: lề trang + viền 1px + đệm khối. */}
       <div
         data-testid="mobile-pay-bar"
-        className={`fixed inset-x-[33px] bottom-3 z-30 flex h-14 items-center justify-between gap-3 rounded-full bg-pay-bar pr-2 pl-5 sm:inset-x-[41px] shadow-pay-bar transition-[translate,visibility] lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
+        className={`fixed inset-x-[33px] bottom-3 z-30 flex h-14 items-center justify-between gap-3 rounded-full bg-pay-bar pr-2 pl-5 sm:inset-x-[41px] max-[359px]:gap-2 max-[359px]:pl-4 shadow-pay-bar transition-[translate,visibility] lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
       >
         <p className="flex flex-col text-[11px] leading-[14px] text-pay-bar-muted">
           Tổng thanh toán
-          <strong className="text-lg leading-[22px] text-white tabular-nums">
+          <strong className="text-lg leading-[22px] whitespace-nowrap text-white tabular-nums max-[359px]:text-base">
             {money(order.finalAmount)}
           </strong>
         </p>
         <Button
-          className="h-10 rounded-full bg-background px-5 font-semibold text-accent-foreground hover:bg-background/90"
+          className="h-10 rounded-full bg-background px-5 font-semibold text-accent-foreground hover:bg-background/90 max-[359px]:px-3"
           disabled={payDisabled}
           onClick={() => payment.mutate()}
         >

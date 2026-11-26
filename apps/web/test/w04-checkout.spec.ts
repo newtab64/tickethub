@@ -348,6 +348,77 @@ test("Sáu ghế và tên sự kiện dài không làm lệch hai cột", async 
   ).toBe(true);
 });
 
+test("Điện thoại nhỏ: không tràn, không gãy dòng, hiện đủ ghế", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request, 6, true);
+  await loginBrowser(page);
+  const total = page.getByTestId("checkout-total");
+  const bar = page.getByTestId("mobile-pay-bar");
+  for (const width of [320, 360, 390]) {
+    await page.setViewportSize({ width, height: 700 });
+    await page.goto(`/checkout?orderId=${order.orderId}`);
+    await expect(bar).toBeVisible();
+    // Nút nằm gọn trong thanh nổi với tổng tiền hàng chục triệu.
+    const pill = (await bar.boundingBox())!;
+    const button = (await bar.getByRole("button").boundingBox())!;
+    expect
+      .soft(button.x + button.width, `nút trong thanh ở ${width}px`)
+      .toBeLessThanOrEqual(pill.x + pill.width);
+    for (const [name, locator] of [
+      ["tiêu đề", page.getByRole("heading", { name: "Thanh toán" })],
+      ["nhãn tổng", total.getByText("Tổng thanh toán")],
+      ["tên khu", page.getByText("Khu VIP A").first()],
+      ["vị trí ghế", page.getByText(/Hàng .*, ghế/).first()],
+    ] as const)
+      expect
+        .soft((await locator.boundingBox())!.height, `${name} ở ${width}px`)
+        .toBeLessThan(34);
+  }
+  // Điện thoại chỉ có một cột nên không giấu ghế trong khung cuộn.
+  expect
+    .soft(
+      await page
+        .getByLabel("Danh sách ghế")
+        .evaluate((e) => e.scrollHeight - e.clientHeight),
+    )
+    .toBeLessThanOrEqual(1);
+});
+
+test("Điện thoại: lỗi hủy giữ chỗ và cảnh báo sắp hết hạn đều đọc được", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.setViewportSize({ width: 390, height: 664 });
+  await page.clock.install();
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  await page.route("**/booking/release", (route) =>
+    route.fulfill({
+      status: 500,
+      json: { success: false, error: { code: "E", message: "Chưa hủy được" } },
+    }),
+  );
+  await page
+    .getByRole("button", { name: "Hủy giao dịch", exact: true })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Hủy giữ chỗ", exact: true })
+    .click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Chưa hủy được" }),
+  ).toBeInViewport();
+  await page.clock.fastForward(246_000);
+  // Chữ đỏ cần nền trắng để đủ tương phản trên nền xám.
+  await expect(
+    page.getByRole("alert").filter({ hasText: "sắp hết hạn" }),
+  ).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await page.unroute("**/booking/release");
+});
+
 test("Tài khoản thiếu họ tên không hiện dấu kiểm giả", async ({
   page,
   request,

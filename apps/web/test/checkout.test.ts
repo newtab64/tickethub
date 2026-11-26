@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { CheckoutOrderSchema } from "@tickethub/shared";
 import {
   remainingSeconds,
@@ -10,6 +11,7 @@ import {
   paymentFailureMessage,
   holdTone,
   seatRows,
+  money,
 } from "../src/features/payment/domain/order-checkout.ts";
 
 test("Countdown uses deadline and catches elapsed time after suspended tab", () => {
@@ -116,7 +118,17 @@ test("Seat rows describe seated, unconfirmed and standing tickets", () => {
     id: "c",
     badge: "3",
     title: "Khu vực: Fanzone (Vé đứng)",
-    detail: "3 vé",
+    detail: `3 vé x ${money(100)}`,
     amount: 300,
   });
+});
+test("Checkout title row uses no raw hex colour", () => {
+  const source = readFileSync(
+    new URL(
+      "../src/features/payment/ui/checkout-title-row.tsx",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  assert.doesNotMatch(source, /#[0-9a-fA-F]{3,6}\b/);
 });

@@ -64,29 +64,31 @@ export interface SeatRow {
 
 /** Dòng hiển thị cho từng mục đơn; vé đứng không có hàng ghế. */
 export function seatRows(items: CheckoutOrder["items"]): SeatRow[] {
-  return items.map(({ id, quantity, subtotal, ticketType, seat }) => {
-    const row = { id, amount: subtotal };
-    if (!ticketType.isSeated)
+  return items.map(
+    ({ id, quantity, unitPrice, subtotal, ticketType, seat }) => {
+      const row = { id, amount: subtotal };
+      if (!ticketType.isSeated)
+        return {
+          ...row,
+          badge: String(quantity),
+          title: `Khu vực: ${ticketType.name} (Vé đứng)`,
+          detail: `${quantity} vé x ${money(unitPrice)}`,
+        };
+      if (!seat)
+        return {
+          ...row,
+          badge: "?",
+          title: ticketType.name,
+          detail: "Vị trí ghế chưa được xác nhận",
+        };
       return {
         ...row,
-        badge: String(quantity),
-        title: `Khu vực: ${ticketType.name} (Vé đứng)`,
-        detail: `${quantity} vé`,
+        badge: seat.seatNumber,
+        title: zoneLabel(seat.zoneName),
+        detail: `Hàng ${seat.rowLabel}, ghế ${seat.seatNumber}`,
       };
-    if (!seat)
-      return {
-        ...row,
-        badge: "?",
-        title: ticketType.name,
-        detail: "Vị trí ghế chưa được xác nhận",
-      };
-    return {
-      ...row,
-      badge: seat.seatNumber,
-      title: zoneLabel(seat.zoneName),
-      detail: `Hàng ${seat.rowLabel}, ghế ${seat.seatNumber}`,
-    };
-  });
+    },
+  );
 }
 
 export function paymentState(
