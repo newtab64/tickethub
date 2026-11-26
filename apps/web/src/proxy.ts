@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { verifyJwt } from "./lib/auth-crypto";
+import { verifyJwt } from "@/features/identity/server";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

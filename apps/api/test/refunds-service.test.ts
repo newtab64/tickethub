@@ -18,10 +18,27 @@ import {
   SeatStatus,
   UserRole,
 } from "@tickethub/shared";
-import { RefundsService } from "../src/refunds/refunds.service";
+import { RefundDomainError } from "../src/contexts/refund/domain/refund.errors";
+import { createRefundUseCases } from "../src/contexts/refund/refund.composition";
+
+const { preview: previewUseCase, request: requestUseCase } =
+  createRefundUseCases();
+const SERVICE = {
+  previewRefund: (
+    userId: string,
+    role: string,
+    dto: Parameters<typeof previewUseCase.execute>[1],
+  ) => previewUseCase.execute({ userId, role }, dto),
+  executeRefund: (
+    userId: string,
+    role: string,
+    dto: Parameters<typeof requestUseCase.execute>[1],
+    key: string,
+  ) => requestUseCase.execute({ userId, role }, dto, key),
+};
 
 describe("RefundsService Integration Tests", () => {
-  const service = new RefundsService();
+  const service = SERVICE;
 
   it("fails preview if ticket does not belong to user (IDOR prevention)", async () => {
     // 1. Setup user A, user B, event, ticket, order
@@ -66,7 +83,8 @@ describe("RefundsService Integration Tests", () => {
         });
       },
       (err: unknown) => {
-        assert.equal((err as { status?: number }).status, 403);
+        assert.ok(err instanceof RefundDomainError);
+        assert.equal(err.kind, "FORBIDDEN");
         return true;
       },
     );

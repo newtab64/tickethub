@@ -1,10 +1,10 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { Ed25519Service } from "../src/tickets/crypto/ed25519.service";
-import { BadRequestException } from "@nestjs/common";
+import { Ed25519QrTokenService } from "../src/contexts/ticketing/infrastructure/ed25519-qr-token.service";
+import { TicketingDomainError } from "../src/contexts/ticketing/domain/ticketing.errors";
 
 describe("Ed25519Service Cryptographic Tests", () => {
-  const service = new Ed25519Service();
+  const service = new Ed25519QrTokenService();
 
   it("signs and verifies a valid dynamic QR token", () => {
     const input = {
@@ -14,11 +14,11 @@ describe("Ed25519Service Cryptographic Tests", () => {
       userId: "b2123456-789a-bcde-f012-3456789abcde",
     };
 
-    const result = service.signDynamicQr(input);
+    const result = service.sign(input);
     assert.ok(result.token);
     assert.equal(result.remainingSeconds, 30);
 
-    const verified = service.verifyDynamicQr(result.token);
+    const verified = service.verify(result.token);
     assert.equal(verified.sub, input.sub);
     assert.equal(verified.eventId, input.eventId);
     assert.equal(verified.orderId, input.orderId);
@@ -27,7 +27,7 @@ describe("Ed25519Service Cryptographic Tests", () => {
   });
 
   it("rejects token with tampered payload signature", () => {
-    const result = service.signDynamicQr({
+    const result = service.sign({
       sub: "34e9dcbc-3184-4f12-9777-da70b8b6001f",
       eventId: "a313da1b-cb7c-4734-8f61-5fcfcc515de3",
       orderId: "e742fd19-f438-4ae8-9f75-f8d9ca26433b",
@@ -41,9 +41,10 @@ describe("Ed25519Service Cryptographic Tests", () => {
     const tamperedToken = `${parts[0]}.${tamperedPayload}.${parts[2]}`;
 
     assert.throws(
-      () => service.verifyDynamicQr(tamperedToken),
+      () => service.verify(tamperedToken),
       (err: unknown) => {
-        assert.ok(err instanceof BadRequestException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "BAD_REQUEST");
         assert.match((err as Error).message, /INVALID_QR_SIGNATURE/);
         return true;
       },
@@ -58,7 +59,7 @@ describe("Ed25519Service Cryptographic Tests", () => {
       userId: "user-1",
       issuedAtSecondsAgo: 25,
     });
-    const verified = service.verifyDynamicQr(token);
+    const verified = service.verify(token);
     assert.equal(verified.sub, "ticket-1");
   });
 
@@ -72,9 +73,10 @@ describe("Ed25519Service Cryptographic Tests", () => {
     });
 
     assert.throws(
-      () => service.verifyDynamicQr(token),
+      () => service.verify(token),
       (err: unknown) => {
-        assert.ok(err instanceof BadRequestException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "BAD_REQUEST");
         assert.match((err as Error).message, /QR_TOKEN_EXPIRED/);
         return true;
       },
@@ -83,9 +85,10 @@ describe("Ed25519Service Cryptographic Tests", () => {
 
   it("rejects malformed token structure", () => {
     assert.throws(
-      () => service.verifyDynamicQr("invalid-single-string"),
+      () => service.verify("invalid-single-string"),
       (err: unknown) => {
-        assert.ok(err instanceof BadRequestException);
+        assert.ok(err instanceof TicketingDomainError);
+        assert.equal(err.kind, "BAD_REQUEST");
         assert.match((err as Error).message, /MALFORMED_QR_TOKEN/);
         return true;
       },

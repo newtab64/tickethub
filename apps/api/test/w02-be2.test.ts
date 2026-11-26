@@ -13,7 +13,7 @@ import {
 import {
   OrganizerReviewPayloadSchema,
   parseReviewPayload,
-} from "../src/jobs/email.types";
+} from "../src/contexts/notification/domain/email.types";
 
 describe("W02-BE2: Admin Review & Moderation Schemas (UC10)", () => {
   it("ReviewOrganizerSchema: chấp nhận APPROVE khi không có lý do", () => {

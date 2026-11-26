@@ -14,6 +14,7 @@ import {
 // Chạy trên API trỏ tới database _test, PostgreSQL/Redis thật và dữ liệu seed.
 const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
 test.describe.configure({ mode: "serial" });
+test.use({ serviceWorkers: "block" });
 test.skip(
   process.env.W04_E2E_ISOLATED !== "true",
   "Chỉ chạy khi API dùng database test riêng có thể dọn sau suite",
@@ -81,14 +82,14 @@ test("Thiếu đơn không tạo checkout giả và đơn không tồn tại kh�
 }) => {
   await loginBrowser(page);
   await page.goto("/checkout");
-  await expect(page.getByRole("alert")).toContainText(
+  await expect(page.getByRole("main").getByRole("alert")).toContainText(
     "Không có mã đơn hàng hợp lệ",
   );
   await expect(
     page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
   ).toHaveCount(0);
   await page.goto("/checkout?orderId=00000000-0000-4000-8000-000000000000");
-  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("main").getByRole("alert")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
   ).toHaveCount(0);
@@ -280,7 +281,10 @@ test("Đồng hồ cảnh báo và hết hạn giải phóng đơn thật", asyn
   await expect(page.getByText(order.orderCode, { exact: true })).toBeVisible();
   await page.clock.fastForward(246_000);
   await expect(
-    page.getByRole("alert").filter({ hasText: "Phiên giữ chỗ sắp hết hạn" }),
+    page
+      .getByRole("main")
+      .getByRole("alert")
+      .filter({ hasText: "Phiên giữ chỗ sắp hết hạn" }),
   ).toBeVisible();
   await page.clock.fastForward(60_000);
   await expect(page).toHaveURL(/holdExpired=1/);

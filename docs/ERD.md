@@ -125,8 +125,6 @@ erDiagram
         timestamptz gate_opening_time
         enum status "DRAFT | PENDING_APPROVAL | PUBLISHED | ENDED | CANCELLED | SUSPENDED"
         text rejection_reason
-        boolean is_waiting_room_enabled
-        int max_active_users
         enum refund_policy_type "STRICT | FLEXIBLE | CUSTOM | NO_REFUND"
         jsonb refund_policy_rules
         int version
@@ -175,7 +173,7 @@ erDiagram
         numeric total_amount
         numeric discount_amount
         numeric final_amount
-        enum status "PENDING | PAID | EXPIRED | FAILED | CANCELLED | REFUNDED"
+        enum status "PENDING | PAID | EXPIRED | FAILED | CANCELLED | REFUNDED | PAYMENT_EXPIRED_REFUND_PENDING"
         timestamptz expires_at
         timestamptz paid_at
         varchar voucher_code
@@ -359,7 +357,7 @@ Lưu hồ sơ pháp lý của ban tổ chức để quản trị viên kiểm du
 | created_at           | TIMESTAMPTZ  | NOT NULL DEFAULT now()                                                                                     | Thời điểm tạo                             |
 | updated_at           | TIMESTAMPTZ  | NOT NULL DEFAULT now()                                                                                     | Thời điểm cập nhật cuối                   |
 
-### venues [PLANNED]
+### venues
 
 Lưu thông tin các địa điểm tổ chức sự kiện tiêu chuẩn (Curated Venues) đã được quản trị viên kiểm duyệt tại 3 thành phố lớn: TP. Hồ Chí Minh, Hà Nội và Đà Nẵng.
 
@@ -388,7 +386,7 @@ CREATE INDEX idx_venues_fts ON venues USING gin (
 );
 ```
 
-### venue_layouts [PLANNED]
+### venue_layouts
 
 Lưu trữ các cấu hình sân khấu và sơ đồ khán đài kiến trúc chuẩn dạng SVG (Live Concert T-stage, Mega Concert, Sân bóng đá, Sàn thi đấu thể thao, Khán phòng nhà hát) liên kết với từng địa điểm tổ chức.
 
@@ -417,34 +415,32 @@ CREATE INDEX idx_venue_layouts_map_key ON venue_layouts(map_key);
 
 ### events
 
-Lưu thông tin sự kiện, địa điểm, cấu hình hàng chờ và chính sách hoàn vé.
+Lưu thông tin sự kiện, địa điểm và chính sách hoàn vé.
 
-| Cột                     | Kiểu         | Ràng buộc                                                                                                                | Diễn giải                                              |
-| :---------------------- | :----------- | :----------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- |
-| id                      | UUID         | PRIMARY KEY DEFAULT gen_random_uuid()                                                                                    | Khóa chính                                             |
-| organizer_id            | UUID         | NOT NULL REFERENCES organizer_profiles(id)                                                                               | Ban tổ chức sự kiện                                    |
-| venue_id                | UUID         | NULL REFERENCES venues(id)                                                                                               | Khóa ngoại địa điểm chuẩn (nếu chọn từ Curated Venues) |
-| venue_layout_id         | UUID         | NULL REFERENCES venue_layouts(id)                                                                                        | Khóa ngoại mẫu sơ đồ khán đài SVG tương ứng            |
-| title                   | VARCHAR(255) | NOT NULL                                                                                                                 | Tên sự kiện                                            |
-| slug                    | VARCHAR(255) | NOT NULL UNIQUE                                                                                                          | Định danh đường dẫn                                    |
-| description             | TEXT         | NOT NULL                                                                                                                 | Nội dung mô tả sự kiện                                 |
-| category                | VARCHAR(50)  | NOT NULL                                                                                                                 | Thể loại sự kiện                                       |
-| banner_url              | VARCHAR(500) | NOT NULL                                                                                                                 | Đường dẫn ảnh sự kiện                                  |
-| venue_name              | VARCHAR(255) | NOT NULL                                                                                                                 | Tên địa điểm tổ chức                                   |
-| venue_address           | TEXT         | NOT NULL                                                                                                                 | Địa chỉ địa điểm                                       |
-| city                    | VARCHAR(100) | NOT NULL                                                                                                                 | Tỉnh hoặc thành phố                                    |
-| start_time              | TIMESTAMPTZ  | NOT NULL                                                                                                                 | Thời gian bắt đầu sự kiện                              |
-| end_time                | TIMESTAMPTZ  | NOT NULL CHECK (end_time > start_time)                                                                                   | Thời gian kết thúc sự kiện                             |
-| gate_opening_time       | TIMESTAMPTZ  | NOT NULL CHECK (gate_opening_time <= start_time)                                                                         | Thời gian mở cổng soát vé                              |
-| status                  | VARCHAR(25)  | NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'ENDED', 'CANCELLED', 'SUSPENDED')) | Trạng thái sự kiện                                     |
-| rejection_reason        | TEXT         | NULL                                                                                                                     | Lý do quản trị viên từ chối                            |
-| is_waiting_room_enabled | BOOLEAN      | NOT NULL DEFAULT false                                                                                                   | Bật hàng chờ ảo khi mở bán                             |
-| max_active_users        | INT          | NOT NULL DEFAULT 200                                                                                                     | Số người tối đa vào chọn ghế cùng thời điểm            |
-| refund_policy_type      | VARCHAR(25)  | NOT NULL DEFAULT 'FLEXIBLE' CHECK (refund_policy_type IN ('STRICT', 'FLEXIBLE', 'CUSTOM', 'NO_REFUND'))                  | Loại chính sách hoàn vé                                |
-| refund_policy_rules     | JSONB        | NOT NULL DEFAULT '[]'::jsonb                                                                                             | Các mốc thời gian và tỷ lệ hoàn tiền                   |
-| version                 | INT          | NOT NULL DEFAULT 1                                                                                                       | Phiên bản dùng cho optimistic locking                  |
-| created_at              | TIMESTAMPTZ  | NOT NULL DEFAULT now()                                                                                                   | Thời điểm tạo                                          |
-| updated_at              | TIMESTAMPTZ  | NOT NULL DEFAULT now()                                                                                                   | Thời điểm cập nhật cuối                                |
+| Cột                 | Kiểu         | Ràng buộc                                                                                                                | Diễn giải                                              |
+| :------------------ | :----------- | :----------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------- |
+| id                  | UUID         | PRIMARY KEY DEFAULT gen_random_uuid()                                                                                    | Khóa chính                                             |
+| organizer_id        | UUID         | NOT NULL REFERENCES organizer_profiles(id)                                                                               | Ban tổ chức sự kiện                                    |
+| venue_id            | UUID         | NULL REFERENCES venues(id)                                                                                               | Khóa ngoại địa điểm chuẩn (nếu chọn từ Curated Venues) |
+| venue_layout_id     | UUID         | NULL REFERENCES venue_layouts(id)                                                                                        | Khóa ngoại mẫu sơ đồ khán đài SVG tương ứng            |
+| title               | VARCHAR(255) | NOT NULL                                                                                                                 | Tên sự kiện                                            |
+| slug                | VARCHAR(255) | NOT NULL UNIQUE                                                                                                          | Định danh đường dẫn                                    |
+| description         | TEXT         | NOT NULL                                                                                                                 | Nội dung mô tả sự kiện                                 |
+| category            | VARCHAR(50)  | NOT NULL                                                                                                                 | Thể loại sự kiện                                       |
+| banner_url          | VARCHAR(500) | NOT NULL                                                                                                                 | Đường dẫn ảnh sự kiện                                  |
+| venue_name          | VARCHAR(255) | NOT NULL                                                                                                                 | Tên địa điểm tổ chức                                   |
+| venue_address       | TEXT         | NOT NULL                                                                                                                 | Địa chỉ địa điểm                                       |
+| city                | VARCHAR(100) | NOT NULL                                                                                                                 | Tỉnh hoặc thành phố                                    |
+| start_time          | TIMESTAMPTZ  | NOT NULL                                                                                                                 | Thời gian bắt đầu sự kiện                              |
+| end_time            | TIMESTAMPTZ  | NOT NULL CHECK (end_time > start_time)                                                                                   | Thời gian kết thúc sự kiện                             |
+| gate_opening_time   | TIMESTAMPTZ  | NOT NULL CHECK (gate_opening_time <= start_time)                                                                         | Thời gian mở cổng soát vé                              |
+| status              | VARCHAR(25)  | NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'PENDING_APPROVAL', 'PUBLISHED', 'ENDED', 'CANCELLED', 'SUSPENDED')) | Trạng thái sự kiện                                     |
+| rejection_reason    | TEXT         | NULL                                                                                                                     | Lý do quản trị viên từ chối                            |
+| refund_policy_type  | VARCHAR(25)  | NOT NULL DEFAULT 'FLEXIBLE' CHECK (refund_policy_type IN ('STRICT', 'FLEXIBLE', 'CUSTOM', 'NO_REFUND'))                  | Loại chính sách hoàn vé                                |
+| refund_policy_rules | JSONB        | NOT NULL DEFAULT '[]'::jsonb                                                                                             | Các mốc thời gian và tỷ lệ hoàn tiền                   |
+| version             | INT          | NOT NULL DEFAULT 1                                                                                                       | Phiên bản dùng cho optimistic locking                  |
+| created_at          | TIMESTAMPTZ  | NOT NULL DEFAULT now()                                                                                                   | Thời điểm tạo                                          |
+| updated_at          | TIMESTAMPTZ  | NOT NULL DEFAULT now()                                                                                                   | Thời điểm cập nhật cuối                                |
 
 Chỉ mục:
 
@@ -520,21 +516,21 @@ CREATE INDEX idx_seats_hold_expiry ON seats(status, hold_expires_at) WHERE statu
 
 Lưu thông tin đơn hàng và thời hạn thanh toán.
 
-| Cột             | Kiểu          | Ràng buộc                                                                                                      | Diễn giải                          |
-| :-------------- | :------------ | :------------------------------------------------------------------------------------------------------------- | :--------------------------------- |
-| id              | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                                          | Khóa chính                         |
-| order_code      | VARCHAR(32)   | NOT NULL UNIQUE                                                                                                | Mã đơn hàng hiển thị               |
-| user_id         | UUID          | NOT NULL REFERENCES users(id)                                                                                  | Người mua (Bắt buộc vai trò BUYER) |
-| event_id        | UUID          | NOT NULL REFERENCES events(id)                                                                                 | Sự kiện                            |
-| total_amount    | NUMERIC(14,2) | NOT NULL CHECK (total_amount >= 0)                                                                             | Tổng tiền gốc                      |
-| discount_amount | NUMERIC(14,2) | NOT NULL DEFAULT 0 CHECK (discount_amount >= 0)                                                                | Số tiền giảm                       |
-| final_amount    | NUMERIC(14,2) | NOT NULL CHECK (final_amount >= 0)                                                                             | Số tiền thực trả                   |
-| status          | VARCHAR(20)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'EXPIRED', 'FAILED', 'CANCELLED', 'REFUNDED')) | Trạng thái đơn                     |
-| expires_at      | TIMESTAMPTZ   | NOT NULL                                                                                                       | Thời điểm hết hạn giữ chỗ          |
-| paid_at         | TIMESTAMPTZ   | NULL                                                                                                           | Thời điểm hoàn tất thanh toán      |
-| voucher_code    | VARCHAR(50)   | NULL                                                                                                           | Mã giảm giá                        |
-| created_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                         | Thời điểm tạo                      |
-| updated_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                         | Thời điểm cập nhật cuối            |
+| Cột             | Kiểu          | Ràng buộc                                                                                                                                        | Diễn giải                                                                              |
+| :-------------- | :------------ | :----------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------- |
+| id              | UUID          | PRIMARY KEY DEFAULT gen_random_uuid()                                                                                                            | Khóa chính                                                                             |
+| order_code      | VARCHAR(32)   | NOT NULL UNIQUE                                                                                                                                  | Mã đơn hàng hiển thị                                                                   |
+| user_id         | UUID          | NOT NULL REFERENCES users(id)                                                                                                                    | Người mua (Bắt buộc vai trò BUYER)                                                     |
+| event_id        | UUID          | NOT NULL REFERENCES events(id)                                                                                                                   | Sự kiện                                                                                |
+| total_amount    | NUMERIC(14,2) | NOT NULL CHECK (total_amount >= 0)                                                                                                               | Tổng tiền gốc                                                                          |
+| discount_amount | NUMERIC(14,2) | NOT NULL DEFAULT 0 CHECK (discount_amount >= 0)                                                                                                  | Số tiền giảm                                                                           |
+| final_amount    | NUMERIC(14,2) | NOT NULL CHECK (final_amount >= 0)                                                                                                               | Số tiền thực trả                                                                       |
+| status          | VARCHAR(40)   | NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'PAID', 'EXPIRED', 'FAILED', 'CANCELLED', 'REFUNDED', 'PAYMENT_EXPIRED_REFUND_PENDING')) | Trạng thái đơn (`PAYMENT_EXPIRED_REFUND_PENDING`: thanh toán muộn, chờ hoàn tiền 100%) |
+| expires_at      | TIMESTAMPTZ   | NOT NULL                                                                                                                                         | Thời điểm hết hạn giữ chỗ                                                              |
+| paid_at         | TIMESTAMPTZ   | NULL                                                                                                                                             | Thời điểm hoàn tất thanh toán                                                          |
+| voucher_code    | VARCHAR(50)   | NULL                                                                                                                                             | Mã giảm giá                                                                            |
+| created_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                                                           | Thời điểm tạo                                                                          |
+| updated_at      | TIMESTAMPTZ   | NOT NULL DEFAULT now()                                                                                                                           | Thời điểm cập nhật cuối                                                                |
 
 > **Ràng buộc nghiệp vụ toàn vẹn (Integrity Constraint)**: Cột `user_id` chỉ liên kết với bản ghi người dùng có `role = 'BUYER'`. Các tài khoản có vai trò `ADMIN`, `ORGANIZER` hoặc `GATE_STAFF` bị cấm tạo đơn hàng và sở hữu vé cá nhân nhằm ngăn ngừa xung đột lợi ích và găm vé nội bộ.
 
@@ -767,7 +763,7 @@ WHERE id = ANY($3::uuid[])
 RETURNING id;
 
 -- 4. Kiểm tra số dòng được cập nhật:
--- Nếu số dòng trả về < số ghế yêu cầu: hủy transaction (ROLLBACK) và kích hoạt vòng lặp thử lại (tối đa 10 lần) để chọn bộ ghế liền kề khác. Nếu vượt quá số lần thử hoặc không đủ sức chứa: báo lỗi SEAT_ALREADY_HELD hoặc INSUFFICIENT_TICKET_CAPACITY.
+-- Nếu số dòng trả về < số ghế yêu cầu: hủy transaction (ROLLBACK) và báo lỗi SEAT_ALREADY_HELD hoặc INSUFFICIENT_TICKET_CAPACITY. Việc chọn ghế tự động dùng FOR UPDATE SKIP LOCKED nên không có vòng lặp thử lại giới hạn số lần.
 -- Nếu số dòng trả về = số ghế yêu cầu: tạo đơn hàng PENDING và hoàn tất transaction (COMMIT).
 ```
 

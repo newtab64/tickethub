@@ -7,7 +7,7 @@ let server: http.Server;
 let received: { url?: string; headers: http.IncomingHttpHeaders; body: string };
 let nextStatus = 201;
 let nextBody: unknown = { success: true, data: { orderId: "o-1" } };
-let proxyBooking: typeof import("../src/lib/api/booking-proxy.ts").proxyBooking;
+let proxyBooking: typeof import("../src/features/booking/api/booking-proxy.ts").proxyBooking;
 
 function makeRequest(headers: Record<string, string> = {}) {
   return new Request("http://localhost:3000/api/v1/booking/hold", {
@@ -31,7 +31,8 @@ describe("Booking proxy: khong bao gio tao phan hoi thanh cong gia", () => {
     await new Promise<void>((r) => server.listen(0, r));
     const port = (server.address() as AddressInfo).port;
     process.env.API_URL = `http://127.0.0.1:${port}/api/v1`;
-    ({ proxyBooking } = await import("../src/lib/api/booking-proxy.ts"));
+    ({ proxyBooking } =
+      await import("../src/features/booking/api/booking-proxy.ts"));
   });
 
   after(() => {
@@ -63,19 +64,17 @@ describe("Booking proxy: khong bao gio tao phan hoi thanh cong gia", () => {
     assert.equal(res.status, 409);
   });
 
-  test("chuyen tiep Authorization, X-Admission-Token, Idempotency-Key", async () => {
+  test("chuyen tiep Authorization va Idempotency-Key", async () => {
     nextStatus = 201;
     nextBody = { success: true, data: {} };
     await proxyBooking(
       makeRequest({
         Authorization: "Bearer abc",
-        "X-Admission-Token": "adm-1",
         "Idempotency-Key": "idem-1",
       }),
       "hold",
     );
     assert.equal(received.headers["authorization"], "Bearer abc");
-    assert.equal(received.headers["x-admission-token"], "adm-1");
     assert.equal(received.headers["idempotency-key"], "idem-1");
   });
 

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { toVnpayAmount } from "../src/payments/vnpay-ipn.preview.service";
-import { parseVndAmount } from "../src/payments/vnpay-amount";
+import {
+  parseVndAmount,
+  toVnpayAmount,
+} from "../src/contexts/payment/domain/vnpay-amount";
 test("Convert 10000 VND to VNPay amount", () => {
   assert.equal(toVnpayAmount("10000.00"), "1000000");
 });

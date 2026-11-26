@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Builds apps/web/src/lib/venue-svg.generated.ts from the raw venue SVG sources.
+Builds apps/web/src/features/venue/data/venue-svg.generated.ts from the raw venue SVG sources.
 
 Each interactive section is rewritten as:
   <g data-zone="<ticket class id>" data-sec="<section id>"><path class="sec" d="..."/><text>...</text></g>
@@ -20,7 +20,7 @@ ET.register_namespace("xlink", "http://www.w3.org/1999/xlink")
 
 HERE = Path(__file__).resolve().parent
 SRC = HERE / "venue-sources"
-OUT = HERE.parent / "src" / "lib" / "venue-svg.generated.ts"
+OUT = HERE.parent / "src" / "features" / "venue" / "data" / "venue-svg.generated.ts"
 
 
 def q(tag):

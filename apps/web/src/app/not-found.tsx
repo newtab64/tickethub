@@ -1,7 +1,7 @@
 // apps/web/src/app/not-found.tsx
 import Link from "next/link";
 import { Ticket } from "lucide-react";
-import { Logo } from "@/components/brand/logo";
+import { Logo } from "@/shared/ui/logo";
 
 export default function NotFound() {
   return (
@@ -25,13 +25,13 @@ export default function NotFound() {
             href="/"
             className="inline-flex items-center justify-center h-10 px-5 rounded-full bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
-            Về trang chủ TicketHub
+            Về trang chủ tickethub
           </Link>
         </div>
       </main>
 
       <footer className="max-w-7xl w-full mx-auto text-center text-xs text-slate-400">
-        © 2026 TicketHub Vietnam
+        © 2026 tickethub Vietnam
       </footer>
     </div>
   );

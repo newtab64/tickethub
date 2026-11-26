@@ -1,5 +1,5 @@
 // apps/web/src/app/(organizer)/layout.tsx
-import { OrganizerHeader } from "@/components/organizer/organizer-header";
+import { OrganizerHeader } from "@/features/organizer";
 import Link from "next/link";
 
 export default function OrganizerLayout({
@@ -18,7 +18,7 @@ export default function OrganizerLayout({
       {/* Calm, Professional Back-Office Footer */}
       <footer className="border-t border-border bg-background py-5 mt-12 text-xs text-muted-foreground">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="font-medium text-foreground">TicketHub Ban Tổ Chức</p>
+          <p className="font-medium text-foreground">tickethub Ban Tổ Chức</p>
           <div className="flex items-center gap-4">
             <Link href="/" className="hover:text-foreground transition-colors">
               Trang chủ
@@ -27,7 +27,7 @@ export default function OrganizerLayout({
               •
             </span>
             <Link
-              href="/privacy"
+              href="/faq?tab=privacy"
               className="hover:text-foreground transition-colors"
             >
               Chính sách bảo mật
@@ -36,7 +36,7 @@ export default function OrganizerLayout({
               •
             </span>
             <Link
-              href="/support"
+              href="/faq"
               className="hover:text-foreground transition-colors"
             >
               Trung tâm hỗ trợ

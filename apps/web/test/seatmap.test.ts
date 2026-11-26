@@ -1,17 +1,19 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { SeatStatus } from "@tickethub/shared";
-import { VENUE_SVG } from "../src/lib/venue-svg.generated.ts";
+import { VENUE_SVG } from "../src/features/venue/data/venue-svg.generated.ts";
 import {
   clampPanToMap,
   fitMapRect,
   parseViewBox,
+} from "../src/features/event/domain/seat-map-geometry.ts";
+import {
   isValidTicketQuantity,
   isZoneAvailable,
   calculateOrderSubtotal,
   computeRemainingSeconds,
   getHoldErrorInfo,
-} from "../src/components/events/seat-map.utils.ts";
+} from "../src/features/booking/domain/booking-rules.ts";
 
 describe("SeatMap: UC04 Architectural Map & Navigation", () => {
   test("SeatStatus enum tu shared package dung quy chuan", () => {
@@ -42,7 +44,7 @@ describe("SeatMap: UC04 Architectural Map & Navigation", () => {
       assert.ok(map.viewBox, `Ban do ${key} phai co viewBox`);
       assert.ok(map.markup.length > 50, `Ban do ${key} phai co markup SVG`);
 
-      // Su dung parseViewBox thuc te tu seat-map.utils
+      // Su dung parseViewBox thuc te tu seat-map-geometry / booking-rules
       const parsed = parseViewBox(map.viewBox);
       assert.ok(parsed.width > 0, `viewBox width cua ${key} phai > 0`);
       assert.ok(parsed.height > 0, `viewBox height cua ${key} phai > 0`);
@@ -171,14 +173,6 @@ describe("SeatMap: UC04 Architectural Map & Navigation", () => {
 
   test("getHoldErrorInfo anh xa dung ma loi UC04 (E1, E5, E6, E7)", () => {
     assert.equal(getHoldErrorInfo(401).action, "LOGIN");
-    assert.equal(
-      getHoldErrorInfo(403, "MISSING_ADMISSION_TOKEN").action,
-      "WAITING_ROOM",
-    );
-    assert.equal(
-      getHoldErrorInfo(403, "INVALID_ADMISSION_TOKEN").action,
-      "WAITING_ROOM",
-    );
     assert.equal(getHoldErrorInfo(403, "FORBIDDEN").action, "NONE");
     assert.equal(getHoldErrorInfo(409).action, "REFRESH");
     assert.equal(

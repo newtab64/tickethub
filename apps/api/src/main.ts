@@ -16,8 +16,7 @@ async function bootstrap() {
     }),
   );
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  await app.register(fastifyCookie as any, {
+  await app.register(fastifyCookie, {
     secret: env.JWT_SECRET,
   });
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   formatTicketSeatInfo,
   calculateEffectivePaidPrice,
-} from "../src/booking/buyer-order.service";
+} from "../src/shared-kernel/order-view";
 
 describe("BuyerOrderService Helper Functions", () => {
   it("formats seated ticket seatInfo correctly", () => {

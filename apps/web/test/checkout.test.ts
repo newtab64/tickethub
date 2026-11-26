@@ -5,7 +5,7 @@ import {
   remainingSeconds,
   paymentState,
   safePaymentUrl,
-} from "../src/lib/checkout.ts";
+} from "../src/features/payment/domain/order-checkout.ts";
 
 test("Countdown uses deadline and catches elapsed time after suspended tab", () => {
   assert.equal(remainingSeconds(300_000, 0), 300);
@@ -18,6 +18,10 @@ test("Only backend PAID confirms success; PENDING is never successful", () => {
   for (const status of ["CANCELLED", "EXPIRED", "FAILED"] as const)
     assert.equal(paymentState(status), "failed");
   assert.equal(paymentState("REFUNDED"), "refunded");
+  assert.equal(
+    paymentState("PAYMENT_EXPIRED_REFUND_PENDING"),
+    "refund_pending",
+  );
 });
 test("Payment redirects reject other origins, plaintext, credentials and ports", () => {
   assert.equal(

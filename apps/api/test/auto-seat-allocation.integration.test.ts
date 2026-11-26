@@ -1,13 +1,11 @@
-import type { HttpErrorLike } from "./helpers/http-error";
+import { errorCodeOf } from "./helpers/http-error";
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import Redis from "ioredis";
 import { eq, inArray } from "drizzle-orm";
-import { JwtService } from "@nestjs/jwt";
-import { BookingService } from "../src/booking/booking.service";
-import { WaitingRoomService } from "../src/waiting-room/waiting-room.service";
+import { createBookingCommands } from "../src/contexts/booking/booking.composition";
+import type { BookingCommands } from "../src/contexts/booking/application/booking-commands.service";
 import { db, sqlClient } from "../src/database/db";
-import type { EventReadCacheService } from "../src/events/event-read-cache.service";
+import type { EventReadModel } from "../src/contexts/event/application/event-read-model";
 import {
   users,
   events,
@@ -24,17 +22,13 @@ import {
   RefundPolicyType,
   SeatStatus,
 } from "@tickethub/shared";
-import { env } from "../src/config/env.config";
 
 const cacheStub = {
   invalidate: async (_eventId: string): Promise<void> => {},
-} as EventReadCacheService;
+} as EventReadModel;
 
 describe("Auto Seat Allocation (UC04) Integration Tests", () => {
-  let redis: Redis;
-  let jwtService: JwtService;
-  let waitingRoomService: WaitingRoomService;
-  let bookingService: BookingService;
+  let bookingService: BookingCommands;
 
   let testBuyerIds: string[] = [];
   let testEventId = "";
@@ -43,10 +37,7 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
   let concurrencyTicketTypeId = "";
 
   before(async () => {
-    redis = new Redis(env.REDIS_URL);
-    jwtService = new JwtService({ secret: env.JWT_SECRET });
-    waitingRoomService = new WaitingRoomService(redis, jwtService);
-    bookingService = new BookingService(waitingRoomService, cacheStub);
+    bookingService = createBookingCommands(cacheStub);
 
     // 1. Tao organizer profile
     let orgProfile = await db.query.organizerProfiles.findFirst();
@@ -113,7 +104,6 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
         endTime,
         gateOpeningTime: startTime,
         status: EventStatus.PUBLISHED,
-        isWaitingRoomEnabled: false,
         refundPolicyType: RefundPolicyType.FLEXIBLE,
       })
       .returning();
@@ -238,8 +228,6 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
   });
 
   after(async () => {
-    redis.disconnect();
-
     // Don dep database
     if (testEventId) {
       await db
@@ -356,8 +344,8 @@ describe("Auto Seat Allocation (UC04) Integration Tests", () => {
           ],
         });
       },
-      (err: HttpErrorLike) => {
-        assert.equal(err.response?.error?.code, "INSUFFICIENT_TICKET_CAPACITY");
+      (err: unknown) => {
+        assert.equal(errorCodeOf(err), "INSUFFICIENT_TICKET_CAPACITY");
         return true;
       },
     );
