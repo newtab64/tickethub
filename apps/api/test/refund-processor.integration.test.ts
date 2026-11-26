@@ -1,7 +1,7 @@
 import test, { after, before } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import {
   OrderStatus,
   OutboxStatus,
@@ -67,6 +67,7 @@ async function createPendingRefund(opts: {
   isPartial?: boolean;
   retryCount?: number;
   createDate?: string;
+  amounts?: number[];
 }) {
   const [user] = await db.select({ id: users.id }).from(users).limit(1);
   const [event] = await db.select({ id: events.id }).from(events).limit(1);
@@ -96,23 +97,26 @@ async function createPendingRefund(opts: {
     rawCallback: { vnp_CreateDate: opts.createDate ?? "20260115103000" },
     idempotencyKey: `rfd-test:${orderId}`,
   });
-  const [refund] = await db
+  const group = await db
     .insert(refunds)
-    .values({
-      orderId,
-      amount: "500000.00",
-      reason: "PAYMENT_EXPIRED",
-      status: RefundStatus.PENDING,
-      idempotencyKey: `rfd-test-refund:${orderId}`,
-    })
+    .values(
+      (opts.amounts ?? [500000]).map((amount, index) => ({
+        orderId,
+        amount: String(amount),
+        reason: "PAYMENT_EXPIRED",
+        status: RefundStatus.PENDING,
+        idempotencyKey: `rfd-test-refund:${orderId}:${index}`,
+      })),
+    )
     .returning();
+  const refundIds = group.map(({ id }) => id);
   const [event_] = await db
     .insert(outbox)
     .values({
       eventType: "REFUND_REQUESTED",
       payload: {
         orderId,
-        refundIds: [refund!.id],
+        refundIds,
         isPartial: opts.isPartial ?? false,
         amount: 500000,
       },
@@ -125,7 +129,7 @@ async function createPendingRefund(opts: {
 
   return {
     orderId,
-    refundId: refund!.id,
+    refundId: refundIds[0]!,
     eventId: event_!.id,
     transactionRef: "RFD" + compact,
   };
@@ -177,8 +181,11 @@ if (!isSafeTestDb) {
   after(async () => {
     await server.close();
     if (createdOrderIds.length) {
-      const ids = [...scopedEventIds];
-      if (ids.length) await db.delete(outbox).where(inArray(outbox.id, ids));
+      await db
+        .delete(outbox)
+        .where(
+          inArray(sql<string>`${outbox.payload}->>'orderId'`, createdOrderIds),
+        );
       await db.delete(refunds).where(inArray(refunds.orderId, createdOrderIds));
       await db
         .delete(transactions)
@@ -191,7 +198,7 @@ if (!isSafeTestDb) {
   test("a successful VNPay refund completes the refund and outbox and moves the order to REFUNDED", async () => {
     server.requests.length = 0;
     server.behavior.responseCode = "00";
-    const f = await createPendingRefund({});
+    const f = await createPendingRefund({ amounts: [166667, 166666, 166667] });
 
     const res = await processor(server.url).run();
     assert.equal(res.completed, 1);
@@ -208,6 +215,14 @@ if (!isSafeTestDb) {
 
     const s = await state(f);
     assert.equal(s.refund.status, RefundStatus.COMPLETED);
+    const completed = await db
+      .select()
+      .from(refunds)
+      .where(eq(refunds.orderId, f.orderId));
+    assert.equal(completed.length, 3);
+    assert.ok(
+      completed.every((refund) => refund.status === RefundStatus.COMPLETED),
+    );
     assert.ok(s.refund.providerRefundRef);
     assert.ok(s.refund.processedAt);
     assert.equal(s.event.status, OutboxStatus.COMPLETED);
@@ -246,6 +261,46 @@ if (!isSafeTestDb) {
     assert.equal(s.event.status, OutboxStatus.FAILED);
     assert.equal(s.order.status, OrderStatus.PAYMENT_EXPIRED_REFUND_PENDING);
     server.behavior.responseCode = "00";
+  });
+
+  test("checks QueryDR after timeout without issuing a second refund", async () => {
+    const f = await createPendingRefund({});
+    const runner = new ProcessRefundRequestsUseCase(
+      new ScopedStore(new Set([f.eventId])),
+      new VnpayRefundGateway({
+        apiUrl: server.url,
+        tmnCode: FAKE_TMN_CODE,
+        hashSecret: FAKE_HASH_SECRET,
+      }),
+      { ipAddress: "127.0.0.1", createBy: "test" },
+      silent,
+      {
+        async queryTransaction() {
+          return {
+            vnp_ResponseCode: "00",
+            vnp_TransactionStatus: "00",
+            vnp_TransactionType: "02",
+            vnp_Amount: "50000000",
+            vnp_TransactionNo: "454545",
+          };
+        },
+      },
+    );
+    const before = server.requests.length;
+    try {
+      server.behavior.dropConnection = true;
+      await runner.run();
+      assert.equal((await state(f)).refund.status, RefundStatus.PROCESSING);
+      await db
+        .update(outbox)
+        .set({ nextRetryAt: new Date(0) })
+        .where(eq(outbox.id, f.eventId));
+      await runner.run();
+      assert.equal((await state(f)).refund.status, RefundStatus.COMPLETED);
+      assert.equal(server.requests.length, before + 1);
+    } finally {
+      server.behavior.dropConnection = false;
+    }
   });
 
   test("an uncertain outcome keeps everything PROCESSING and is never resent", async () => {
