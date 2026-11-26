@@ -2,6 +2,7 @@
 
 import { use, useRef, useState } from "react";
 import Link from "next/link";
+import { EventPoster } from "@/features/event";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   BuyerOrderDetailSchema,
@@ -114,12 +115,23 @@ function OrderDetail({ id }: { id: string }) {
         </>
       )}
       {order && (
-        <div className="grid items-start gap-6 lg:grid-cols-2">
-          <section className="space-y-4 rounded-xl border border-border bg-background p-6">
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 lg:gap-8">
+          <section className="space-y-4 rounded-xl border border-border bg-background p-4 sm:p-6">
+            <div className="relative aspect-[16/7] w-full overflow-hidden rounded-lg bg-muted">
+              <EventPoster
+                event={order.event}
+                sizes="(min-width: 1024px) 540px, 100vw"
+                labeled
+              />
+            </div>
             <h2 className="text-xl font-bold">{order.event.title}</h2>
-            <p className="font-mono">{order.orderCode}</p>
-            <p>{orderStatusLabel[order.status]}</p>
-            <p>{dateTime(order.event.startTime)}</p>
+            <p className="text-xs text-muted-foreground">{order.orderCode}</p>
+            <p className="inline-flex rounded-full bg-accent px-3 py-1 text-sm font-medium text-accent-foreground">
+              {orderStatusLabel[order.status]}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {dateTime(order.event.startTime)}
+            </p>
             <p>
               {order.event.venueName} · {order.event.city}
             </p>
@@ -127,7 +139,9 @@ function OrderDetail({ id }: { id: string }) {
               {order.items.map((item) => (
                 <li key={item.id} className="py-3">
                   {item.ticketTypeName} × {item.quantity}{" "}
-                  <span className="float-right">{money(item.subtotal)}</span>
+                  <span className="float-right font-medium tabular-nums">
+                    {money(item.subtotal)}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -140,7 +154,7 @@ function OrderDetail({ id }: { id: string }) {
                 <dt>Giảm giá</dt>
                 <dd>{money(order.discountAmount)}</dd>
               </div>
-              <div className="flex justify-between font-bold">
+              <div className="flex justify-between border-t border-border pt-3 font-bold tabular-nums">
                 <dt>Tổng thanh toán</dt>
                 <dd>{money(order.finalAmount)}</dd>
               </div>
@@ -179,7 +193,7 @@ function OrderDetail({ id }: { id: string }) {
             )}
           </section>
           <section
-            className="space-y-4 rounded-xl border border-border bg-background p-6"
+            className="space-y-4 rounded-xl border border-border bg-background p-4 sm:p-6"
             aria-label="Hủy vé và hoàn tiền"
           >
             <h2 className="text-lg font-bold">Vé trong đơn hàng</h2>

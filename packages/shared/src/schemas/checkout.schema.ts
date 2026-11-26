@@ -20,6 +20,7 @@ export const CheckoutOrderSchema = z.object({
     id: z.string().uuid(),
     title: z.string(),
     slug: z.string(),
+    bannerUrl: z.string().nullish(),
     venueName: z.string(),
     venueAddress: z.string(),
     city: z.string(),

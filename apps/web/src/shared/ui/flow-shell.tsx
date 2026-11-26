@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { ReceiptText } from "lucide-react";
+import { Logo } from "./logo";
 
 export function FlowShell({
   title,
@@ -9,22 +11,26 @@ export function FlowShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-muted text-foreground">
-      <header className="border-b border-border bg-background px-4 py-4">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="px-4 pt-3 sm:px-6">
         <nav
-          className="mx-auto flex max-w-6xl items-center justify-between gap-4"
+          className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-3 rounded-full border border-border bg-background px-4 shadow-sm sm:px-6"
           aria-label="Điều hướng mua vé"
         >
-          <Link href="/" className="text-xl font-extrabold text-primary">
-            TicketHub
-          </Link>
-          <Link href="/buyer/orders" className="text-sm underline">
+          <Logo />
+          <Link
+            href="/buyer/orders"
+            className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-xs font-semibold hover:bg-accent hover:text-primary sm:text-sm"
+          >
+            <ReceiptText className="size-4 shrink-0" aria-hidden="true" />
             Đơn hàng của tôi
           </Link>
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <h1 className="mb-6 text-2xl font-extrabold">{title}</h1>
+      <main className="mx-auto max-w-[1248px] px-4 pt-8 pb-12 sm:px-6 sm:pt-10">
+        <h1 className="mb-6 text-2xl font-bold tracking-tight sm:mb-8 sm:text-3xl">
+          {title}
+        </h1>
         {children}
       </main>
     </div>

@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { CircleCheck, CircleX, Clock3, RotateCcw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
 import { BuyerOrderDetailSchema } from "@tickethub/shared";
@@ -34,12 +35,28 @@ function OrderResult({ orderId }: { orderId: string }) {
       </>
     );
   const state = paymentState(order.status);
+  const StatusIcon =
+    state === "success"
+      ? CircleCheck
+      : state === "failed"
+        ? CircleX
+        : state === "processing"
+          ? Clock3
+          : RotateCcw;
   return (
     <section
-      className="mx-auto max-w-2xl space-y-5 rounded-xl border border-border bg-background p-6"
+      className="max-w-2xl space-y-5 rounded-xl border border-border bg-background p-5 sm:p-7"
       aria-live="polite"
     >
-      <h2 className="text-xl font-bold">
+      <h2 className="flex items-center gap-3 text-xl font-bold tracking-tight">
+        <StatusIcon
+          aria-hidden="true"
+          className={
+            state === "failed"
+              ? "size-6 shrink-0 text-destructive"
+              : "size-6 shrink-0 text-primary"
+          }
+        />
         {state === "success"
           ? "Thanh toán thành công"
           : state === "processing"
@@ -50,25 +67,25 @@ function OrderResult({ orderId }: { orderId: string }) {
                 ? "Đang chờ hoàn tiền"
                 : "Đơn hàng chưa được thanh toán thành công"}
       </h2>
-      <p className="font-mono">{order.orderCode}</p>
-      <p>{order.event.title}</p>
-      <p>
-        Tổng tiền: <strong>{money(order.finalAmount)}</strong>
-      </p>
+      <div className="space-y-2 rounded-xl bg-muted p-4">
+        <p className="text-xs text-muted-foreground">{order.orderCode}</p>
+        <p className="font-semibold">{order.event.title}</p>
+        <p className="flex flex-wrap justify-between gap-2 text-sm">
+          Tổng thanh toán{" "}
+          <strong className="tabular-nums">{money(order.finalAmount)}</strong>
+        </p>
+      </div>
       {state === "processing" && (
         <p>
-          Hệ thống đang chờ xác nhận từ VNPay. Trang sẽ tự kiểm tra lại. Không
-          thanh toán thêm nếu tài khoản đã bị trừ tiền.
+          Trang sẽ tự cập nhật khi VNPay xác nhận. Nếu đã bị trừ tiền, bạn đừng
+          thanh toán lại.
         </p>
       )}
       {state === "failed" && (
-        <p>
-          Đơn đã hết hạn, bị hủy hoặc thanh toán thất bại. Nếu đã bị trừ tiền,
-          vui lòng liên hệ hỗ trợ kèm mã đơn.
-        </p>
+        <p>Nếu đã bị trừ tiền, hãy liên hệ hỗ trợ và gửi kèm mã đơn.</p>
       )}
       {(state === "refunded" || state === "refund_pending") && (
-        <p>Theo dõi trạng thái xử lý hoàn tiền tại chi tiết đơn hàng.</p>
+        <p>Bạn có thể xem tiến độ hoàn tiền trong chi tiết đơn.</p>
       )}
       {query.error && <FlowError error={query.error} />}
       <div className="flex flex-wrap gap-4">

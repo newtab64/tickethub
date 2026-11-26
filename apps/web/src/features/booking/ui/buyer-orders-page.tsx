@@ -24,10 +24,10 @@ export default function OrdersPage() {
   });
   return (
     <FlowShell title="Đơn hàng của tôi">
-      <label className="mb-6 block">
-        Trạng thái{" "}
+      <label className="mb-5 flex flex-wrap items-center gap-3 text-sm font-semibold">
+        Trạng thái
         <select
-          className="ml-2 rounded-lg border border-input bg-background p-2"
+          className="min-h-10 max-w-full rounded-lg border border-input bg-background px-3 text-sm font-medium"
           value={status}
           onChange={(e) => {
             setStatus(e.target.value);
@@ -59,11 +59,11 @@ export default function OrdersPage() {
           </Link>
         </p>
       )}
-      <ul className="space-y-4">
+      <ul className="grid gap-4 lg:grid-cols-2">
         {query.data?.map((order) => (
           <li
             key={order.id}
-            className="rounded-xl border border-border bg-background p-5"
+            className="min-w-0 rounded-xl border border-border bg-background p-4 sm:p-5"
           >
             <div className="flex flex-wrap justify-between gap-3">
               <h2 className="text-lg font-bold">{order.eventTitle}</h2>
@@ -71,22 +71,24 @@ export default function OrdersPage() {
                 {orderStatusLabel[order.status]}
               </span>
             </div>
-            <p className="mt-2 font-mono text-sm">{order.orderCode}</p>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-2 text-xs text-muted-foreground">
+              {order.orderCode}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
               {dateTime(order.eventStartTime)} · {order.eventVenueName}
             </p>
-            <p className="my-3">
+            <p className="my-3 text-sm font-semibold tabular-nums">
               {order.ticketCount} vé · {money(order.finalAmount)}
             </p>
             <Link
-              className="font-semibold text-primary underline"
+              className="text-sm font-semibold text-primary underline-offset-4 hover:underline"
               href={`/buyer/orders/${order.id}`}
             >
               Xem chi tiết
             </Link>
             {order.status === "PENDING" && (
               <Link
-                className="ml-5 underline"
+                className="ml-4 inline-block text-sm font-medium underline-offset-4 hover:underline"
                 href={`/checkout?orderId=${order.id}`}
               >
                 Tiếp tục thanh toán

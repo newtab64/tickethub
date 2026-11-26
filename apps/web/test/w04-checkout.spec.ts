@@ -104,6 +104,15 @@ test("F5 giữ nguyên đơn và deadline, sau đó vẫn hủy chủ động đ
   await page.goto(`/checkout?orderId=${held.orderId}`);
   await expect(page.getByText(held.orderCode, { exact: true })).toBeVisible();
   await expect(page.getByRole("timer")).toContainText(/0[0-5]:[0-5][0-9]/);
+  const poster = page.getByRole("img", {
+    name: "Ảnh sự kiện Liveshow Âm Nhạc Mùa Thu 2026",
+  });
+  await expect(poster).toBeVisible();
+  await expect
+    .poll(() =>
+      poster.evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
   const before = BuyerOrderDetailSchema.parse(
     (
       await (
@@ -167,7 +176,16 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
     path: "../../artifacts/w04-checkout-desktop.png",
     fullPage: true,
   });
+  const summary = page.getByRole("complementary", { name: "Tóm tắt đơn hàng" });
+  const payment = page.getByRole("region", { name: "Thông tin thanh toán" });
+  expect((await payment.boundingBox())!.x).toBeLessThan(
+    (await summary.boundingBox())!.x,
+  );
   await page.setViewportSize({ width: 390, height: 844 });
+  await expect
+    .poll(async () => (await summary.boundingBox())!.y)
+    .toBeLessThan((await payment.boundingBox())!.y);
+
   await expect
     .poll(() =>
       page.evaluate(
@@ -375,6 +393,15 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
     page.getByRole("heading", { name: "Thanh toán thành công", exact: true }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Xem chi tiết đơn hàng" }).click();
+  const poster = page.getByRole("img", {
+    name: "Ảnh sự kiện Liveshow Âm Nhạc Mùa Thu 2026",
+  });
+  await expect(poster).toBeVisible();
+  await expect
+    .poll(() =>
+      poster.evaluate((image: HTMLImageElement) => image.naturalWidth),
+    )
+    .toBeGreaterThan(0);
   await expect(page.getByRole("checkbox")).toHaveCount(2);
   await page.getByRole("checkbox").first().check();
   await page.getByRole("button", { name: "Xem trước số tiền hoàn" }).click();

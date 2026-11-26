@@ -3,6 +3,8 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { EventPoster } from "@/features/event";
+import { CalendarDays, Clock3, CreditCard, MapPin } from "lucide-react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CheckoutOrderSchema,
@@ -198,71 +200,165 @@ function Checkout({ orderId }: { orderId: string }) {
       </div>
     );
 
+  const expiring = seconds !== null && seconds < 60;
   return (
     <>
       <div
-        className={`sticky top-0 z-30 mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background p-4 ${seconds !== null && seconds < 60 ? "text-destructive" : "text-foreground"}`}
+        className={`sticky top-0 z-30 mb-5 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border bg-background px-4 py-3 sm:px-5 ${expiring ? "border-destructive/25 text-destructive" : "border-border text-foreground"}`}
       >
-        <p>Thời gian giữ chỗ còn lại</p>
+        <p className="flex items-center gap-2.5 text-sm font-semibold">
+          <Clock3 aria-hidden="true" className="size-5" />
+          Thời gian giữ chỗ
+        </p>
         <span
           role="timer"
           aria-label="Thời gian giữ chỗ"
-          className="font-mono text-2xl font-bold"
+          className={`rounded-lg px-3 py-1 font-sans text-2xl leading-none font-bold tracking-tight tabular-nums sm:text-[28px] ${expiring ? "bg-destructive/10" : "bg-accent text-accent-foreground"}`}
         >
           {seconds === null
             ? "--:--"
             : `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`}
         </span>
-        {seconds !== null && seconds < 60 && (
+        {expiring && (
           <p role="alert" className="w-full text-sm">
-            Phiên giữ chỗ sắp hết hạn. Thanh toán cần tối thiểu 45 giây.
+            Phiên giữ chỗ sắp hết hạn. Bạn cần còn hơn 45 giây để sang VNPay.
           </p>
         )}
       </div>
-      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 items-start gap-3 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-8">
+        <aside
+          className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-3 overflow-hidden rounded-xl border border-border bg-background lg:col-start-2 lg:row-start-1 lg:grid-cols-1 lg:gap-x-0"
+          aria-label="Tóm tắt đơn hàng"
+        >
+          <div className="relative mt-3 ml-3 size-[3.75rem] overflow-hidden rounded-md bg-muted lg:m-0 lg:aspect-[16/7] lg:h-auto lg:w-full lg:rounded-none">
+            <EventPoster
+              event={order.event}
+              sizes="(min-width: 1024px) 530px, 60px"
+              labeled
+            />
+          </div>
+          <div className="min-w-0 space-y-1 py-3 pr-3 lg:space-y-3 lg:border-b lg:border-border lg:bg-muted lg:px-6 lg:py-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+              <h2 className="text-xs font-semibold lg:text-sm">
+                Tóm tắt đơn hàng
+              </h2>
+              <p className="text-xs text-muted-foreground">{order.orderCode}</p>
+            </div>
+            <h3 className="text-sm leading-snug font-bold tracking-tight lg:text-xl">
+              {order.event.title}
+            </h3>
+            <div className="space-y-1 text-xs text-muted-foreground lg:space-y-2 lg:text-sm">
+              <p className="flex items-center gap-2">
+                <CalendarDays
+                  aria-hidden="true"
+                  className="size-3.5 shrink-0 lg:size-4"
+                />
+                <time dateTime={order.event.startTime}>
+                  {dateTime(order.event.startTime)}
+                </time>
+              </p>
+              <p className="flex items-start gap-2">
+                <MapPin
+                  aria-hidden="true"
+                  className="mt-0.5 size-3.5 shrink-0 lg:size-4"
+                />
+                <span>
+                  {[order.event.venueName, order.event.city]
+                    .filter(Boolean)
+                    .join(", ")}
+                  {order.event.venueAddress && (
+                    <span className="hidden lg:inline">
+                      {" "}
+                      · {order.event.venueAddress}
+                    </span>
+                  )}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="col-span-full mx-3 border-t border-border pb-3 lg:mx-0 lg:border-t-0 lg:px-6 lg:pb-5">
+            <ul className="divide-y divide-border">
+              {order.items.map((item) => (
+                <li
+                  key={item.id}
+                  className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 py-2 lg:gap-y-1 lg:py-4"
+                >
+                  <p className="text-sm font-semibold">
+                    {item.ticketType.name} × {item.quantity}
+                  </p>
+                  <p className="col-span-2 row-start-2 text-xs text-muted-foreground">
+                    {item.ticketType.isSeated
+                      ? item.seat
+                        ? `Khu ${item.seat.zoneName} - Hàng ${item.seat.rowLabel} - Ghế ${item.seat.seatNumber}`
+                        : "Vị trí ghế chưa được xác nhận"
+                      : `Khu vực: ${item.ticketType.name} (Vé đứng)`}
+                  </p>
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    {money(item.unitPrice)} / vé
+                  </p>
+                  <p className="col-start-2 row-start-1 text-sm font-semibold tabular-nums">
+                    {money(item.subtotal)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            <dl className="space-y-1 border-t border-border pt-2 text-xs tabular-nums lg:space-y-2 lg:pt-4 lg:text-sm">
+              <div className="flex justify-between">
+                <dt>Tạm tính</dt>
+                <dd>{money(order.totalAmount)}</dd>
+              </div>
+              <div className="flex justify-between">
+                <dt>Giảm giá</dt>
+                <dd>{money(order.discountAmount)}</dd>
+              </div>
+              <div className="mt-2 flex justify-between gap-3 border-t border-border pt-2 text-sm font-bold lg:mt-3 lg:pt-3 lg:text-base">
+                <dt>Tổng thanh toán</dt>
+                <dd className="text-primary">{money(order.finalAmount)}</dd>
+              </div>
+            </dl>
+          </div>
+        </aside>
         <section
-          className="space-y-6 rounded-xl border border-border bg-background p-6"
+          className="space-y-5 rounded-xl border border-border bg-background p-4 sm:p-6 lg:col-start-1 lg:row-start-1"
           aria-label="Thông tin thanh toán"
         >
-          <h2 className="text-lg font-bold">Thông tin người nhận vé</h2>
-          <p className="text-sm text-muted-foreground">
-            Vé được cấp cho tài khoản đã đăng nhập.
-          </p>
-          <label className="block">
-            Họ và tên
-            <input
-              className="mt-2 w-full rounded-lg border border-input bg-muted p-3"
-              value={user?.fullName ?? ""}
-              readOnly
-              autoComplete="name"
-            />
-          </label>
-          <label className="block">
-            Email
-            <input
-              className="mt-2 w-full rounded-lg border border-input bg-muted p-3"
-              value={user?.email ?? ""}
-              readOnly
-              autoComplete="email"
-            />
-          </label>
+          <h2 className="text-lg font-bold tracking-tight">
+            Thông tin nhận vé
+          </h2>
+          <dl className="grid grid-cols-1 gap-3 rounded-xl bg-muted p-4 sm:grid-cols-2">
+            <div className="min-w-0">
+              <dt className="mb-1 text-xs text-muted-foreground">Họ và tên</dt>
+              <dd className="text-sm font-semibold break-words">
+                {user?.fullName || "Chưa cập nhật"}
+              </dd>
+            </div>
+            <div className="min-w-0">
+              <dt className="mb-1 text-xs text-muted-foreground">Email</dt>
+              <dd className="text-sm font-semibold break-all">
+                {user?.email || "Chưa cập nhật"}
+              </dd>
+            </div>
+          </dl>
           <div className="space-y-2">
-            <label htmlFor="voucher">Mã giảm giá</label>
+            <label htmlFor="voucher" className="text-sm font-semibold">
+              Mã giảm giá
+            </label>
             <div className="flex gap-2">
               <input
                 id="voucher"
-                className="min-w-0 flex-1 rounded-lg border border-input p-3"
+                className="h-11 min-w-0 flex-1 rounded-lg border border-input px-3 text-sm focus-visible:outline-2 focus-visible:outline-ring"
                 value={voucher}
                 onChange={(e) => setVoucher(e.target.value)}
                 disabled={!active}
               />
               <Button
                 variant="outline"
+                className="h-11 px-4"
                 disabled={!active}
                 onClick={() =>
                   setVoucherMessage(
                     voucher.trim()
-                      ? "Chưa hỗ trợ áp dụng mã giảm giá cho đơn này. Tổng tiền vẫn theo đơn hàng trên hệ thống."
+                      ? "Chưa hỗ trợ áp dụng mã giảm giá cho đơn này."
                       : "Vui lòng nhập mã giảm giá.",
                   )
                 }
@@ -274,23 +370,30 @@ function Checkout({ orderId }: { orderId: string }) {
               {voucherMessage ||
                 (order.voucherCode
                   ? `Mã đã áp dụng: ${order.voucherCode}`
-                  : "Chỉ áp dụng giảm giá đã được hệ thống xác nhận.")}
+                  : null)}
             </p>
           </div>
-          <fieldset className="rounded-xl border border-border p-4">
-            <legend className="px-2 font-bold">Phương thức thanh toán</legend>
-            <label className="flex gap-2">
-              <input type="radio" checked readOnly name="payment" />
-              VNPay
-            </label>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Chọn VNPay-QR, thẻ ATM hoặc thẻ quốc tế tại cổng VNPay.
-            </p>
-          </fieldset>
+          <div className="border-t border-border pt-5">
+            <h3 className="mb-3 text-sm font-semibold">
+              Phương thức thanh toán
+            </h3>
+            <div className="flex items-center gap-3 rounded-xl border border-border p-3">
+              <CreditCard
+                aria-hidden="true"
+                className="size-5 shrink-0 text-primary"
+              />
+              <div>
+                <p className="text-sm font-semibold">VNPay</p>
+                <p className="text-xs text-muted-foreground">
+                  Chọn QR, thẻ ATM hoặc thẻ quốc tế trên VNPay.
+                </p>
+              </div>
+            </div>
+          </div>
           {payment.error && <FlowError error={payment.error} />}
           {cancelError !== null && <FlowError error={cancelError} />}
           <Button
-            className="w-full"
+            className="h-11 w-full font-semibold"
             disabled={
               !active ||
               seconds === null ||
@@ -307,7 +410,7 @@ function Checkout({ orderId }: { orderId: string }) {
           </Button>
           <Button
             variant="outline"
-            className="w-full"
+            className="h-11 w-full font-semibold"
             disabled={
               !active || payment.isPending || redirecting || cancel.isPending
             }
@@ -316,56 +419,6 @@ function Checkout({ orderId }: { orderId: string }) {
             {cancel.isPending ? "Đang hủy..." : "Hủy giao dịch"}
           </Button>
         </section>
-        <aside
-          className="space-y-5 rounded-xl border border-border bg-background p-6"
-          aria-label="Tóm tắt đơn hàng"
-        >
-          <h2 className="text-lg font-bold">Tóm tắt đơn hàng</h2>
-          <p className="font-mono text-sm">{order.orderCode}</p>
-          <h3 className="text-xl font-bold">{order.event.title}</h3>
-          <p>{dateTime(order.event.startTime)}</p>
-          <p className="text-muted-foreground">
-            {[order.event.venueName, order.event.venueAddress, order.event.city]
-              .filter(Boolean)
-              .join(", ")}
-          </p>
-          <ul className="divide-y divide-border">
-            {order.items.map((item) => (
-              <li key={item.id} className="space-y-2 py-4">
-                <p className="font-semibold">
-                  {item.ticketType.name} × {item.quantity}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {item.ticketType.isSeated
-                    ? item.seat
-                      ? `Khu ${item.seat.zoneName} - Hàng ${item.seat.rowLabel} - Ghế ${item.seat.seatNumber}`
-                      : "Vị trí ghế chưa được xác nhận"
-                    : `Khu vực: ${item.ticketType.name} (Vé đứng)`}
-                </p>
-                <p>{money(item.unitPrice)} / vé</p>
-                <p>{money(item.subtotal)}</p>
-              </li>
-            ))}
-          </ul>
-          <dl className="space-y-3 border-t border-border pt-4">
-            <div className="flex justify-between">
-              <dt>Tạm tính</dt>
-              <dd>{money(order.totalAmount)}</dd>
-            </div>
-            <div className="flex justify-between">
-              <dt>Giảm giá</dt>
-              <dd>{money(order.discountAmount)}</dd>
-            </div>
-            <div className="flex justify-between text-lg font-bold">
-              <dt>Tổng thanh toán</dt>
-              <dd>{money(order.finalAmount)}</dd>
-            </div>
-          </dl>
-          <p className="text-sm text-muted-foreground">
-            Thanh toán qua VNPay. Vé chính hãng được cấp sau khi hệ thống xác
-            nhận thanh toán thành công.
-          </p>
-        </aside>
       </div>
     </>
   );

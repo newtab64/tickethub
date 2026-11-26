@@ -20,7 +20,7 @@ Checkout trước đây dùng đơn mẫu và có thể điều hướng sang k�
 - [x] `pnpm test`: 191 test API và 32 test web đạt, không bỏ qua test
 - [x] `node scripts/audit-doc-parity.mjs`
 - [x] E2E W04 trên Chromium với API, PostgreSQL và Redis thật: 9/9 đạt
-- [ ] `pnpm build`: shared/API build thành công; web bị chặn tải Inter và JetBrains Mono từ Google Fonts bởi chính sách mạng. Cần cho phép `fonts.googleapis.com`, `fonts.gstatic.com` rồi chạy lại trước khi đề nghị merge.
+- [x] `pnpm build`: shared, API và web build thành công.
 
 ## 3. Cam kết chất lượng mã nguồn (Code Quality Guarantees)
 
@@ -92,10 +92,10 @@ Trong môi trường này, dùng Node 24.22.1, pnpm 12.11.2 và các biến thư
 
 ## 6. Minh chứng trực quan (Visual Evidence)
 
-Ảnh được chụp từ Chromium chạy ứng dụng với dữ liệu backend thật trên database test. Đính kèm các ảnh này vào PR khi gửi review.
+Ảnh Chromium dùng dữ liệu từ API và database kiểm thử. Checkout mobile hiển thị thẻ liveshow gọn phía trên phần thanh toán. Checkout desktop và trang chi tiết đơn hiển thị ảnh liveshow cùng thông tin đơn.
 
-![Checkout desktop](https://raw.githubusercontent.com/vikietduong/tickethub/811cbbf8ca6323133274af6cd7016bad550e425f/artifacts/w04-checkout-desktop.png)
+![Checkout desktop](https://raw.githubusercontent.com/vikietduong/tickethub/refs/heads/feat/w04-fe1-checkout/artifacts/w04-checkout-desktop.png)
 
-![Checkout mobile](https://raw.githubusercontent.com/vikietduong/tickethub/811cbbf8ca6323133274af6cd7016bad550e425f/artifacts/w04-checkout-mobile.png)
+![Checkout mobile](https://raw.githubusercontent.com/vikietduong/tickethub/refs/heads/feat/w04-fe1-checkout/artifacts/w04-checkout-mobile.png)
 
-![Xem trước hoàn một phần vé](https://raw.githubusercontent.com/vikietduong/tickethub/811cbbf8ca6323133274af6cd7016bad550e425f/artifacts/w04-refund-preview.png)
+![Xem trước hoàn một phần vé](https://raw.githubusercontent.com/vikietduong/tickethub/refs/heads/feat/w04-fe1-checkout/artifacts/w04-refund-preview.png)

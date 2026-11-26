@@ -21,3 +21,4 @@ export { PublicLayout } from "./ui/public-layout";
 export { EventDetailPage } from "./ui/event-detail-page";
 export { buildZoneInfoMap, filterListingsByZone } from "./domain/zone-info";
 export type { ZoneInfo } from "./domain/zone-info";
+export { EventPoster } from "./ui/event-poster";
