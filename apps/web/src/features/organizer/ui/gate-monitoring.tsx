@@ -84,7 +84,7 @@ export function GateMonitoring({ eventId }: { eventId: string }) {
       />
       {data && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
             <Metric
               label="Vé đã vào cổng"
               value={number(data.summary.checkedInTickets)}
@@ -93,17 +93,17 @@ export function GateMonitoring({ eventId }: { eventId: string }) {
             <Metric
               label="Vé chưa vào cổng"
               value={number(data.summary.remainingTickets)}
-              note="Vé SOLD của toàn sự kiện"
+              note="Vé còn hiệu lực chưa check-in"
             />
             <Metric
               label="Lượt quét thành công"
               value={number(data.summary.successfulAttempts)}
-              note="Số lượt quét, tách riêng số vé đã check-in"
+              note="Số lượt quét được chấp nhận"
             />
             <Metric
               label="Lượt quét bị từ chối"
               value={number(data.summary.rejectedAttempts)}
-              note="Bao gồm quét lặp, QR lỗi hoặc không có quyền"
+              note="Quét lặp, QR lỗi hoặc không có quyền"
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -115,7 +115,7 @@ export function GateMonitoring({ eventId }: { eventId: string }) {
                 <h3 className="font-semibold">
                   {gate.gateName || "Chưa xác định cổng"}
                 </h3>
-                <p className="text-3xl font-semibold">
+                <p className="text-2xl font-bold tabular-nums">
                   {number(gate.checkedInTickets)}{" "}
                   <span className="text-xs font-normal">vé đã vào</span>
                 </p>

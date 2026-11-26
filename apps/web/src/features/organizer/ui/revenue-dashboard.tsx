@@ -53,7 +53,7 @@ export function RevenueDashboard({ eventId }: { eventId: string }) {
   return (
     <div className="space-y-5">
       <form onSubmit={apply} className={`${panelClass} space-y-4`}>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4">
           <Field label="Từ ngày">
             <Input
               type="date"
@@ -103,7 +103,7 @@ export function RevenueDashboard({ eventId }: { eventId: string }) {
             />
           </Field>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2">
           <Button type="submit">Áp dụng</Button>
           <Button
             type="button"
@@ -161,7 +161,7 @@ export function RevenueDashboard({ eventId }: { eventId: string }) {
             Dữ liệu cập nhật: {time(summary.refreshed_at)}. Báo cáo có thể trễ
             khoảng 6 phút; nút làm mới không ép tính lại dữ liệu tổng hợp.
           </p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-3">
             <Metric
               label="Tiền thu sau hoàn"
               value={vnd(summary.net_revenue)}

@@ -15,9 +15,9 @@ Hoàn thiện W05-FE1: quản lý nhân viên/cổng, báo cáo doanh thu theo b
 - [x] Đã chạy `pnpm format:check` và mã nguồn đã được định dạng nhất quán
 - [x] Đã chạy `pnpm test` và tất cả các bài kiểm thử đều vượt qua (PASS)
 
-Kết quả `pnpm test`: 481 test đạt, gồm API 387, web 74 và shared 20; không có test lỗi, hủy hoặc bỏ qua. API tests sử dụng DB test riêng và Redis riêng.
+Kết quả `pnpm test`: 491 test đạt, gồm API 389, web 82 và shared 20; không có test lỗi, hủy hoặc bỏ qua. API tests sử dụng DB test riêng và Redis riêng.
 
-`pnpm build` đã chạy: shared và API đạt, web bị chặn khi tải Inter/JetBrains Mono từ Google Fonts do chính sách mạng môi trường cloud. Chưa xác nhận build production thành công. Cần mở `fonts.googleapis.com`, `fonts.gstatic.com` và chạy lại build trước khi merge; không thay layout, checksum hoặc tắt TLS để né lỗi.
+`pnpm build` thành công sau khi đồng bộ với `unstable` và bổ sung QueryProvider cho W05.
 
 ## 3. Cam kết chất lượng mã nguồn (Code Quality Guarantees)
 
@@ -50,15 +50,17 @@ Các fixture API/phiên đăng nhập chỉ nằm trong Playwright tests và con
 - Nhánh FE chưa bao gồm module backend W05. Để nghiệm thu tích hợp cần dùng backend PR #49 và report worker với cùng DATABASE_URL/REPORT_EXPORT_DIR. Không tự tính doanh thu bằng inventory công khai.
 - Báo cáo có thể trễ khoảng 6 phút do MV/cache. Phí nền tảng/cổng và số tiền chi trả chưa được backend cấu hình; UI không biến null thành số 0.
 - Hướng dẫn chạy đầy đủ: [W05-FE1-API-HANDOFF.md](https://github.com/vikietduong/tickethub/blob/feat/w05-fe1-web-operations/docs/W05-FE1-API-HANDOFF.md).
-- Cần FE2 review chéo; chưa tự merge hoặc xác nhận quyền merge. Giữ PR ở trạng thái draft cho đến khi build production và các kiểm tra GitHub hoàn tất.
+- Cần FE2 review chéo và chờ các kiểm tra GitHub trước khi merge.
 
 ## 6. Minh chứng trực quan (Visual Evidence)
 
 Ảnh chụp trực tiếp từ Chromium chạy Next.js dev với fixture Playwright của API PR #49. Đây là dữ liệu kiểm thử, không phải doanh thu hoặc tài khoản production. Các nút DevTools được ẩn khỏi ảnh; không chỉnh sửa nội dung giao diện hoặc số liệu sau khi chụp. Bộ tích hợp backend thật được kiểm tra riêng như Mục 4.
 
-Quản lý nhân viên và phân công cổng:
+Quản lý nhân viên và phân công cổng trên desktop và mobile:
 
 ![W05 FE1 quản lý nhân viên](https://raw.githubusercontent.com/vikietduong/tickethub/feat/w05-fe1-web-operations/docs/evidence/w05-fe1/staff-management.png)
+
+![W05 FE1 nhân viên trên mobile](https://raw.githubusercontent.com/vikietduong/tickethub/feat/w05-fe1-web-operations/docs/evidence/w05-fe1/staff-mobile.png)
 
 Báo cáo doanh thu, bộ lọc, biểu đồ, hạng vé và lịch sử xuất tệp:
 

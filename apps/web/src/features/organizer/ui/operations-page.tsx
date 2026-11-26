@@ -1,8 +1,10 @@
 "use client";
 
 import { useSession } from "@/features/identity";
+import { QueryProvider } from "@/shared/providers/query-provider";
 import { useState } from "react";
 import Link from "next/link";
+import { BarChart3, ScanLine, UsersRound } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { organizerOperationsApi } from "../api/organizer-operations-api";
 import {
@@ -17,18 +19,43 @@ import { GateMonitoring } from "./gate-monitoring";
 
 export type OperationsView = "staff" | "reports" | "monitor";
 const navigation = [
-  { view: "reports", href: "/organizer/dashboard", label: "Báo cáo doanh thu" },
-  { view: "staff", href: "/organizer/staff", label: "Nhân viên soát vé" },
-  { view: "monitor", href: "/organizer/gate-monitor", label: "Giám sát cổng" },
+  {
+    view: "reports",
+    href: "/organizer/dashboard",
+    label: "Báo cáo doanh thu",
+    shortLabel: "Doanh thu",
+    icon: BarChart3,
+  },
+  {
+    view: "staff",
+    href: "/organizer/staff",
+    label: "Nhân viên soát vé",
+    shortLabel: "Nhân viên",
+    icon: UsersRound,
+  },
+  {
+    view: "monitor",
+    href: "/organizer/gate-monitor",
+    label: "Giám sát cổng",
+    shortLabel: "Giám sát",
+    icon: ScanLine,
+  },
 ] as const;
 
-export function OrganizerOperationsPage({
-  view,
-  initialEventId = "",
-}: {
+type OperationsPageProps = {
   view: OperationsView;
   initialEventId?: string;
-}) {
+};
+
+export function OrganizerOperationsPage(props: OperationsPageProps) {
+  return (
+    <QueryProvider>
+      <OperationsContent {...props} />
+    </QueryProvider>
+  );
+}
+
+function OperationsContent({ view, initialEventId = "" }: OperationsPageProps) {
   const { user, isLoading } = useSession();
   const [selected, setSelected] = useState(initialEventId);
   const events = useQuery({
@@ -45,36 +72,55 @@ export function OrganizerOperationsPage({
     return (
       <div className="mx-auto max-w-[1200px] px-4 py-8">
         <p role="alert" className={panelClass}>
-          Các chức năng vận hành W05 chỉ dành cho tài khoản Ban tổ chức. Vui
-          lòng đăng nhập tài khoản ORGANIZER.
+          Bạn cần đăng nhập bằng tài khoản Ban tổ chức để mở trang này.
         </p>
       </div>
     );
   return (
-    <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6 space-y-6">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">
-          Vận hành sự kiện
-        </p>
-        <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight">
+    <div className="mx-auto max-w-[1248px] space-y-4 px-4 py-7 sm:space-y-6 sm:px-6 sm:py-10">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
           {title}
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Quản lý đội ngũ và theo dõi hiệu quả sự kiện của bạn.
-        </p>
+        {Boolean(events.data?.length) && (
+          <div className="w-full sm:max-w-md">
+            <Field label="Sự kiện">
+              <select
+                aria-label="Sự kiện"
+                className={selectClass}
+                value={eventId}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {!event && <option value="">Chọn sự kiện</option>}
+                {events.data!.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.title}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </div>
+        )}
       </header>
       <nav
         aria-label="Vận hành sự kiện"
-        className="flex flex-wrap gap-2 border-b border-border pb-4"
+        className="grid grid-cols-3 gap-1 rounded-xl border border-border bg-background p-1 sm:flex sm:w-fit"
       >
         {navigation.map((item) => (
           <Link
             key={item.view}
             href={item.href}
             aria-current={view === item.view ? "page" : undefined}
-            className={`rounded-lg px-4 py-2 text-sm font-medium ${view === item.view ? "bg-primary text-primary-foreground" : "bg-background hover:bg-secondary"}`}
+            className={`rounded-lg px-2 py-2.5 text-center text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring sm:px-4 sm:text-sm ${view === item.view ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
           >
-            {item.label}
+            <span className="flex items-center justify-center gap-1.5">
+              <item.icon
+                aria-hidden="true"
+                className="hidden size-4 shrink-0 min-[360px]:block"
+              />
+              <span className="sm:hidden">{item.shortLabel}</span>
+              <span className="hidden sm:inline">{item.label}</span>
+            </span>
           </Link>
         ))}
       </nav>
@@ -91,25 +137,6 @@ export function OrganizerOperationsPage({
           </Link>
           .
         </p>
-      )}
-      {Boolean(events.data?.length) && (
-        <div className={`${panelClass} max-w-xl`}>
-          <Field label="Sự kiện">
-            <select
-              aria-label="Sự kiện"
-              className={selectClass}
-              value={eventId}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              {!event && <option value="">Chọn sự kiện</option>}
-              {events.data!.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.title}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
       )}
       {!events.isPending && !events.error && eventId && !event && (
         <p role="alert" className={panelClass}>

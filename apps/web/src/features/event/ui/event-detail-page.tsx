@@ -75,9 +75,7 @@ export async function EventDetailPage({ id }: { id: string }) {
           src={event.image}
           alt=""
           fill
-          unoptimized
-          priority
-          sizes="100vw"
+          sizes="320px"
           className="object-cover opacity-30 blur-sm scale-105"
         />
         <div className="relative max-w-[1200px] mx-auto px-4 sm:px-6 pt-24 pb-8 sm:pt-28 sm:pb-12">
@@ -93,8 +91,8 @@ export async function EventDetailPage({ id }: { id: string }) {
                 src={event.image}
                 alt={`Poster ${event.title}`}
                 fill
-                unoptimized
-                priority
+                fetchPriority="high"
+                loading="eager"
                 sizes="(max-width: 768px) 100vw, 45vw"
                 className="object-cover"
               />
@@ -231,7 +229,14 @@ export async function EventDetailPage({ id }: { id: string }) {
               </li>
               <li>
                 Chính sách hủy và hoàn vé do Ban tổ chức quy định cho từng sự
-                kiện. Sự kiện bị hủy sẽ được hoàn tiền đầy đủ.
+                kiện. Sự kiện bị hủy sẽ được hoàn tiền đầy đủ.{" "}
+                <Link
+                  href="/faq?tab=refund"
+                  className="text-primary font-semibold hover:underline"
+                >
+                  Xem chính sách hoàn vé
+                </Link>
+                .
               </li>
             </ul>
           </section>

@@ -546,6 +546,7 @@ test("PR49 phân trang tài khoản và mobile", async ({ page }) => {
   await expect(
     page.getByText("Nhân viên trang hai", { exact: true }),
   ).toBeVisible();
+  await captureEvidence(page, "staff-mobile.png");
   await page.getByLabel("Tìm trên trang nhân viên hiện tại").fill("không có");
   await expect(
     page.getByText("Không tìm thấy nhân viên phù hợp trên trang này."),

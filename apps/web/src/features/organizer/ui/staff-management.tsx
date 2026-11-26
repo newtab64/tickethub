@@ -126,7 +126,9 @@ export function StaffManagement({ eventId }: { eventId: string }) {
       />
       {query.data && (
         <>
-          <div className="flex flex-wrap items-end justify-between gap-4">
+          <div
+            className={`${panelClass} flex flex-wrap items-end justify-between gap-3`}
+          >
             <div className="w-full sm:w-80">
               <Field label="Tìm trên trang nhân viên hiện tại">
                 <Input
@@ -160,8 +162,8 @@ export function StaffManagement({ eventId }: { eventId: string }) {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">
-            Tài khoản thuộc Ban tổ chức, có thể phân công nhiều sự kiện. Khóa
-            tài khoản sẽ chặn soát vé trên mọi sự kiện được phân công.
+            Khóa tài khoản sẽ dừng quyền soát vé ở tất cả sự kiện được phân
+            công.
           </p>
           {!query.data.gates.length && (
             <p role="status" className={panelClass}>
@@ -247,11 +249,11 @@ export function StaffManagement({ eventId }: { eventId: string }) {
             </p>
           )}
           <div className={`${panelClass} overflow-x-auto`}>
-            <table className="w-full text-left text-sm">
-              <caption className="text-left font-semibold text-lg mb-5">
+            <table className="block w-full text-left text-sm sm:table">
+              <caption className="mb-3 block text-left text-lg font-semibold sm:mb-5 sm:table-caption">
                 Nhân viên của Ban tổ chức
               </caption>
-              <thead className="border-b text-muted-foreground">
+              <thead className="sr-only border-b text-muted-foreground sm:not-sr-only sm:table-header-group">
                 <tr>
                   {[
                     "Nhân viên",
@@ -269,16 +271,22 @@ export function StaffManagement({ eventId }: { eventId: string }) {
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="block sm:table-row-group">
                 {items?.map((staff) => (
-                  <tr key={staff.id} className="border-b last:border-0">
-                    <td className="py-4 pr-5">
+                  <tr
+                    key={staff.id}
+                    className="grid min-w-0 grid-cols-2 items-center gap-2 border-b py-3 last:border-0 sm:table-row sm:py-0"
+                  >
+                    <td className="col-span-2 min-w-0 sm:py-4 sm:pr-5">
                       <p className="font-medium">{staff.fullName}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="mt-1 text-xs break-all text-muted-foreground sm:break-normal">
                         {staff.email}
                       </p>
                     </td>
-                    <td className="py-3 pr-4 min-w-44">
+                    <td className="col-span-2 min-w-0 sm:min-w-44 sm:py-3 sm:pr-4">
+                      <p className="mb-1 text-xs text-muted-foreground sm:hidden">
+                        Cổng phân công
+                      </p>
                       <select
                         aria-label={`Cổng của ${staff.fullName}`}
                         className={selectClass}
@@ -304,7 +312,7 @@ export function StaffManagement({ eventId }: { eventId: string }) {
                         ))}
                       </select>
                     </td>
-                    <td className="pr-4 whitespace-nowrap">
+                    <td className="min-w-0 sm:pr-4 sm:whitespace-nowrap">
                       <span
                         className={`rounded-full px-2.5 py-1 text-xs ${staff.status === "ACTIVE" ? "bg-accent text-accent-foreground" : "bg-secondary text-muted-foreground"}`}
                       >
@@ -313,7 +321,7 @@ export function StaffManagement({ eventId }: { eventId: string }) {
                           : "Đã khóa"}
                       </span>
                     </td>
-                    <td>
+                    <td className="justify-self-end">
                       <Button
                         variant="outline"
                         disabled={update.isPending}

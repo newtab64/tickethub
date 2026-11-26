@@ -8,7 +8,7 @@ import type { PageMeta } from "../domain/operations";
 export const selectClass =
   "h-10 rounded-lg border border-input bg-background px-3 text-sm w-full disabled:opacity-50";
 export const panelClass =
-  "rounded-xl border border-border bg-background p-5 sm:p-6";
+  "rounded-xl border border-border bg-background p-4 sm:p-6";
 export const vnd = (value: number) =>
   new Intl.NumberFormat("vi-VN", {
     style: "currency",
@@ -68,10 +68,10 @@ export function Metric({
   return (
     <div className={panelClass}>
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight tabular-nums">
+      <p className="mt-2 text-xl font-bold tracking-tight tabular-nums break-words sm:text-3xl">
         {value}
       </p>
-      <p className="mt-2 text-xs text-muted-foreground">{note}</p>
+      <p className="mt-1 text-xs leading-snug text-muted-foreground">{note}</p>
     </div>
   );
 }

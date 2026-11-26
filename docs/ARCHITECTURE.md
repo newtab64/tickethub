@@ -80,7 +80,7 @@ Backend (`apps/api`) được tổ chức theo Domain-Driven Design chiến thu�
 | `identity`     | Đăng ký, xác thực email, đăng nhập, khóa tài khoản sau 5 lần sai, làm mới phiên; cung cấp guard JWT và RBAC cho các context khác                   | `/api/v1/auth/*`                                     |
 | `event`        | Vòng đời sự kiện của Ban tổ chức (DRAFT, khóa lạc quan theo `version`), sinh sơ đồ ghế, mô hình đọc sơ đồ ghế và tồn kho, luồng SSE trạng thái ghế | `/api/v1/organizer/events`, `/api/v1/events`         |
 | `venue`        | Danh mục địa điểm chuẩn và mẫu sơ đồ SVG                                                                                                           | `/api/v1/venues`, `/api/v1/admin/venues`             |
-| `search`       | Tìm kiếm sự kiện đã công bố (full-text không dấu, lọc, phân trang cursor)                                                                          | `/api/v1/search/events`                              |
+| `search`       | Tìm kiếm sự kiện đã công bố (full-text không dấu xếp theo độ liên quan, lọc, phân trang cursor)                                                    | `/api/v1/search/events`                              |
 | `upload`       | Cấp URL tải ảnh sự kiện lên S3 và xác nhận ảnh (kích thước, quyền sở hữu khóa, chữ ký tệp)                                                         | `/api/v1/uploads/*`                                  |
 | `booking`      | Giữ chỗ trực tiếp, tự động phân bổ ghế liền kề, khu đứng theo bộ đếm, hủy giữ chỗ, thu hồi đơn hết hạn, đơn hàng của người mua                     | `/api/v1/booking/*`, `/api/v1/buyer/orders`          |
 | `payment`      | Tạo URL thanh toán VNPay, xử lý webhook IPN, cấp vé sau khi thanh toán                                                                             | `/api/v1/payments/*`                                 |
@@ -254,16 +254,17 @@ apps/web/src/
 
 ### Các feature
 
-| Feature      | Phụ trách                                                                                                           | Route sử dụng                                                                    |
-| :----------- | :------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------- |
-| `identity`   | Đăng nhập 3 bước (email, mật khẩu, đăng ký), xác thực email, quên mật khẩu, phiên đăng nhập, xác thực JWT cho proxy | `/auth`, `/login`, `/register`, `/forgot-password`, `/verify-email`              |
-| `event`      | Trang chủ, trang giới thiệu sự kiện (SSR), tìm kiếm, sơ đồ khu vực, hình học sơ đồ, thông tin khu vực               | `/`, `/events/[id]`                                                              |
-| `booking`    | Đặt vé: quy tắc 1 đến 6 vé, phiên giữ chỗ 5 phút, client và proxy giữ chỗ                                           | `/events/[id]/booking`, `/api/v1/booking/hold`, `/api/v1/booking/release`        |
-| `payment`    | Thanh toán: đồng hồ giữ chỗ, mã giảm giá, tổng tiền, người nhận vé, tạo URL VNPay                                   | `/checkout`                                                                      |
-| `ticketing`  | Vé của tôi                                                                                                          | `/my-tickets`                                                                    |
-| `organizer`  | Cổng Ban tổ chức: danh sách sự kiện, trình tạo sự kiện nhiều bước, hồ sơ, bản nháp tự lưu                           | `/organizer`, `/organizer/events`, `/organizer/events/new`, `/organizer/profile` |
-| `moderation` | Cổng quản trị: hàng đợi duyệt KYC và sự kiện, nhật ký kiểm toán                                                     | `/admin`                                                                         |
-| `venue`      | Dữ liệu địa điểm chuẩn và sơ đồ SVG sinh sẵn (`scripts/build-venue-maps.py` ghi vào `features/venue/data/`)         | Không có route riêng                                                             |
+| Feature      | Phụ trách                                                                                                                                   | Route sử dụng                                                                    |
+| :----------- | :------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------- |
+| `identity`   | Đăng nhập 3 bước (email, mật khẩu, đăng ký), xác thực email, quên mật khẩu, phiên đăng nhập, xác thực JWT cho proxy                         | `/auth`, `/login`, `/register`, `/forgot-password`, `/verify-email`              |
+| `event`      | Trang chủ, trang giới thiệu sự kiện (SSR), tìm kiếm, sơ đồ khu vực, hình học sơ đồ, thông tin khu vực                                       | `/`, `/events/[id]`                                                              |
+| `booking`    | Đặt vé: quy tắc 1 đến 6 vé, phiên giữ chỗ 5 phút, client và proxy giữ chỗ                                                                   | `/events/[id]/booking`, `/api/v1/booking/hold`, `/api/v1/booking/release`        |
+| `payment`    | Thanh toán: đồng hồ giữ chỗ, mã giảm giá, tổng tiền, người nhận vé, tạo URL VNPay                                                           | `/checkout`                                                                      |
+| `ticketing`  | Vé của tôi                                                                                                                                  | `/my-tickets`                                                                    |
+| `organizer`  | Cổng Ban tổ chức: danh sách sự kiện, trình tạo sự kiện nhiều bước, hồ sơ, bản nháp tự lưu                                                   | `/organizer`, `/organizer/events`, `/organizer/events/new`, `/organizer/profile` |
+| `moderation` | Cổng quản trị: hàng đợi duyệt KYC và sự kiện, nhật ký kiểm toán                                                                             | `/admin`                                                                         |
+| `support`    | Trung tâm hỗ trợ công khai: câu hỏi thường gặp, điều khoản, chính sách bảo mật và hoàn vé, hướng dẫn sử dụng; viết bằng ngôn ngữ đời thường | `/faq`, `/guide`                                                                 |
+| `venue`      | Dữ liệu địa điểm chuẩn và sơ đồ SVG sinh sẵn (`scripts/build-venue-maps.py` ghi vào `features/venue/data/`)                                 | Không có route riêng                                                             |
 
 ### Quy tắc phụ thuộc
 
@@ -293,7 +294,7 @@ Màn hình có nhiều trạng thái (đặt vé, thanh toán, đăng nhập 3 b
 Các điểm sau phản ánh trạng thái triển khai hiện tại, không phải thay đổi của đợt tái cấu trúc:
 
 - Dữ liệu tạm: danh mục sự kiện và hạng vé (`features/event/data`), dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`), mã giảm giá và phí dịch vụ tính ở client (`features/payment/domain/checkout-rules.ts`). Cần thay bằng API khi backend sẵn sàng.
-- Bản đồ 19 trang trong tiêu chuẩn dự án mới triển khai một phần: các route `/events`, `/buyer/orders`, `/buyer/orders/[id]`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/my-tickets` thay cho `/buyer/orders`, `/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).
+- Bản đồ 21 trang trong tiêu chuẩn dự án (19 trang cốt lõi cùng `/faq` và `/guide`) mới triển khai một phần: các route `/events`, `/buyer/orders`, `/buyer/orders/[id]`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/my-tickets` thay cho `/buyer/orders`, `/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).
 - Màn hình thanh toán hiện dùng cửa sổ phụ (modal) để nhập thông tin người nhận và chọn phương thức, và khi tạo thanh toán lỗi sẽ chuyển tới `/buyer/orders/[id]?paymentSuccess=true`. Cả hai điểm này cần được rà soát theo quy chuẩn trang thanh toán độc lập và xử lý lỗi thanh toán.
 
 ## Ranh giới vai trò và Ma trận phân quyền

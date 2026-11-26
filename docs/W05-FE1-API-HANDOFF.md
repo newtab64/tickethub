@@ -149,6 +149,6 @@ W05_API_URL=http://localhost:4001/api/v1 W05_LIVE_TESTS=1 pnpm --filter @ticketh
 
 Chỉ bật live tests với DB kiểm thử riêng. Suite tạo tài khoản/cổng fixture; sau test bỏ phân công và khóa tài khoản. Backend không có API xóa tài khoản/cổng nên giữ các bản ghi fixture trong DB test. Suite yêu cầu report worker để hoàn tất job và kiểm tra nội dung CSV/XLSX tải thật. Không gửi email/payment/provider thật.
 
-Cloud dùng Chromium hệ thống thì thêm `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`. Test mặc định dùng `http://localhost:3000`; giữ API/web đang chạy để Playwright tái sử dụng. Build production vẫn cần quyền tải Google Fonts (`fonts.googleapis.com`, `fonts.gstatic.com`); không thay logic ứng dụng hoặc tắt TLS để né lỗi môi trường.
+Cloud dùng Chromium hệ thống thì thêm `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`. Test mặc định dùng `http://localhost:3000`; giữ API/web đang chạy để Playwright tái sử dụng.
 
 Cần review chéo FE2 trước merge. Tích hợp đã đối chiếu với head PR49 nêu trên; nếu BE2 đổi hợp đồng ở commit sau, cần kiểm tra lại adapter và test.
