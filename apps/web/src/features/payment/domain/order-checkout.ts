@@ -2,6 +2,7 @@ import {
   OrderStatus,
   type TicketStatus,
   type RefundPolicyType,
+  type CheckoutOrder,
 } from "@tickethub/shared";
 
 export function remainingSeconds(deadline: number, now = Date.now()): number {
@@ -40,6 +41,49 @@ export function paymentFailureMessage(status: number): string {
     default:
       return "Không thể tạo thanh toán lúc này. Vui lòng thử lại sau.";
   }
+}
+
+export type HoldTone = "calm" | "soon" | "urgent";
+
+/** Mức gấp của đồng hồ giữ chỗ: cam từ 120 giây, đỏ dưới 60 giây. */
+export function holdTone(seconds: number): HoldTone {
+  if (seconds < 60) return "urgent";
+  return seconds <= 120 ? "soon" : "calm";
+}
+
+export interface SeatRow {
+  id: string;
+  badge: string;
+  title: string;
+  detail: string;
+  amount: number;
+}
+
+/** Dòng hiển thị cho từng mục đơn; vé đứng không có hàng ghế. */
+export function seatRows(items: CheckoutOrder["items"]): SeatRow[] {
+  return items.map(({ id, quantity, subtotal, ticketType, seat }) => {
+    const row = { id, amount: subtotal };
+    if (!ticketType.isSeated)
+      return {
+        ...row,
+        badge: String(quantity),
+        title: `Khu vực: ${ticketType.name} (Vé đứng)`,
+        detail: `${quantity} vé`,
+      };
+    if (!seat)
+      return {
+        ...row,
+        badge: "?",
+        title: ticketType.name,
+        detail: "Vị trí ghế chưa được xác nhận",
+      };
+    return {
+      ...row,
+      badge: seat.seatNumber,
+      title: zoneLabel(seat.zoneName),
+      detail: `Hàng ${seat.rowLabel}, ghế ${seat.seatNumber}`,
+    };
+  });
 }
 
 export function paymentState(
