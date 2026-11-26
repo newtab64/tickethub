@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ShieldCheck } from "lucide-react";
 import { getEventById } from "@/features/event";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
@@ -304,7 +303,10 @@ function Checkout({ orderId }: { orderId: string }) {
         cancelling={cancel.isPending}
         onCancel={() => setLeaveRequest({ href: null })}
       />
-      <div className="grid grid-cols-1 rounded-3xl border border-checkout-border bg-background py-2 text-sm shadow-sheet lg:grid-cols-2 lg:grid-rows-[repeat(4,auto)] lg:py-3 short:py-2">
+      <div
+        data-testid="checkout-sheet"
+        className="grid grid-cols-1 rounded-3xl border border-checkout-border bg-background py-2 text-sm shadow-sheet lg:grid-cols-2 lg:grid-rows-[repeat(4,auto)] lg:py-3 short:py-2"
+      >
         <OrderSummary order={order} />
         <PaymentPanel
           voucherCode={order.voucherCode}
@@ -331,14 +333,6 @@ function Checkout({ orderId }: { orderId: string }) {
           }
         />
       </div>
-      <p className="mt-3.5 text-center text-xs text-muted-foreground short:mt-2">
-        <ShieldCheck
-          aria-hidden="true"
-          className="mr-1.5 inline size-4 align-[-3px] text-primary"
-        />
-        Vé chính hãng. Nếu đã trừ tiền mà không thể cấp vé, hệ thống hoàn tiền
-        cho bạn.
-      </p>
       {/* Mép thanh trùng mép các khối trong thẻ: lề trang + viền 1px + đệm khối. */}
       <div
         data-testid="mobile-pay-bar"

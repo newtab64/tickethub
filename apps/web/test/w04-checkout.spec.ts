@@ -419,6 +419,42 @@ test("Điện thoại: lỗi hủy giữ chỗ và cảnh báo sắp hết hạn
   await page.unroute("**/booking/release");
 });
 
+test("Footer thẳng mép thẻ, một lời cam kết, không chữ tiếng Anh", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const sheet = page.getByTestId("checkout-sheet");
+  const footer = page.getByRole("contentinfo");
+  const row = footer.getByTestId("checkout-footer-row");
+  for (const width of [1280, 390, 320]) {
+    await page.setViewportSize({ width, height: 760 });
+    const card = (await sheet.boundingBox())!;
+    const line = (await row.boundingBox())!;
+    expect([line.x, line.width], `mép ở ${width}px`).toEqual([
+      card.x,
+      card.width,
+    ]);
+  }
+  await expect(page.getByText("Vé chính hãng.")).toHaveCount(1);
+  await expect(footer.getByText("Vé chính hãng.")).toBeVisible();
+  await expect(footer).not.toContainText("All Rights Reserved");
+  await expect(footer.getByRole("link")).toHaveCount(4);
+  await expect(footer).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  // Cuộn hết trang: thanh nổi (nếu còn) không che liên kết nào.
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const bar = page.getByTestId("mobile-pay-bar");
+  if (await bar.isVisible()) {
+    const lastLink = (await footer.getByRole("link").last().boundingBox())!;
+    await expect
+      .poll(async () => (await bar.boundingBox())!.y)
+      .toBeGreaterThan(lastLink.y + lastLink.height);
+  }
+});
+
 test("Tài khoản thiếu họ tên không hiện dấu kiểm giả", async ({
   page,
   request,
