@@ -222,9 +222,10 @@ export function GateMonitoring({ eventId }: { eventId: string }) {
                     >
                       {scan.outcome === "SUCCESS" ? "Thành công" : "Bị từ chối"}
                     </span>
-                    {scan.errorCode && (
-                      <p className="text-xs">{scan.errorCode}</p>
-                    )}
+                    {scan.errorCode &&
+                      scan.errorCode !== "TICKET_ALREADY_USED" && (
+                        <p className="text-xs">{scan.errorCode}</p>
+                      )}
                   </td>
                 </tr>
               ))}

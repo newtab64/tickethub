@@ -507,9 +507,11 @@ test("PR49 giám sát gồm cả lượt từ chối, tự poll và cảnh báo 
     }),
   );
   await page.goto("/organizer/gate-monitor");
+  const history = page.getByRole("table", { name: "Lịch sử quét cổng" });
+  await expect(history.getByText("Bị từ chối", { exact: true })).toBeVisible();
   await expect(
-    page.getByText("TICKET_ALREADY_USED", { exact: true }),
-  ).toBeVisible();
+    history.getByText("TICKET_ALREADY_USED", { exact: true }),
+  ).toHaveCount(0);
   await captureEvidence(page, "gate-monitor.png");
   advanced = true;
   await expect(
