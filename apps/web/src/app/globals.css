@@ -3,6 +3,8 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/* Desktop màn hình thấp: giảm chiều cao để trang thanh toán vừa 768px. */
+@custom-variant short (@media (min-width: 64rem) and (max-height: 800px));
 
 @theme inline {
   --color-background: var(--background);
@@ -10,11 +12,23 @@
   --font-sans:
     "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
-  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --font-heading:
     "Inter Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     sans-serif;
   --color-ring: var(--ring);
+  --color-primary-strong: var(--primary-strong);
+  --color-checkout-page: var(--checkout-page);
+  --color-checkout-border: var(--checkout-border);
+  --color-gateway: var(--gateway);
+  --color-gateway-soft: var(--gateway-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-warning-border: var(--warning-border);
+  --color-pay-bar: var(--pay-bar);
+  --color-pay-bar-muted: var(--pay-bar-muted);
+  --shadow-sheet:
+    0 1px 2px rgb(16 26 32 / 0.06), 0 16px 40px rgb(16 26 32 / 0.1);
+  --shadow-pay-bar: 0 10px 28px rgb(6 32 24 / 0.35);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
@@ -61,6 +75,17 @@
   --venue-stage: #334155;
   --venue-pitch: #4ade80;
   --venue-pitch-stroke: #22c55e;
+  --primary-strong: #047857;
+  --checkout-page: #e4e9ec;
+  --checkout-border: #c9d2d8;
+  --gateway: #0a5db0;
+  --gateway-soft: #e8f1fb;
+  --warning: #9a3412;
+  --warning-soft: #fff7ed;
+  --warning-border: #fdba74;
+  --warning-ring: #ea580c;
+  --pay-bar: #06382b;
+  --pay-bar-muted: #a9cfc1;
   --radius: 12px;
   --auth-stage-offset: 0px;
 }

@@ -159,7 +159,7 @@ function VerifyEmailForm() {
               <Input
                 id="token"
                 placeholder="Nhập mã xác thực từ email..."
-                className="h-10 text-center font-mono rounded-xl"
+                className="h-10 text-center tabular-nums rounded-xl"
                 aria-invalid={!!errors.token}
                 {...register("token")}
               />
