@@ -2,12 +2,11 @@ import type { CheckoutOrder } from "@tickethub/shared";
 import { EventPoster } from "@/features/event";
 import { cn } from "@/shared/lib/utils";
 import { dateTime, money, seatRows } from "../domain/order-checkout";
-import { CheckoutCell, checkoutGroup } from "./checkout-cell";
+import { CheckoutCell } from "./checkout-cell";
 
-/** Nửa trái: sự kiện, ghế đã cấp, chi phí và tổng tiền. */
+/** Nửa trái: sự kiện, ghế đã cấp và số tiền phải trả. */
 export function OrderSummary({ order }: { order: CheckoutOrder }) {
   const rows = seatRows(order.items);
-  const tickets = order.items.reduce((sum, item) => sum + item.quantity, 0);
   // Quá hai dòng thì cuộn trong khung để hai nửa không bị kéo giãn.
   const scrolls = rows.length > 2;
   const place = [order.event.venueName, order.event.city]
@@ -16,52 +15,43 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
   return (
     <aside
       aria-label="Tóm tắt đơn hàng"
-      className="contents lg:row-span-4 lg:grid lg:grid-rows-subgrid"
+      className="contents lg:row-span-3 lg:grid lg:grid-rows-subgrid"
     >
       <CheckoutCell title="Sự kiện" className="order-1">
-        <div className={cn(checkoutGroup, "flex-row divide-y-0")}>
-          <div className="relative min-h-35 w-26 shrink-0 self-stretch bg-muted lg:min-h-0 lg:w-50">
+        <div className="flex items-center gap-5">
+          <div className="relative size-21 shrink-0 overflow-hidden rounded-lg bg-muted lg:h-24 lg:w-32 short:h-20">
             <EventPoster
               event={order.event}
-              sizes="(min-width: 1024px) 200px, 104px"
+              sizes="(min-width: 1024px) 128px, 84px"
               labeled
             />
           </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5 px-3.5 py-3 lg:px-5">
-            <h3 className="text-base leading-snug font-bold tracking-tight break-words lg:text-lg">
+          <div className="min-w-0">
+            <h3 className="mb-1.5 text-[17px] leading-snug font-bold tracking-tight break-words lg:text-xl">
               {order.event.title}
             </h3>
-            <time
-              dateTime={order.event.startTime}
-              className="text-[13px] font-semibold tabular-nums"
-            >
-              {dateTime(order.event.startTime)}
-            </time>
-            <p className="text-[13px] break-words text-muted-foreground">
-              {place}
+            <p className="text-muted-foreground tabular-nums">
+              <time dateTime={order.event.startTime}>
+                {dateTime(order.event.startTime)}
+              </time>
             </p>
+            <p className="break-words text-muted-foreground">{place}</p>
           </div>
         </div>
       </CheckoutCell>
-      <CheckoutCell
-        title="Ghế của bạn"
-        note={`${tickets} vé`}
-        className="order-2"
-      >
+      <CheckoutCell title="Ghế của bạn" className="order-2">
         <ul
           className={cn(
-            checkoutGroup,
-            scrolls &&
-              "lg:max-h-[9.9rem] lg:overflow-y-auto short:max-h-[8.75rem]",
+            scrolls && "lg:max-h-32 lg:overflow-y-auto short:max-h-[6.5rem]",
           )}
           {...(scrolls && { tabIndex: 0, "aria-label": "Danh sách ghế" })}
         >
           {rows.map((row) => (
             <li
               key={row.id}
-              className="flex min-h-17 flex-[1_0_auto] items-center gap-3.5 px-4 max-[359px]:gap-2 max-[359px]:px-3 short:min-h-[4.25rem]"
+              className="flex items-center gap-4 py-2.5 max-[359px]:gap-2 short:py-1.5"
             >
-              <span className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-accent text-lg font-bold text-accent-foreground tabular-nums max-[359px]:size-9 max-[359px]:text-base short:size-10">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-accent text-base font-bold text-accent-foreground tabular-nums max-[359px]:size-9 short:size-10">
                 {row.badge}
               </span>
               <span className="min-w-0 flex-1">
@@ -72,38 +62,40 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
                   {row.detail}
                 </span>
               </span>
-              <span className="shrink-0 tabular-nums max-[359px]:text-[13px]">
+              <span className="shrink-0 text-[13px] text-muted-foreground tabular-nums">
                 {money(row.amount)}
               </span>
             </li>
           ))}
         </ul>
       </CheckoutCell>
-      <CheckoutCell title="Chi phí" note={order.orderCode} className="order-6">
-        <dl className="flex min-h-13 flex-wrap items-center justify-between gap-x-3 rounded-xl border border-border px-4 py-1 tabular-nums short:min-h-11.5">
-          <div className="flex gap-2">
-            <dt className="text-muted-foreground">Tạm tính</dt>
-            <dd className="font-semibold">{money(order.totalAmount)}</dd>
-          </div>
-          <div className="flex gap-2">
-            <dt className="text-muted-foreground">Giảm giá</dt>
-            <dd className="font-semibold">{money(order.discountAmount)}</dd>
-          </div>
-        </dl>
-      </CheckoutCell>
-      <CheckoutCell className="order-7 justify-end">
-        <p
+      <CheckoutCell className="order-5 justify-end">
+        <div
           data-testid="checkout-total"
-          className="flex h-15 items-center justify-between gap-3 rounded-xl bg-muted pr-4 pl-5 font-semibold max-[399px]:gap-2 max-[399px]:pr-3 max-[399px]:pl-4 max-[359px]:pl-3 max-[359px]:text-[13px] short:h-13"
+          className="border-t border-border pt-5 tabular-nums short:pt-2"
         >
-          <span>Tổng thanh toán</span>
-          <strong
-            data-testid="checkout-total-amount"
-            className="text-2xl font-bold tracking-tight whitespace-nowrap tabular-nums max-[399px]:text-xl max-[359px]:text-base lg:text-[28px]"
-          >
-            {money(order.finalAmount)}
-          </strong>
-        </p>
+          <dl className="mb-1.5 space-y-1.5 text-muted-foreground short:mb-0">
+            <div className="flex justify-between gap-3">
+              <dt>Tạm tính</dt>
+              <dd>{money(order.totalAmount)}</dd>
+            </div>
+            {order.discountAmount > 0 && (
+              <div className="flex justify-between gap-3">
+                <dt>Giảm giá</dt>
+                <dd>{money(order.discountAmount)}</dd>
+              </div>
+            )}
+          </dl>
+          <p className="flex h-14 items-center justify-between gap-3 font-semibold max-[359px]:gap-2 max-[359px]:text-[13px] short:h-12">
+            <span>Tổng thanh toán</span>
+            <strong
+              data-testid="checkout-total-amount"
+              className="text-[30px] font-bold tracking-tight whitespace-nowrap max-[399px]:text-2xl max-[359px]:text-lg"
+            >
+              {money(order.finalAmount)}
+            </strong>
+          </p>
+        </div>
       </CheckoutCell>
     </aside>
   );

@@ -38,7 +38,7 @@ export function CheckoutTitleRow({
   const tone = holdTone(seconds ?? HOLD_SECONDS);
   const percent = ((seconds ?? HOLD_SECONDS) / HOLD_SECONDS) * 100;
   return (
-    <div className="sticky top-0 z-30 mb-1 grid grid-cols-[1fr_auto_auto] items-center gap-2 bg-checkout-page py-2.5 lg:mb-5 lg:grid-cols-[1fr_auto_1fr] lg:py-0 short:mb-3">
+    <div className="sticky top-0 z-30 mb-1 grid grid-cols-[1fr_auto_auto] items-center gap-2 bg-checkout-page py-2.5 lg:mb-6 lg:grid-cols-[1fr_auto_1fr] lg:py-0 short:mb-3">
       <h1 className="text-[22px] font-bold tracking-tight whitespace-nowrap max-[359px]:text-lg lg:text-[28px]">
         Thanh toán
       </h1>

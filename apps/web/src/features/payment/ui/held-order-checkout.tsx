@@ -305,7 +305,7 @@ function Checkout({ orderId }: { orderId: string }) {
       />
       <div
         data-testid="checkout-sheet"
-        className="grid grid-cols-1 rounded-3xl border border-checkout-border bg-background py-2 text-sm shadow-sheet lg:grid-cols-2 lg:grid-rows-[repeat(4,auto)] lg:py-3 short:py-2"
+        className="grid grid-cols-1 rounded-3xl border border-checkout-border bg-background py-2 text-sm shadow-sheet lg:grid-cols-2 lg:grid-rows-[repeat(3,auto)] lg:py-6 short:py-2"
       >
         <OrderSummary order={order} />
         <PaymentPanel
@@ -336,7 +336,7 @@ function Checkout({ orderId }: { orderId: string }) {
       {/* Mép thanh trùng mép các khối trong thẻ: lề trang + viền 1px + đệm khối. */}
       <div
         data-testid="mobile-pay-bar"
-        className={`fixed inset-x-[33px] bottom-3 z-30 flex h-14 items-center justify-between gap-3 rounded-full bg-pay-bar pr-2 pl-5 sm:inset-x-[41px] max-[359px]:gap-2 max-[359px]:pl-4 shadow-pay-bar transition-[translate,visibility] lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
+        className={`fixed inset-x-[37px] bottom-3 z-30 flex h-14 items-center justify-between gap-3 rounded-full bg-pay-bar pr-2 pl-5 sm:inset-x-[45px] max-[359px]:gap-2 max-[359px]:pl-4 shadow-pay-bar transition-[translate,visibility] lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
       >
         <p className="flex flex-col text-[11px] leading-[14px] text-pay-bar-muted">
           Tổng thanh toán
@@ -400,7 +400,7 @@ export default function CheckoutPage() {
   return (
     <FlowShell
       className="bg-checkout-page"
-      mainClassName="pt-3 pb-6 sm:pt-6 short:pt-3.5"
+      mainClassName="pt-3 pb-6 sm:pt-8 short:pt-3.5"
       footer={<CheckoutFooter />}
     >
       <Suspense fallback={<CheckoutNotice>Đang tải...</CheckoutNotice>}>

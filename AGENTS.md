@@ -71,11 +71,11 @@ Tài liệu này là Hiến chương Dự án bất biến (Immutable Project Co
      - **Cột bên trái (Tóm tắt và Cam kết):**
        - Tóm tắt thông tin sự kiện (Tên sự kiện, Thời gian bắt đầu, Địa điểm tổ chức).
        - Chi tiết vị trí vé đã được hệ thống tự động cấp phát (Tên Zone, Danh sách số ghế/hàng ghế cụ thể, Đơn giá từng vé).
-       - Bảng phân tách chi phí minh bạch: Tạm tính, Phí dịch vụ (nếu có), Giảm giá voucher, Tổng tiền thanh toán đã bao gồm VAT.
+       - Bảng phân tách chi phí minh bạch: Tạm tính, Phí dịch vụ (nếu có), Giảm giá voucher (chỉ hiện khi lớn hơn 0), Tổng tiền thanh toán đã bao gồm VAT.
        - Huy hiệu bảo đảm an toàn giao dịch và cam kết 100% vé chính hãng.
      - **Cột bên phải (Thao tác thanh toán):**
        - Biểu mẫu thông tin người nhận vé (Họ và tên, Email, Số điện thoại) với tính năng tự động điền (Autofill) từ tài khoản đang đăng nhập.
-       - Ô nhập mã giảm giá (Voucher / Coupon) kèm phản hồi kiểm tra ngay lập tức.
+       - Ô nhập mã giảm giá (Voucher / Coupon), thu gọn cho tới khi người mua bấm "Thêm mã giảm giá", kèm phản hồi kiểm tra ngay lập tức.
        - Bộ chọn phương thức thanh toán VNPay (VNPay-QR, Thẻ nội địa ATM, Thẻ quốc tế Visa/Mastercard).
        - Nút bấm xác nhận thanh toán nổi bật: "Thanh toán ngay qua VNPay".
      - **Trên điện thoại:** một cột theo luồng mua (sự kiện, ghế, người nhận, phương thức, mã giảm giá, chi phí, tổng tiền, nút thanh toán), kèm thanh thanh toán nổi ở đáy.
