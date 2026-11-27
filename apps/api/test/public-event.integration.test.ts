@@ -9,14 +9,17 @@ import {
 } from "@nestjs/platform-fastify";
 import { eq, inArray } from "drizzle-orm";
 import type Redis from "ioredis";
-import { EventStatus, PublicEventSchema } from "@tickethub/shared";
+import { EventStatus, PublicEventSchema, SeatStatus } from "@tickethub/shared";
 
 import { AppModule } from "../src/app.module";
+import { BookingCommands } from "../src/contexts/booking/application/booking-commands.service";
+import { BookingDomainError } from "../src/contexts/booking/domain/booking.errors";
 import { db } from "../src/database/db";
 import { REDIS_CLIENT } from "../src/database/redis.module";
 import {
   events,
   organizerProfiles,
+  seats,
   ticketTypes,
   users,
 } from "../src/database/schema";
@@ -162,6 +165,98 @@ describe("Public event lookup (HTTP)", () => {
     assert.equal((await get(draft.slug)).status, 404);
     assert.equal((await get(draft.id)).status, 404);
     assert.equal((await get(randomUUID())).status, 404);
+  });
+
+  it("hang ghe tinh ve con lai tu ghe that, khong tu bo dem", async () => {
+    const [seatedType] = await db
+      .insert(ticketTypes)
+      .values({
+        eventId: published.id,
+        name: "Hang ngoi",
+        price: "99000.50",
+        capacity: 5,
+        sortOrder: 3,
+        saleStartTime: new Date("2026-01-01T00:00:00.000Z"),
+        saleEndTime: new Date("2026-12-31T00:00:00.000Z"),
+      })
+      .returning();
+    const hour = 60 * 60 * 1000;
+    const states = [
+      [SeatStatus.SOLD, null],
+      [SeatStatus.HELD, new Date(Date.now() + hour)],
+      [SeatStatus.BLOCKED, null],
+      [SeatStatus.HELD, new Date(Date.now() - hour)],
+      [SeatStatus.AVAILABLE, null],
+    ] as const;
+    await db.insert(seats).values(
+      states.map(([status, holdExpiresAt], i) => ({
+        eventId: published.id,
+        ticketTypeId: seatedType!.id,
+        zoneName: "Hang ngoi",
+        rowLabel: "A",
+        seatNumber: String(i + 1),
+        status,
+        holdExpiresAt,
+      })),
+    );
+
+    const { status, body } = await get(published.slug);
+    assert.equal(status, 200);
+    const type = PublicEventSchema.parse(body.data).ticketTypes.find(
+      (item) => item.id === seatedType!.id,
+    )!;
+    // Ghe giu het han va ghe trong con ban duoc: 2.
+    assert.equal(type.capacity - type.heldCount - type.soldCount, 2);
+    assert.equal(type.soldCount, 1);
+    // Gia le do Ban to chuc nhap khong duoc lam hong ca su kien.
+    assert.equal(type.price, 99000.5);
+  });
+
+  it("may chu tu choi giu cho ngoai gio ban hoac vuot gioi han hang ve", async () => {
+    const insert = async (name: string, start: string, max: number) => {
+      const [row] = await db
+        .insert(ticketTypes)
+        .values({
+          eventId: published.id,
+          name,
+          price: "100000.00",
+          capacity: 10,
+          isSeated: false,
+          maxPerOrder: max,
+          saleStartTime: new Date(start),
+          saleEndTime: new Date("2099-12-31T00:00:00.000Z"),
+        })
+        .returning();
+      return row!.id;
+    };
+    // Guard JWT can metadata DI ma tsx khong sinh ra, nen goi thang dich vu.
+    const commands = app.get(BookingCommands);
+    const rejects = (
+      items: { ticketTypeId: string; quantity: number }[],
+      code: string,
+    ) =>
+      assert.rejects(
+        commands.holdSeats(userId, { eventId: published.id, items }),
+        (err: unknown) =>
+          err instanceof BookingDomainError && err.code === code,
+      );
+
+    const later = await insert("Chua mo", "2099-01-01T00:00:00.000Z", 6);
+    await rejects([{ ticketTypeId: later, quantity: 1 }], "SALE_NOT_OPEN");
+    const limited = await insert("Gioi han", "2026-01-01T00:00:00.000Z", 2);
+    // Tach thanh hai dong cung khong vuot duoc gioi han.
+    await rejects(
+      [
+        { ticketTypeId: limited, quantity: 2 },
+        { ticketTypeId: limited, quantity: 1 },
+      ],
+      "MAX_PER_ORDER_EXCEEDED",
+    );
+    const [after] = await db
+      .select({ held: ticketTypes.heldCount })
+      .from(ticketTypes)
+      .where(eq(ticketTypes.id, limited));
+    assert.equal(after!.held, 0);
   });
 
   it("slug trung UUID cua su kien khac khong chiem duoc lien ket", async () => {

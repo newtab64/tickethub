@@ -86,3 +86,34 @@ test("Sự kiện không tồn tại không bị thay bằng sự kiện khác",
     await expect(page.getByText("Liveshow Âm Nhạc")).toHaveCount(0);
   }
 });
+
+test("API lỗi: thông báo đứng yên cho tới khi người dùng thử lại", async ({
+  page,
+}) => {
+  let requests = 0;
+  await page.route(`${api}/events/*`, (route) => {
+    requests += 1;
+    return route.abort("connectionrefused");
+  });
+  await page.clock.install();
+  await page.goto(`/events/${slug}/booking`);
+  const alert = page.getByRole("alert").filter({ hasText: "Không tải được" });
+  await expect(alert).toBeVisible();
+  await page.clock.runFor(25_000);
+  await expect(alert).toBeVisible();
+  expect(requests).toBe(1);
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect.poll(() => requests).toBe(2);
+});
+
+test("Sự kiện không có sơ đồ: rê một hạng vé không tô các hạng khác", async ({
+  page,
+}) => {
+  await page.goto("/events/chillies-qua-khung-cua-so/booking?modal=false");
+  const row = (name: string) =>
+    page
+      .getByRole("heading", { name, exact: true })
+      .locator("xpath=ancestor::div[contains(@class,'items-start')][1]");
+  await row("Vé đứng").hover();
+  await expect(row("Ghế khán đài")).not.toHaveClass(/(^| )bg-muted( |$)/);
+});

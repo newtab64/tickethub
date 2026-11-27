@@ -16,6 +16,7 @@ import {
   assertReleasable,
   assertStandingAvailable,
   assertTicketTypesExist,
+  assertTicketTypesOnSale,
   assertWithinTicketLimit,
   classifyItems,
   generateOrderCode,
@@ -76,6 +77,7 @@ export class BookingCommands {
     const typeRows = await this.reader.findTicketTypes(dto.eventId, typeIds);
     const types = new Map(typeRows.map((tt) => [tt.id, tt]));
     assertTicketTypesExist(dto.items, types);
+    assertTicketTypesOnSale(dto.items, types, new Date());
 
     const { explicitSeated, autoSeated, standing } = classifyItems(
       dto.items,

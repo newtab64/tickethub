@@ -3,6 +3,7 @@ import { eventErrors } from "./event.errors";
 import type {
   EventRecord,
   EventUpdatePatch,
+  EventWithTicketTypes,
   GenerateSeatsDto,
   InventoryItem,
   InventoryTicketType,
@@ -215,4 +216,29 @@ export function buildInventoryItems(
       blocked: count?.blocked ?? 0,
     };
   });
+}
+
+/**
+ * Bo dem heldCount/soldCount chi duoc cap nhat cho ve dung. Voi hang ngoi, suy
+ * ra tu trang thai ghe that: moi ghe khong con ban duoc tinh la dang bi chiem.
+ */
+export function withSeatAvailability(
+  event: EventWithTicketTypes,
+  seatCounts: SeatStatusCounts[],
+): EventWithTicketTypes {
+  const byType = new Map(seatCounts.map((c) => [c.ticketTypeId, c]));
+  return {
+    ...event,
+    ticketTypes: event.ticketTypes.map((type) => {
+      if (!type.isSeated) return type;
+      const counts = byType.get(type.id);
+      const sold = Number(counts?.sold ?? 0);
+      const free = Number(counts?.available ?? 0);
+      return {
+        ...type,
+        soldCount: sold,
+        heldCount: Math.max(0, Number(type.capacity) - sold - free),
+      };
+    }),
+  };
 }

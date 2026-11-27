@@ -37,6 +37,14 @@ export const bookingErrors = {
       "TICKET_TYPE_NOT_FOUND",
       `Hạng vé ${id} không tồn tại trong sự kiện`,
     ),
+  saleNotOpen: () =>
+    err("BAD_REQUEST", "SALE_NOT_OPEN", "Hạng vé đang ngoài thời gian mở bán"),
+  maxPerOrderExceeded: (limit: number) =>
+    err(
+      "BAD_REQUEST",
+      "MAX_PER_ORDER_EXCEEDED",
+      `Hạng vé này cho mua tối đa ${limit} vé mỗi đơn`,
+    ),
   duplicateSeats: () =>
     err(
       "BAD_REQUEST",

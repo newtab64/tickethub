@@ -5,7 +5,7 @@ export const PublicTicketTypeSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   // Cot numeric cua PostgreSQL tra ve dang chuoi "600000.00".
-  price: z.coerce.number().int().nonnegative(),
+  price: z.coerce.number().nonnegative(),
   capacity: z.number().int().nonnegative(),
   heldCount: z.number().int().nonnegative(),
   soldCount: z.number().int().nonnegative(),

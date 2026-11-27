@@ -28,8 +28,9 @@ export function BookingPage() {
     queryKey: ["public-event", id],
     queryFn: () => fetchPublicEvent(id),
     retry: false,
-    // Ton ve thay doi lien tuc khi nhieu nguoi cung mua.
-    refetchInterval: 10_000,
+    // Ton ve thay doi lien tuc khi nhieu nguoi cung mua. Khi chua tai duoc thi
+    // khong tu goi lai, neu khong man hinh loi bi thay bang man hinh cho.
+    refetchInterval: (q) => (q.state.data ? 10_000 : false),
   });
 
   if (query.data === null) notFound();

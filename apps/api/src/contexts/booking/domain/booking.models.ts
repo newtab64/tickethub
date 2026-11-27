@@ -24,6 +24,9 @@ export interface BookingTicketType {
   id: string;
   price: string;
   isSeated: boolean;
+  saleStartTime: Date;
+  saleEndTime: Date;
+  maxPerOrder: number;
 }
 
 export interface BookingEventRef {

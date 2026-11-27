@@ -119,7 +119,9 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
           </div>
         ) : (
           filteredListings.map((listing) => {
-            const isHovered = hoveredZoneId === listing.zoneId;
+            // Hang ve khong gan khu co zoneId rong, khong duoc coi la cung mot khu.
+            const isHovered =
+              listing.zoneId !== "" && hoveredZoneId === listing.zoneId;
             const isSelected = selectedListing?.id === listing.id;
             const blocked = listingBlockReason(listing, ticketQuantity);
             const isAvailable = blocked === null;
