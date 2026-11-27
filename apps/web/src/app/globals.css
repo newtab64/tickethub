@@ -21,6 +21,8 @@
   --color-checkout-border: var(--checkout-border);
   --color-gateway: var(--gateway);
   --color-gateway-soft: var(--gateway-soft);
+  --color-fill: var(--fill);
+  --color-fill-hover: var(--fill-hover);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-success-border: var(--success-border);
@@ -92,6 +94,8 @@
   --success: #047857;
   --success-soft: #ecfdf5;
   --success-border: #a7f3d0;
+  --fill: #e1e4e8;
+  --fill-hover: #d0d5db;
   --radius: 12px;
   --auth-stage-offset: 0px;
 }

@@ -15,32 +15,37 @@ export function FlowShell({
   footer,
   className,
   mainClassName,
+  header,
 }: {
   title?: string;
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
   mainClassName?: string;
+  /** Thay header mac dinh; cac trang chua doi sang header chung de trong. */
+  header?: ReactNode;
 }) {
   return (
     <div
       className={cn("min-h-screen bg-background text-foreground", className)}
     >
-      <header className="px-4 pt-3 sm:px-6">
-        <nav
-          className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-3 rounded-full border border-border bg-background px-4 shadow-sm sm:px-6"
-          aria-label="Điều hướng mua vé"
-        >
-          <Logo />
-          <Link
-            href="/buyer/orders"
-            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:border-primary sm:text-sm"
+      {header ?? (
+        <header className="px-4 pt-3 sm:px-6">
+          <nav
+            className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-3 rounded-full border border-border bg-background px-4 shadow-sm sm:px-6"
+            aria-label="Điều hướng mua vé"
           >
-            <ReceiptText className="size-4 shrink-0" aria-hidden="true" />
-            Đơn hàng của tôi
-          </Link>
-        </nav>
-      </header>
+            <Logo />
+            <Link
+              href="/buyer/orders"
+              className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:border-primary sm:text-sm"
+            >
+              <ReceiptText className="size-4 shrink-0" aria-hidden="true" />
+              Đơn hàng của tôi
+            </Link>
+          </nav>
+        </header>
+      )}
       <main
         className={cn(
           "mx-auto max-w-[1248px] px-4 pt-8 pb-12 sm:px-6 sm:pt-10",
