@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Heart, ChevronDown, ShieldCheck, User, Search } from "lucide-react";
+import { EventPoster, formatEventDateTime } from "@/features/event";
 import type { BookingScreen } from "./use-booking-screen";
 
 /** Thanh dau trang: thong tin su kien, tim kiem va tai khoan. */
@@ -15,17 +15,10 @@ export function BookingHeader({ vm }: { vm: BookingScreen }) {
       <div className="flex items-center gap-3.5 min-w-0">
         <Link
           href="/"
-          className="size-11 rounded-[8px] overflow-hidden bg-[#eff1f2] shrink-0 border border-[#dfe3e5] hover:opacity-90 transition-opacity"
+          className="relative size-11 rounded-[8px] overflow-hidden bg-[#eff1f2] shrink-0 border border-[#dfe3e5] hover:opacity-90 transition-opacity"
           title="Về trang chủ"
         >
-          <Image
-            src={event.image}
-            alt={event.title}
-            width={44}
-            height={44}
-            unoptimized
-            className="w-full h-full object-cover"
-          />
+          <EventPoster event={event} sizes="44px" labeled />
         </Link>
 
         <div className="min-w-0">
@@ -33,10 +26,10 @@ export function BookingHeader({ vm }: { vm: BookingScreen }) {
             {event.title}
           </h1>
           <div className="flex flex-wrap items-center gap-x-2 text-[12px] text-[#606970] truncate pt-0.5">
-            <span>{event.fullDateTime}</span>
+            <span>{formatEventDateTime(event.startTime)}</span>
             <span className="hidden sm:inline text-[#cbd5e1]">•</span>
             <span className="hidden sm:inline truncate text-[#868f97]">
-              {event.venue}, {event.city}
+              {event.venueName}, {event.city}
             </span>
           </div>
         </div>

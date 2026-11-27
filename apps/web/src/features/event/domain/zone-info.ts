@@ -12,15 +12,17 @@ export function buildZoneInfoMap(
 ): Record<string, ZoneInfo> {
   const map: Record<string, ZoneInfo> = {};
   for (const listing of listings) {
+    if (!listing.zoneId) continue;
+    const count = listing.onSale ? listing.availableTickets : 0;
     const zone = map[listing.zoneId];
     if (zone) {
       zone.minPrice = Math.min(zone.minPrice, listing.price);
-      zone.count += listing.availableTickets;
+      zone.count += count;
     } else {
       map[listing.zoneId] = {
         name: listing.zoneName,
         minPrice: listing.price,
-        count: listing.availableTickets,
+        count,
       };
     }
   }

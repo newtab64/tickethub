@@ -22,21 +22,16 @@ export interface EventItem {
   trendingOrder?: number;
 }
 
+/** Mot hang ve tren man hinh dat ve. */
 export interface TicketListing {
   id: string;
   eventId: string;
+  /** Ma data-zone tren so do; rong khi hang ve khong gan khu. */
   zoneId: string;
   zoneName: string;
-  section: string;
-  row?: string;
-  seatInfo: string;
   price: number;
-  originalPrice?: number;
   availableTickets: number;
-  dealScore: number;
-  dealLabel: "Tuyệt vời" | "Rất tốt" | "Tốt";
-  features: string[];
-  viewFromSeatUrl: string;
-  isLastTickets?: boolean;
-  isStanding?: boolean;
+  maxPerOrder: number;
+  onSale: boolean;
+  isStanding: boolean;
 }

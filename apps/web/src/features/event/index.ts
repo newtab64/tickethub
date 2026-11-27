@@ -1,7 +1,6 @@
 // API cong khai cua feature event
 export { EVENTS, getEventById } from "./api/event-catalog";
-export { getEventListings } from "./data/event-listings";
-export { getEventVenueMapKey } from "./domain/event-listings";
+export { eventMapKey, toTicketListings } from "./domain/ticket-listings";
 export type {
   CategoryCode,
   EventItem,
