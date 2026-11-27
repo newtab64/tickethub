@@ -64,7 +64,7 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
           <button
             type="button"
             onClick={() => setShowQtyModal(true)}
-            className="h-9 px-3.5 rounded-[8px] border border-[#dfe3e5] hover:border-primary hover:bg-emerald-50/40 text-[13px] font-bold text-[#141d23] flex items-center gap-2 transition-colors"
+            className="h-9 px-3.5 rounded-[8px] border border-[#dfe3e5] hover:border-primary hover:bg-accent/40 text-[13px] font-bold text-[#141d23] flex items-center gap-2 transition-colors"
           >
             <Users className="size-4 text-primary" />
             <span>{ticketQuantity} vé</span>
@@ -112,7 +112,7 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
             <button
               type="button"
               onClick={() => setActiveZoneId(null)}
-              className="px-4 py-2 rounded-[8px] bg-primary text-white text-[13px] font-bold hover:bg-emerald-700 transition-colors"
+              className="px-4 py-2 rounded-[8px] bg-primary text-white text-[13px] font-bold hover:bg-primary-strong transition-colors"
             >
               Xem tất cả các khu vực
             </button>
@@ -142,7 +142,7 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
                   !isAvailable
                     ? "bg-muted opacity-60 cursor-not-allowed border-l-4 border-l-border"
                     : isSelected
-                      ? "bg-emerald-50/70 border-l-4 border-l-primary cursor-pointer"
+                      ? "bg-accent/70 border-l-4 border-l-primary cursor-pointer"
                       : isHovered
                         ? "bg-muted cursor-pointer"
                         : "hover:bg-muted cursor-pointer"

@@ -115,7 +115,7 @@ function PublicHeaderInner() {
         return (
           <Badge
             variant="outline"
-            className="border-emerald-300 bg-emerald-50 text-emerald-700 text-[10px] font-semibold"
+            className="border-primary/20 bg-accent text-primary text-[10px] font-semibold"
           >
             Ban tổ chức
           </Badge>
@@ -161,7 +161,7 @@ function PublicHeaderInner() {
                   aria-current={active ? "page" : undefined}
                   className={`inline-flex h-9 items-center rounded-full px-3.5 transition-colors ${
                     active
-                      ? "bg-emerald-50 text-primary font-semibold"
+                      ? "bg-accent text-primary font-semibold"
                       : "hover:bg-slate-100 hover:text-primary"
                   }`}
                 >
@@ -197,7 +197,7 @@ function PublicHeaderInner() {
               </Link>
               <Link
                 href="/organizer/events/new"
-                className="hidden sm:inline-flex items-center gap-1 text-emerald-600 font-semibold hover:text-emerald-700 transition-colors"
+                className="hidden sm:inline-flex items-center gap-1 text-primary font-semibold hover:text-primary-strong transition-colors"
               >
                 <Plus className="size-3.5" />
                 <span>Tạo sự kiện</span>
@@ -229,7 +229,7 @@ function PublicHeaderInner() {
             <div className="flex items-center gap-3">
               <Link
                 href="/auth"
-                className="inline-flex h-10 items-center rounded-full bg-primary px-5 text-[13px] font-bold text-white hover:bg-emerald-700 transition-colors"
+                className="inline-flex h-10 items-center rounded-full bg-primary px-5 text-[13px] font-bold text-white hover:bg-primary-strong transition-colors"
               >
                 Đăng nhập
               </Link>
@@ -246,7 +246,7 @@ function PublicHeaderInner() {
                 onClick={() => setIsDropdownOpen((prev) => !prev)}
                 className="inline-flex items-center gap-2 h-9 px-2.5 rounded-lg border border-border bg-white hover:bg-slate-50 text-xs sm:text-sm font-medium text-[#141d23] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
               >
-                <div className="size-6 rounded-full bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center justify-center">
+                <div className="size-6 rounded-full bg-accent text-accent-foreground font-bold text-xs flex items-center justify-center">
                   {user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
                 </div>
                 <span className="max-w-[120px] sm:max-w-[160px] truncate font-medium text-left">
@@ -299,7 +299,7 @@ function PublicHeaderInner() {
                           onClick={() => setIsDropdownOpen(false)}
                           className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-foreground hover:bg-slate-100 transition-colors"
                         >
-                          <Calendar className="size-4 text-emerald-600" />
+                          <Calendar className="size-4 text-primary" />
                           <span>Quản lý sự kiện</span>
                         </Link>
                         <Link
@@ -308,7 +308,7 @@ function PublicHeaderInner() {
                           onClick={() => setIsDropdownOpen(false)}
                           className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-foreground hover:bg-slate-100 transition-colors"
                         >
-                          <Plus className="size-4 text-emerald-600" />
+                          <Plus className="size-4 text-primary" />
                           <span>Tạo sự kiện mới</span>
                         </Link>
                         <Link
@@ -317,7 +317,7 @@ function PublicHeaderInner() {
                           onClick={() => setIsDropdownOpen(false)}
                           className="flex items-center gap-2.5 px-3 py-2 rounded-lg font-medium text-foreground hover:bg-slate-100 transition-colors"
                         >
-                          <Building2 className="size-4 text-emerald-600" />
+                          <Building2 className="size-4 text-primary" />
                           <span>Hồ sơ Ban tổ chức</span>
                         </Link>
                       </>

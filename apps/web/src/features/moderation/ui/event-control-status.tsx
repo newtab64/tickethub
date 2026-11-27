@@ -7,7 +7,7 @@ export function EventControlStatus({ status }: { status: string }) {
         suspended
           ? "bg-destructive/10 text-destructive"
           : published
-            ? "bg-accent text-accent-foreground"
+            ? "bg-success-soft text-success"
             : "bg-secondary text-secondary-foreground"
       }`}
     >

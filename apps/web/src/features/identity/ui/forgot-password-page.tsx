@@ -58,7 +58,7 @@ export function ForgotPasswordPage() {
   return (
     <Card className="shadow-lg shadow-slate-900/5 border-slate-200/90 rounded-2xl bg-white">
       <CardHeader className="text-center space-y-2 pb-2">
-        <div className="mx-auto size-11 rounded-full bg-emerald-50 border border-emerald-200/80 text-primary flex items-center justify-center">
+        <div className="mx-auto size-11 rounded-full bg-accent border border-primary/20 text-primary flex items-center justify-center">
           <KeyRound className="size-5" />
         </div>
         <CardTitle className="text-2xl font-bold text-slate-900">
@@ -71,7 +71,7 @@ export function ForgotPasswordPage() {
 
       {sentSuccess ? (
         <CardContent className="space-y-4 py-4 text-center">
-          <div className="inline-flex items-center gap-2 p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-xl text-xs sm:text-sm font-medium">
+          <div className="inline-flex items-center gap-2 p-3 bg-success-soft border border-success-border text-success rounded-xl text-xs sm:text-sm font-medium">
             <CheckCircle2 className="size-4 shrink-0" />
             <span>
               Chúng tôi đã gửi hướng dẫn đặt lại mật khẩu về email của bạn.

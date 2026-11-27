@@ -27,7 +27,7 @@ function renderStatusBadge(status?: OrganizerVerificationStatus) {
   switch (status) {
     case "VERIFIED":
       return (
-        <Badge className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/20">
+        <Badge className="bg-success-soft text-success border-success-border">
           Đã xác minh (VERIFIED)
         </Badge>
       );
@@ -331,7 +331,7 @@ export function OrganizerProfilePage() {
       {profile?.status === "VERIFIED" && (
         <div
           role="status"
-          className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-sm"
+          className="p-4 rounded-lg bg-success-soft border border-success-border text-success text-sm"
         >
           Hồ sơ Ban tổ chức đã được xác minh hợp lệ. Bạn có toàn quyền tạo và
           gửi xuất bản sự kiện mới.
@@ -341,7 +341,7 @@ export function OrganizerProfilePage() {
       {savedMessage && (
         <div
           role="status"
-          className="p-3 rounded-md bg-primary/10 border border-primary/20 text-primary text-sm font-medium"
+          className="p-3 rounded-md bg-success-soft border border-success-border text-success text-sm font-medium"
         >
           {savedMessage}
         </div>

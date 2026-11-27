@@ -186,7 +186,7 @@ export function ReconciliationView() {
                     <TableCell
                       className={
                         row.reconciliationStatus === "MATCHED"
-                          ? "text-emerald-700"
+                          ? "text-success"
                           : "text-destructive"
                       }
                     >

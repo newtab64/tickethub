@@ -11,7 +11,7 @@ export default function NotFound() {
       </header>
 
       <main className="max-w-md w-full mx-auto text-center space-y-4 my-auto py-12">
-        <div className="size-12 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-primary flex items-center justify-center mx-auto">
+        <div className="size-12 rounded-2xl bg-accent border border-primary/20 text-primary flex items-center justify-center mx-auto">
           <Ticket className="size-6" />
         </div>
         <h1 className="text-2xl font-bold text-slate-900">

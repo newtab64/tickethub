@@ -87,7 +87,7 @@ export function BookingHeader({ vm }: { vm: BookingScreen }) {
             </Link>
             <Link
               href="/organizer/events/new"
-              className="hidden sm:inline-flex items-center gap-1 text-emerald-600 font-semibold hover:text-emerald-700 transition-colors text-[13px]"
+              className="hidden sm:inline-flex items-center gap-1 text-primary font-semibold hover:text-primary-strong transition-colors text-[13px]"
             >
               <span>Tạo sự kiện</span>
             </Link>
@@ -123,7 +123,7 @@ export function BookingHeader({ vm }: { vm: BookingScreen }) {
             <Link
               href="/auth"
               aria-label="Đăng nhập"
-              className="size-8 rounded-full bg-[#eff1f2] hover:bg-emerald-50 hover:text-primary flex items-center justify-center text-[#141d23] transition-colors shrink-0"
+              className="size-8 rounded-full bg-[#eff1f2] hover:bg-accent hover:text-primary flex items-center justify-center text-[#141d23] transition-colors shrink-0"
             >
               <User className="size-4 fill-current" />
             </Link>
@@ -139,7 +139,7 @@ export function BookingHeader({ vm }: { vm: BookingScreen }) {
             }
             className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-[#141d23] transition-colors"
           >
-            <div className="size-5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] flex items-center justify-center">
+            <div className="size-5 rounded-full bg-accent text-accent-foreground font-bold text-[10px] flex items-center justify-center">
               {user.fullName ? user.fullName.charAt(0).toUpperCase() : "U"}
             </div>
             <span className="max-w-[100px] truncate">

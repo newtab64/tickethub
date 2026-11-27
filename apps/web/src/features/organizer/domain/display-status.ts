@@ -34,7 +34,7 @@ export function getDisplayStatus(event: OrganizerEventItem): DisplayStatusMeta {
       return {
         key: EventStatus.PUBLISHED,
         label: "Đang mở bán",
-        badgeClass: "bg-emerald-50 text-emerald-800 border-emerald-200",
+        badgeClass: "bg-success-soft text-success border-success-border",
       };
     case EventStatus.DRAFT:
       return {

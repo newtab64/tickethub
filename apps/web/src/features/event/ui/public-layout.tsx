@@ -29,7 +29,7 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
                 >
                   <path
                     d="M14.487 19.103l6.112-6.116 2.245 2.247-8.357 8.363-5.737-5.742 2.245-2.246 3.492 3.494zM15.735.131L31.45 5.374v13.23c0 4.743-1.996 9.237-5.488 12.357l-5.239 4.743-3.616-.998 6.86-6.116c2.868-2.497 4.49-6.116 4.49-9.986V7.745L15.858 3.501 3.262 7.745v11.109c0 3.744 1.622 7.489 4.49 9.985l8.107 7.24 2.37 2.121-2.37 2.122-10.227-9.111C2.14 28.09.144 23.597.144 18.854V5.498L15.734.131z"
-                    fill="#059669"
+                    fill="var(--primary)"
                   />
                 </svg>
                 <span className="font-extrabold text-[17px] tracking-tight text-[#141d23]">
@@ -39,19 +39,19 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
               <ul className="space-y-3 text-[12.5px] text-[#2b343a]">
                 <li className="flex items-center gap-2.5">
-                  <span className="size-6 rounded-full bg-emerald-50 text-primary flex items-center justify-center shrink-0">
+                  <span className="size-6 rounded-full bg-accent text-primary flex items-center justify-center shrink-0">
                     <ShieldCheck className="size-3.5" />
                   </span>
                   <span>Vé chính thức 100% từ Ban tổ chức</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="size-6 rounded-full bg-emerald-50 text-primary flex items-center justify-center shrink-0">
+                  <span className="size-6 rounded-full bg-accent text-primary flex items-center justify-center shrink-0">
                     <Clock className="size-3.5" />
                   </span>
                   <span>Giữ chỗ riêng 5 phút khi thanh toán</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="size-6 rounded-full bg-emerald-50 text-primary flex items-center justify-center shrink-0">
+                  <span className="size-6 rounded-full bg-accent text-primary flex items-center justify-center shrink-0">
                     <RefreshCcw className="size-3.5" />
                   </span>
                   <span>Hoàn tiền đầy đủ nếu sự kiện bị hủy</span>

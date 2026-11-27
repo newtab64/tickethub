@@ -83,9 +83,7 @@ export function SubtotalModal({
           </div>
           <div className="flex items-center justify-between text-muted-foreground text-[12.5px]">
             <span>Phí dịch vụ &amp; nền tảng:</span>
-            <span className="font-semibold text-emerald-600">
-              Miễn phí (0đ)
-            </span>
+            <span className="font-semibold text-success">Miễn phí (0đ)</span>
           </div>
           <div className="border-t border-border pt-2 flex items-center justify-between">
             <span className="font-extrabold text-foreground text-[14px]">
@@ -100,7 +98,7 @@ export function SubtotalModal({
         </div>
 
         {/* Trust badge */}
-        <div className="flex items-center gap-2 text-[12px] text-muted-foreground bg-emerald-50/70 border border-emerald-100 rounded-[8px] p-2.5">
+        <div className="flex items-center gap-2 text-[12px] text-muted-foreground bg-accent/70 border border-primary/20 rounded-[8px] p-2.5">
           <ShieldCheck className="size-4 text-primary shrink-0" />
           <span>
             Thanh toán an toàn qua cổng VNPay với cam kết 100% vé chính hãng.
@@ -117,7 +115,7 @@ export function SubtotalModal({
                 router.push(`/checkout?orderId=${holdOrderId}`);
               }
             }}
-            className="w-full h-11 rounded-[10px] bg-primary hover:bg-emerald-700 text-white text-[14px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            className="w-full h-11 rounded-[10px] bg-primary hover:bg-primary-strong text-white text-[14px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
           >
             <CheckCircle2 className="size-4.5" />
             Tiếp tục đến trang Thanh toán

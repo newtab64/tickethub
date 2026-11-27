@@ -56,7 +56,7 @@ export function QuantityModal({ vm }: { vm: BookingScreen }) {
         <button
           type="button"
           onClick={() => setShowQtyModal(false)}
-          className="w-full h-11 rounded-[10px] bg-primary hover:bg-emerald-700 text-white font-bold text-[14px] transition-colors shadow-xs"
+          className="w-full h-11 rounded-[10px] bg-primary hover:bg-primary-strong text-white font-bold text-[14px] transition-colors shadow-xs"
         >
           Tiếp tục
         </button>

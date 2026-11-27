@@ -16,7 +16,7 @@ export function AuthLayout({ children }: { children: React.ReactNode }) {
   const isBuyerActive = roleTab === "BUYER";
 
   return (
-    <div className="min-h-[100dvh] flex flex-col justify-between bg-background text-foreground selection:bg-primary/20">
+    <div className="min-h-[100dvh] flex flex-col justify-between bg-background text-foreground">
       {/* Main Two-Column Container */}
       <div className="flex-1 flex flex-col lg:flex-row items-stretch">
         {/* ========================================================

@@ -21,7 +21,7 @@ import {
 const AVAILABILITY_CLASS: Record<AvailabilityLabel, string> = {
   "Hết vé": "bg-slate-100 text-slate-600",
   "Sắp hết": "bg-amber-50 text-amber-700",
-  "Còn vé": "bg-emerald-50 text-emerald-700",
+  "Còn vé": "bg-success-soft text-success",
 };
 
 /** Trang gioi thieu su kien (landing page SEO), render phia may chu. */
@@ -220,7 +220,7 @@ export function EventDetailPage({ event }: { event: PublicEvent }) {
           </div>
           <Link
             href={bookingHref}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-primary text-sm font-bold text-white hover:bg-primary-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
             <Ticket className="size-4" /> Mua vé ngay
           </Link>
