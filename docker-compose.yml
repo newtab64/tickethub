@@ -45,6 +45,10 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3000
+      # Web doc su kien o phia may chu; trong container, localhost khong phai may chay API.
+      - API_URL=${WEB_API_URL:-http://host.docker.internal:4000/api/v1}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
 
 
 volumes:
