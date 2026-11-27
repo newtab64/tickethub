@@ -40,7 +40,13 @@ async function ensureSeats(tx: Tx, eventId: string) {
 async function insertEvent(tx: Tx, organizerId: string, seed: SeedEvent) {
   const { daysFromNow, ticketTypes: types, ...fields } = seed;
   const now = Date.now();
-  const start = now + daysFromNow * 24 * HOUR;
+  // 13:00 UTC la 20:00 gio Viet Nam.
+  const start = new Date(now + daysFromNow * 24 * HOUR).setUTCHours(
+    13,
+    0,
+    0,
+    0,
+  );
   const [event] = await tx
     .insert(events)
     .values({
