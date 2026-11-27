@@ -14,7 +14,11 @@ test.describe("UC07: Tạo sự kiện, Sơ đồ ghế & Hạng vé (Organizer)
   test("TC01 - Hiển thị giao diện tạo sự kiện (Wizard)", async ({ page }) => {
     await page.goto("/organizer/events/new");
     await expect(page).toHaveURL("/organizer/events/new");
-    await expect(page.locator("h1")).toContainText(/tạo sự kiện/i);
+    // Khi tai trang, React giu them mot ban sao an cua noi dung trong chot lat.
+    // Truy van theo role bo qua phan an nen chi thay tieu de dang hien thi.
+    await expect(
+      page.getByRole("heading", { level: 1, name: /tạo sự kiện/i }),
+    ).toBeVisible();
   });
 
   test("TC02 - Cấu hình Sơ đồ ghế & Thêm Hạng vé", async () => {
