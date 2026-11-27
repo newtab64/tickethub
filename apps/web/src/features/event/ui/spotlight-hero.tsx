@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { formatVnd } from "@/shared/lib/format";
-import { type EventItem } from "../domain/event.types";
+import type { EventCard } from "../domain/event-discovery";
+import { formatEventDateTime } from "../domain/event-format";
+import { EventPoster } from "./event-poster";
 
 const ROTATE_MS = 6000;
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -25,7 +26,7 @@ function usePrefersReducedMotion() {
   );
 }
 
-export function SpotlightHero({ events }: { events: EventItem[] }) {
+export function SpotlightHero({ events }: { events: EventCard[] }) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const reducedMotion = usePrefersReducedMotion();
@@ -57,15 +58,12 @@ export function SpotlightHero({ events }: { events: EventItem[] }) {
         className={`absolute inset-y-0 right-0 w-full md:w-[72%] ${index === 0 ? "" : "animate-in fade-in duration-700"}`}
         style={{ maskImage: FADE_MASK, WebkitMaskImage: FADE_MASK }}
       >
-        <Image
-          src={active.image}
-          alt={`Poster ${active.title}`}
-          fill
-          fetchPriority={index === 0 ? "high" : "auto"}
-          loading="eager"
-          quality={60}
+        <EventPoster
+          event={active}
           sizes="(max-width: 768px) 100vw, 72vw"
-          className="object-cover object-[center_30%]"
+          eager={index === 0}
+          imageClassName="object-[center_30%]"
+          labeled
         />
       </div>
       {/* Chi lam toi phan day de chu ro tren man hinh nho */}
@@ -80,23 +78,25 @@ export function SpotlightHero({ events }: { events: EventItem[] }) {
             {active.title}
           </h2>
           <p className="mt-3 text-sm sm:text-base text-slate-200 [text-shadow:0_1px_8px_rgba(0,0,0,0.5)]">
-            {active.dateRange}
+            {formatEventDateTime(active.startTime)}
             <span className="mx-2 text-slate-400">|</span>
-            {active.venue}, {active.city}
+            {active.venueName}, {active.city}
           </p>
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <Link
-              href={`/events/${active.id}`}
+              href={`/events/${active.slug}`}
               className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-7 text-sm font-bold text-white hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-dark"
             >
               Xem sự kiện <ArrowRight className="size-4" />
             </Link>
-            <p className="text-sm text-slate-200">
-              Từ{" "}
-              <strong className="text-lg text-white">
-                {formatVnd(active.minPriceNumber)}
-              </strong>
-            </p>
+            {active.minPrice !== null && (
+              <p className="text-sm text-slate-200">
+                Từ{" "}
+                <strong className="text-lg text-white">
+                  {formatVnd(active.minPrice)}
+                </strong>
+              </p>
+            )}
           </div>
 
           {count > 1 && (
@@ -120,14 +120,7 @@ export function SpotlightHero({ events }: { events: EventItem[] }) {
                         : "opacity-60 hover:opacity-100"
                     }`}
                   >
-                    <Image
-                      src={ev.image}
-                      alt=""
-                      fill
-                      sizes="80px"
-                      fetchPriority="low"
-                      className="object-cover"
-                    />
+                    <EventPoster event={ev} sizes="80px" />
                   </button>
                 );
               })}
