@@ -18,6 +18,18 @@ import {
   RefundPolicyType,
   SeatStatus,
 } from "@tickethub/shared";
+import { eq } from "drizzle-orm";
+import { seedCatalog } from "./seed-catalog";
+
+async function seedSampleCatalog() {
+  const [profile] = await db
+    .select({ id: organizerProfiles.id })
+    .from(organizerProfiles)
+    .innerJoin(users, eq(users.id, organizerProfiles.userId))
+    .where(eq(users.email, "organizer@tickethub.vn"));
+  if (!profile) throw new Error("Seed organizer profile not found");
+  await seedCatalog(profile.id);
+}
 
 async function seed() {
   console.log("Seeding initial database records...");
@@ -78,7 +90,8 @@ async function seed() {
     .onConflictDoNothing();
 
   if (!organizerUser) {
-    console.log("Seed data already present. Skipping insertion.");
+    console.log("Base seed data already present. Updating sample events.");
+    await seedSampleCatalog();
     await sqlClient.end();
     return;
   }
@@ -411,6 +424,8 @@ async function seed() {
       ])
       .onConflictDoNothing();
   }
+
+  await seedSampleCatalog();
 
   console.log("Database seeded successfully.");
   await sqlClient.end();
