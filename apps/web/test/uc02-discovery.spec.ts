@@ -49,3 +49,54 @@ test("Bộ lọc thể loại và thành phố lọc sự kiện thật", async 
     page.getByText("Không có sự kiện phù hợp với bộ lọc"),
   ).toBeVisible();
 });
+
+test("Ô tìm kiếm trên header gợi ý sự kiện thật", async ({ page }) => {
+  await page.goto("/faq");
+  await page.getByRole("button", { name: "Tìm kiếm sự kiện" }).click();
+  await page.getByRole("search").getByRole("textbox").fill("ghibli");
+  await expect(
+    page.getByRole("search").getByRole("link", { name: /Ghibli/ }),
+  ).toHaveAttribute("href", "/events/giao-huong-ghibli-ha-noi");
+});
+
+test("Ô tìm kiếm báo lỗi khi API không phản hồi", async ({ page }) => {
+  await page.route("**/api/v1/events?*", (route) =>
+    route.abort("connectionrefused"),
+  );
+  await page.goto("/faq");
+  await page.getByRole("button", { name: "Tìm kiếm sự kiện" }).click();
+  await page.getByRole("search").getByRole("textbox").fill("ghibli");
+  await expect(page.getByRole("search")).toContainText(
+    "Không tải được sự kiện.",
+  );
+});
+
+test("Header đánh dấu thể loại của sự kiện đang xem", async ({ page }) => {
+  await page.goto("/events/a-o-show");
+  await expect(
+    page
+      .getByRole("banner")
+      .getByRole("link", { name: "Sân khấu & Hài kịch", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+});
+
+test("Vé của tôi dẫn tới đơn hàng thật, không dựng vé từ URL", async ({
+  page,
+  request,
+}) => {
+  const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
+  const login = await request.post(`${api}/auth/login`, {
+    data: { email: "buyer@tickethub.vn", password: "Password123!" },
+  });
+  const { data } = await login.json();
+  await page.context().addCookies([
+    {
+      name: "accessToken",
+      value: data.accessToken,
+      url: "http://localhost:3000",
+    },
+  ]);
+  await page.goto("/my-tickets?order=ORD-GIA-1&zone=VIP");
+  await expect(page).toHaveURL(/\/buyer\/orders$/);
+  await expect(page.getByText("ORD-GIA-1")).toHaveCount(0);
+});

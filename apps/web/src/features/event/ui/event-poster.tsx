@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import { useState } from "react";
-import { getEventById } from "../api/event-catalog";
 import { ImagePlaceholder } from "@/shared/ui/image-placeholder";
 
 export function EventPoster({
@@ -18,17 +17,9 @@ export function EventPoster({
   eager?: boolean;
   imageClassName?: string;
 }) {
-  const catalogImage = getEventById(event.id)?.image;
-  // Ảnh của sự kiện seed nằm trong thư mục public.
-  const seedImage =
-    event.bannerUrl === "https://cdn.tickethub.vn/banners/mua-thu-2026.webp"
-      ? "/images/events/vn/anh-trai.jpg"
-      : undefined;
   const banner = event.bannerUrl?.trim();
   const src =
-    catalogImage ??
-    seedImage ??
-    (banner && /^(\/[^/\\]|https?:\/\/)/i.test(banner) ? banner : undefined);
+    banner && /^(\/[^/\\]|https?:\/\/)/i.test(banner) ? banner : undefined;
   const [failedSrc, setFailedSrc] = useState<string>();
 
   if (!src || failedSrc === src) {
