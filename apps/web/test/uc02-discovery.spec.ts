@@ -34,7 +34,8 @@ test("Bộ lọc thể loại và thành phố lọc sự kiện thật", async 
   await expect(card(/À Ố Show/)).toHaveCount(0);
 
   await page.getByRole("button", { name: "Tất cả", exact: true }).click();
-  const city = page.getByTestId("city-filter");
+  // Khi dang tai, React co them mot ban sao an cua noi dung duoc stream.
+  const city = page.getByTestId("city-filter").filter({ visible: true });
   for (let i = 0; i < 4; i++) {
     if ((await city.textContent())?.includes("Đà Nẵng")) break;
     await city.click();

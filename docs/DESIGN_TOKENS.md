@@ -42,6 +42,8 @@ Quy tắc trình bày chung nằm ở [DESIGN_STANDARD.md](DESIGN_STANDARD.md).
 | `--success`            | `#047857` | Chữ và biểu tượng báo thành công, còn vé  |
 | `--success-soft`       | `#ecfdf5` | Nền thông báo thành công                  |
 | `--success-border`     | `#a7f3d0` | Viền thông báo thành công                 |
+| `--fill`               | `#e1e4e8` | Nền nút phụ trên header và dòng thu gọn   |
+| `--fill-hover`         | `#d0d5db` | Nền nút phụ khi rê chuột                  |
 
 Bóng đổ (khai báo trong `@theme inline`): `--shadow-sheet` cho thẻ thanh toán, `--shadow-pay-bar` cho thanh thanh toán trên điện thoại.
 

@@ -9,7 +9,13 @@ import { apiClient } from "@/shared/api/client";
 import { Button } from "@/shared/ui/button";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { MyTicketsLink, SiteHeader } from "@/shared/ui/site-header";
-import { canShowQr, noQrReason, primaryAction } from "../domain/ticket-qr";
+import {
+  canShowQr,
+  listedTickets,
+  noQrReason,
+  primaryAction,
+  seatDetail,
+} from "../domain/ticket-qr";
 import { OrderDetails } from "./order-details";
 import { OrderTicketsCard } from "./order-tickets-card";
 import { RefundDialog } from "./refund-dialog";
@@ -46,12 +52,13 @@ function OrderDetail({ id }: { id: string }) {
     );
   }
 
-  const qrTickets = order.tickets
+  // Cung thu tu voi danh sach tren the.
+  const qrTickets = listedTickets(order)
     .filter((ticket) => canShowQr(ticket, order.event.status))
     .map((ticket) => ({
       id: ticket.id,
       title: ticket.ticketTypeName,
-      detail: ticket.seatInfo.formattedLabel,
+      detail: seatDetail(ticket),
       code: ticket.ticketCode,
     }));
   const action = primaryAction(order);

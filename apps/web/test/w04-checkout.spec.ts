@@ -5,12 +5,11 @@ import {
   type Page,
   type Locator,
 } from "@playwright/test";
-import { createHmac } from "node:crypto";
 import {
   HoldSeatsResponseDataSchema,
   BuyerOrderDetailSchema,
-  VnpayPaymentResponseSchema,
 } from "@tickethub/shared";
+import { payByLocalIpn } from "./helpers/paid-order";
 
 // Chạy trên API trỏ tới database _test, PostgreSQL/Redis thật và dữ liệu seed.
 const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
@@ -594,38 +593,6 @@ test("Nút thanh toán dùng URL backend và chuyển VNPay không hủy chỗ",
   expect(result.data.status).toBe("PENDING");
 });
 
-/** Xac nhan don bang IPN cuc bo, ky bang khoa thu nghiem cua API rieng. */
-async function payByLocalIpn(request: APIRequestContext, orderId: string) {
-  const payment = VnpayPaymentResponseSchema.parse(
-    (
-      await (
-        await request.post(`${api}/payments/orders/${orderId}/vnpay`, {
-          headers: headers(),
-        })
-      ).json()
-    ).data,
-  );
-  const params = new URLSearchParams({
-    vnp_TmnCode: process.env.W04_VNPAY_TEST_TMN || "W04LOCALTEST",
-    vnp_TxnRef: payment.transactionRef,
-    vnp_Amount: String(payment.amountVnd * 100),
-    vnp_ResponseCode: "00",
-    vnp_TransactionStatus: "00",
-    vnp_TransactionNo: String(Date.now()),
-    vnp_PayDate: "20261105220000",
-  });
-  params.sort();
-  const signature = createHmac(
-    "sha512",
-    process.env.W04_VNPAY_TEST_SECRET || "w04-local-signature-fixture-only",
-  )
-    .update(params.toString())
-    .digest("hex");
-  params.set("vnp_SecureHash", signature);
-  const ipn = await request.get(`${api}/payments/vnpay/ipn?${params}`);
-  expect((await ipn.json()).RspCode).toBe("00");
-}
-
 /** Vao che do hoan ve, chon dong dau tien va mo phan xem truoc. */
 async function startRefund(page: Page) {
   await page.getByText("Chi tiết đơn", { exact: true }).click();
@@ -645,7 +612,7 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
   );
   const order = await hold(request, 2);
   await loginBrowser(page);
-  await payByLocalIpn(request, order.orderId);
+  await payByLocalIpn(request, api, headers(), order.orderId);
   await page.goto(`/checkout/result?orderId=${order.orderId}`);
   await expect(
     page.getByRole("heading", { name: "Thanh toán thành công", exact: true }),
@@ -702,7 +669,7 @@ test("Mất mạng khi xác nhận hoàn vé thì gửi lại đúng yêu cầu 
   );
   const order = await hold(request, 2);
   await loginBrowser(page);
-  await payByLocalIpn(request, order.orderId);
+  await payByLocalIpn(request, api, headers(), order.orderId);
   const keys: string[] = [];
   await page.route("**/refund/request", (route) => {
     keys.push(route.request().headers()["idempotency-key"] ?? "");

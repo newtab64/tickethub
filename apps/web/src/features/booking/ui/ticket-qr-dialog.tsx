@@ -26,7 +26,12 @@ function useQrImage(token: string | null) {
   useEffect(() => {
     if (!token) return;
     let ignore = false;
-    QRCode.toDataURL(token, { margin: 0, width: 560 })
+    // Muc sua loi thap cho o ma to hon: man hinh khong bi rach hay ban.
+    QRCode.toDataURL(token, {
+      margin: 0,
+      width: 560,
+      errorCorrectionLevel: "L",
+    })
       .then((src) => {
         if (!ignore) setImage({ token, src });
       })
@@ -90,7 +95,7 @@ export function TicketQrDialog({
       {ticket && (
         <DialogContent
           showCloseButton={false}
-          className="max-h-[calc(100dvh-2rem)] max-w-90 justify-items-center gap-4 overflow-y-auto rounded-3xl p-6 text-center sm:max-w-90"
+          className="max-h-[calc(100dvh-2rem)] max-w-[min(22.5rem,calc(100%-2rem))] justify-items-center gap-4 overflow-y-auto rounded-3xl p-6 text-center sm:max-w-90"
           onKeyDown={(event) => {
             if (event.key === "ArrowRight") go(1);
             if (event.key === "ArrowLeft") go(-1);
@@ -182,7 +187,7 @@ export function TicketQrDialog({
           <button
             type="button"
             title="Chạm để sao chép"
-            className="min-h-11 cursor-pointer rounded-full px-4 text-[13px] break-all text-muted-foreground tabular-nums hover:bg-muted"
+            className="min-h-11 cursor-pointer rounded-full px-1 text-[13px] tracking-tighter break-all text-muted-foreground tabular-nums hover:bg-muted"
             onClick={() => {
               void navigator.clipboard
                 ?.writeText(ticket.code)

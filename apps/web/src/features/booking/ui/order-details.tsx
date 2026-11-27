@@ -9,6 +9,7 @@ import {
   orderStatusLabel,
   refundStatusLabel,
 } from "@/features/payment";
+import { groupOrderItems, seatDetail } from "../domain/ticket-qr";
 import type { Refund } from "./use-refund";
 
 const LINE = "flex justify-between gap-4 border-t border-border py-2";
@@ -39,10 +40,10 @@ export function OrderDetails({
       </summary>
       <div className="space-y-2 px-5 pb-4 sm:px-6">
         <dl className="text-[13px] tabular-nums">
-          {order.items.map((item) => (
-            <div key={item.id} className={LINE}>
+          {groupOrderItems(order.items).map((item) => (
+            <div key={item.key} className={LINE}>
               <dt className="text-muted-foreground">
-                {item.ticketTypeName}, {item.quantity} vé
+                {item.name}, {item.quantity} vé
               </dt>
               <dd>{money(item.subtotal)}</dd>
             </div>
@@ -68,7 +69,9 @@ export function OrderDetails({
           {cancelled.map((ticket) => (
             <div key={ticket.id} className={LINE}>
               <dt className="text-muted-foreground">Vé đã hủy</dt>
-              <dd className="text-right">{ticket.seatInfo.formattedLabel}</dd>
+              <dd className="text-right">
+                {ticket.ticketTypeName}, {seatDetail(ticket)}
+              </dd>
             </div>
           ))}
           {order.refunds.map((item) => (

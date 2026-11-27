@@ -78,9 +78,63 @@ export function noQrReason(
   return "Đơn này không còn vé hiệu lực.";
 }
 
-/** Ve hien tren the chinh; ve da huy chi ghi trong chi tiet don. */
-export function listedTickets<T extends { status: string }>(
+interface SeatedLabel {
+  isSeated?: boolean;
+  seatInfo?: {
+    rowLabel: string | null;
+    seatNumber: string | null;
+    formattedLabel: string;
+  };
+}
+
+/** Dong phu cua ve: hang va ghe; ve dung giu nguyen nhan cua backend. */
+export function seatDetail(ticket: SeatedLabel): string {
+  const seat = ticket.seatInfo;
+  if (ticket.isSeated && seat?.rowLabel && seat.seatNumber) {
+    return `Hàng ${seat.rowLabel}, ghế ${seat.seatNumber}`;
+  }
+  return seat?.formattedLabel ?? "";
+}
+
+const bySeat = new Intl.Collator("vi", { numeric: true });
+
+/** Ve hien tren the chinh theo thu tu ghe; ve da huy chi ghi trong chi tiet. */
+export function listedTickets<T extends { status: string } & SeatedLabel>(
   order: OrderForView<T>,
 ): T[] {
-  return order.tickets.filter((t) => t.status !== "CANCELLED");
+  return order.tickets
+    .filter((t) => t.status !== "CANCELLED")
+    .sort((a, b) => bySeat.compare(seatDetail(a), seatDetail(b)));
+}
+
+/** Gop cac dong cung hang ve, cung don gia (moi ghe la mot dong trong don). */
+export function groupOrderItems(
+  items: {
+    ticketTypeId: string;
+    ticketTypeName: string;
+    unitPrice: number;
+    quantity: number;
+    subtotal: number;
+  }[],
+) {
+  const groups = new Map<
+    string,
+    { key: string; name: string; quantity: number; subtotal: number }
+  >();
+  for (const item of items) {
+    const key = `${item.ticketTypeId}:${item.unitPrice}`;
+    const group = groups.get(key);
+    if (group) {
+      group.quantity += item.quantity;
+      group.subtotal += item.subtotal;
+    } else {
+      groups.set(key, {
+        key,
+        name: item.ticketTypeName,
+        quantity: item.quantity,
+        subtotal: item.subtotal,
+      });
+    }
+  }
+  return [...groups.values()];
 }

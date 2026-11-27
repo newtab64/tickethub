@@ -3,7 +3,7 @@
 import { ChevronRight } from "lucide-react";
 import type { BuyerOrderDetail } from "@tickethub/shared";
 import { EventPoster, formatEventDateTime } from "@/features/event";
-import { canShowQr, listedTickets } from "../domain/ticket-qr";
+import { canShowQr, listedTickets, seatDetail } from "../domain/ticket-qr";
 import type { Refund } from "./use-refund";
 
 const ROW =
@@ -47,7 +47,7 @@ export function OrderTicketsCard({
                 {ticket.ticketTypeName}
               </span>
               <span className="block text-[15px] text-muted-foreground">
-                {ticket.seatInfo.formattedLabel}
+                {seatDetail(ticket)}
               </span>
               {ticket.status === "CHECKED_IN" && (
                 <span className="block text-[13px] text-muted-foreground">
