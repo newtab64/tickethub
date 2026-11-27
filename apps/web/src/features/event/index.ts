@@ -22,7 +22,7 @@ export { buildZoneInfoMap, filterListingsByZone } from "./domain/zone-info";
 export type { ZoneInfo } from "./domain/zone-info";
 export { EventPoster } from "./ui/event-poster";
 export { EventLoadError } from "./ui/event-load-error";
-export { fetchPublicEvent } from "./api/public-events";
+export { fetchPublicEvent, fetchPublicEvents } from "./api/public-events";
 export {
   availabilityLabel,
   formatEventDateTime,

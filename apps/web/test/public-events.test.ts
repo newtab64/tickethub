@@ -2,7 +2,10 @@ import { describe, test, after } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { fetchPublicEvent } from "../src/features/event/api/public-events.ts";
+import {
+  fetchPublicEvent,
+  fetchPublicEvents,
+} from "../src/features/event/api/public-events.ts";
 import {
   availabilityLabel,
   formatEventDateTime,
@@ -44,12 +47,16 @@ const event = {
 
 describe("Public event API client", () => {
   const paths: string[] = [];
+  let list: { status: number; body: unknown } = { status: 200, body: {} };
   const server = createServer((req, res) => {
     paths.push(req.url ?? "");
     const send = (status: number, body: unknown) => {
       res.writeHead(status, { "Content-Type": "application/json" });
       res.end(JSON.stringify(body));
     };
+    if (req.url?.includes("/events?")) {
+      return send(list.status, list.body);
+    }
     if (req.url?.endsWith("/events/su-kien")) {
       return send(200, { success: true, data: event });
     }
@@ -89,6 +96,28 @@ describe("Public event API client", () => {
     await ready;
     await fetchPublicEvent("a/b?c");
     assert.equal(paths.at(-1), "/api/v1/events/a%2Fb%3Fc");
+  });
+
+  test("danh sach bo qua rieng su kien sai du lieu", async () => {
+    await ready;
+    list = {
+      status: 200,
+      body: { success: true, data: { items: [{ id: "hong" }, event] } },
+    };
+    const result = await fetchPublicEvents();
+    assert.deepEqual(
+      result.map((item) => item.slug),
+      ["su-kien"],
+    );
+    assert.equal(paths.at(-1), "/api/v1/events?limit=50");
+  });
+
+  test("danh sach loi may chu hoac sai dang thi nem loi", async () => {
+    await ready;
+    list = { status: 500, body: {} };
+    await assert.rejects(fetchPublicEvents(), /Không tải được sự kiện/);
+    list = { status: 200, body: { success: true, data: {} } };
+    await assert.rejects(fetchPublicEvents(), /Không tải được sự kiện/);
   });
 
   test("may chu khong phan hoi thi nem loi", async () => {
