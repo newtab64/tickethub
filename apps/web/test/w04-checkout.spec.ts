@@ -593,7 +593,7 @@ test("Nút thanh toán dùng URL backend và chuyển VNPay không hủy chỗ",
   expect(result.data.status).toBe("PENDING");
 });
 
-/** Vao che do hoan ve, chon dong dau tien va mo phan xem truoc. */
+/** Vào chế độ hoàn vé, chọn dòng đầu tiên và mở phần xem trước. */
 async function startRefund(page: Page) {
   await page.getByText("Chi tiết đơn", { exact: true }).click();
   await page.getByRole("button", { name: "Yêu cầu hoàn vé" }).click();
@@ -685,7 +685,7 @@ test("Mất mạng khi xác nhận hoàn vé thì gửi lại đúng yêu cầu 
     .click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toContainText("Chưa xác nhận được kết quả");
-  // Chua biet ket qua thi khong duoc dong va tao yeu cau moi.
+  // Chưa biết kết quả thì không được đóng và tạo yêu cầu mới.
   await page.keyboard.press("Escape");
   await expect(dialog).toBeVisible();
   await page.getByRole("button", { name: "Gửi lại cùng yêu cầu" }).click();

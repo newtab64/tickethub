@@ -10,7 +10,7 @@ import { useSession } from "./session-provider";
 const ITEM =
   "flex min-h-11 w-full items-center rounded-2xl px-4 text-left text-[15px] hover:bg-muted focus-visible:bg-muted";
 
-/** Goc phai header: menu tai khoan, hoac nut dang nhap khi chua dang nhap. */
+/** Góc phải header: menu tài khoản, hoặc nút đăng nhập khi chưa đăng nhập. */
 export function AccountMenu() {
   const { user, isLoading, logout } = useSession();
   const router = useRouter();
@@ -36,7 +36,7 @@ export function AccountMenu() {
     };
   }, [open]);
 
-  // Giu cho de header khong nhay khi phien dang duoc doc.
+  // Giữ chỗ để header không nhảy khi phiên đang được đọc.
   if (isLoading) return <span aria-hidden="true" className="size-11" />;
   if (!user) {
     return (

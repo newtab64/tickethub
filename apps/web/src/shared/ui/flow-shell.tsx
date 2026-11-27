@@ -22,7 +22,7 @@ export function FlowShell({
   footer?: ReactNode;
   className?: string;
   mainClassName?: string;
-  /** Thay header mac dinh; cac trang chua doi sang header chung de trong. */
+  /** Thay header mặc định; các trang chưa đổi sang header chung để trống. */
   header?: ReactNode;
 }) {
   return (

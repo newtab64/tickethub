@@ -2,7 +2,7 @@ import { expect, type APIRequestContext } from "@playwright/test";
 import { createHmac } from "node:crypto";
 import { VnpayPaymentResponseSchema } from "@tickethub/shared";
 
-/** Xac nhan don bang IPN cuc bo, ky bang khoa thu nghiem cua API rieng. */
+/** Xác nhận đơn bằng IPN cục bộ, ký bằng khóa thử nghiệm của API riêng. */
 export async function payByLocalIpn(
   request: APIRequestContext,
   api: string,

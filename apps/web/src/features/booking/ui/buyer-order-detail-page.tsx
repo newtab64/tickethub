@@ -43,7 +43,7 @@ function OrderDetail({ id }: { id: string }) {
     return query.error ? (
       <>
         <FlowError error={query.error} />
-        <Button className="mt-4" onClick={refetch}>
+        <Button className="mt-4 h-11" onClick={refetch}>
           Thử lại
         </Button>
       </>
@@ -52,7 +52,7 @@ function OrderDetail({ id }: { id: string }) {
     );
   }
 
-  // Cung thu tu voi danh sach tren the.
+  // Cùng thứ tự với danh sách trên thẻ.
   const qrTickets = listedTickets(order)
     .filter((ticket) => canShowQr(ticket, order.event.status))
     .map((ticket) => ({
@@ -108,7 +108,7 @@ function OrderDetail({ id }: { id: string }) {
         </p>
       )}
       {refund.previewError && <FlowError error={refund.previewError} />}
-      {/* Loi 4xx dong hop thoai nen thong bao hien tai trang. */}
+      {/* Lỗi 4xx đóng hộp thoại nên thông báo hiện tại trang. */}
       {!refund.preview && refund.submitError && (
         <FlowError error={refund.submitError} />
       )}

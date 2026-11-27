@@ -6,10 +6,12 @@ import { money, refundPolicyLabel } from "@/features/payment";
 import { Dialog, DialogContent } from "@/shared/ui/dialog";
 import { FlowError } from "@/shared/ui/flow-shell";
 import type { Refund } from "./use-refund";
+import { useReturnFocus } from "./use-return-focus";
 
-/** Xem truoc so tien hoan, nhap ly do va xac nhan huy ve. */
+/** Xem trước số tiền hoàn, nhập lý do và xác nhận hủy vé. */
 export function RefundDialog({ refund }: { refund: Refund }) {
   const { preview, uncertain, busy } = refund;
+  const returnFocus = useReturnFocus();
   return (
     <Dialog
       open={preview !== null}
@@ -20,7 +22,8 @@ export function RefundDialog({ refund }: { refund: Refund }) {
       {preview && (
         <DialogContent
           showCloseButton={false}
-          className="max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto rounded-3xl p-6 text-[15px] sm:max-w-md"
+          {...returnFocus}
+          className="motion-reduce:animate-none max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto rounded-3xl p-6 text-[15px] sm:max-w-md"
         >
           <div className="flex items-start justify-between gap-4">
             <div>

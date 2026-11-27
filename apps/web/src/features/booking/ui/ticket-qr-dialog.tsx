@@ -7,6 +7,7 @@ import { X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { Dialog, DialogContent } from "@/shared/ui/dialog";
 import { FlowError } from "@/shared/ui/flow-shell";
+import { useReturnFocus } from "./use-return-focus";
 import { useTicketQr } from "./use-ticket-qr";
 
 export interface QrTicket {
@@ -18,7 +19,7 @@ export interface QrTicket {
 
 const SWIPE_PX = 60;
 
-/** Ve ma QR ngay trong trinh duyet; khong gui token ra ngoai. */
+/** Vẽ mã QR ngay trong trình duyệt; không gửi token ra ngoài. */
 function useQrImage(token: string | null) {
   const [image, setImage] = useState<{ token: string; src: string } | null>(
     null,
@@ -26,7 +27,7 @@ function useQrImage(token: string | null) {
   useEffect(() => {
     if (!token) return;
     let ignore = false;
-    // Muc sua loi thap cho o ma to hon: man hinh khong bi rach hay ban.
+    // Mức sửa lỗi thấp cho ô mã to hơn: màn hình không bị rách hay bẩn.
     QRCode.toDataURL(token, {
       margin: 0,
       width: 560,
@@ -40,7 +41,7 @@ function useQrImage(token: string | null) {
       ignore = true;
     };
   }, [token]);
-  // Chi tra anh dung voi token hien tai.
+  // Chỉ trả ảnh đúng với token hiện tại.
   return image && image.token === token ? image.src : null;
 }
 
@@ -58,11 +59,11 @@ export function TicketQrDialog({
   tickets: QrTicket[];
   openId: string | null;
   onOpenChange: (ticketId: string | null) => void;
-  /** May chu tu choi cap ma: du lieu don co the da cu. */
+  /** Máy chủ từ chối cấp mã: dữ liệu đơn có thể đã cũ. */
   onRejected: () => void;
 }) {
   const index = tickets.findIndex((ticket) => ticket.id === openId);
-  // Ve vua bi loai khoi danh sach van giu thong tin de hien ly do tu choi.
+  // Vé vừa bị loại khỏi danh sách vẫn giữ thông tin để hiện lý do từ chối.
   const [last, setLast] = useState<QrTicket | null>(null);
   const found = index >= 0 ? tickets[index]! : null;
   if (found && found !== last) setLast(found);
@@ -76,9 +77,11 @@ export function TicketQrDialog({
   const rejected = qr.view === "rejected";
   useEffect(() => {
     if (rejected) onRejected();
-    // Chi bao mot lan moi khi chuyen sang tu choi.
+    // Chỉ báo một lần mỗi khi chuyển sang từ chối.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rejected, openId]);
+
+  const returnFocus = useReturnFocus();
 
   const go = (step: number) => {
     const next = tickets[index + step];
@@ -95,13 +98,16 @@ export function TicketQrDialog({
       {ticket && (
         <DialogContent
           showCloseButton={false}
-          className="max-h-[calc(100dvh-2rem)] max-w-[min(22.5rem,calc(100%-2rem))] justify-items-center gap-4 overflow-y-auto rounded-3xl p-6 text-center sm:max-w-90"
+          {...returnFocus}
+          className="touch-pan-y motion-reduce:animate-none max-h-[calc(100dvh-2rem)] max-w-[min(22.5rem,calc(100%-2rem))] justify-items-center gap-4 overflow-y-auto rounded-3xl p-6 text-center sm:max-w-90"
           onKeyDown={(event) => {
             if (event.key === "ArrowRight") go(1);
             if (event.key === "ArrowLeft") go(-1);
           }}
           onPointerDown={(event) => {
-            swipeStart.current = event.clientX;
+            // Kéo chuột là để bôi đen chữ, không phải vuốt đổi vé.
+            swipeStart.current =
+              event.pointerType === "mouse" ? null : event.clientX;
           }}
           onPointerUp={(event) => {
             const start = swipeStart.current;
@@ -136,7 +142,9 @@ export function TicketQrDialog({
               </div>
             ) : qr.view === "offline" ? (
               <div className={MESSAGE_BOX} role="alert">
-                <p className="text-[15px] font-semibold">Mã đã hết hạn</p>
+                <p className="text-[15px] font-semibold">
+                  {qr.hadCode ? "Mã đã hết hạn" : "Chưa lấy được mã"}
+                </p>
                 <p className="text-[13px] text-muted-foreground">
                   Kiểm tra mạng rồi thử lại.
                 </p>

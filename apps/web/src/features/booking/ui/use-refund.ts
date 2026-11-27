@@ -12,7 +12,7 @@ import {
 import { apiClient, ApiError } from "@/shared/api/client";
 import { money } from "@/features/payment";
 
-/** Chon ve, xem truoc va gui yeu cau hoan tien cho mot don. */
+/** Chọn vé, xem trước và gửi yêu cầu hoàn tiền cho một đơn. */
 export function useRefund(orderId: string, refetch: () => void) {
   const [active, setActive] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
@@ -80,6 +80,8 @@ export function useRefund(orderId: string, refetch: () => void) {
         pendingRequest.current = null;
         setUncertain(false);
         setPreview(null);
+        // Vé đã chọn có thể không còn hoàn được.
+        setSelected([]);
         refetch();
       } else if (pendingRequest.current) setUncertain(true);
     },
@@ -121,7 +123,7 @@ export function useRefund(orderId: string, refetch: () => void) {
       setPreview(null);
       previewMutation.mutate();
     },
-    /** Chua biet ket qua thi khong cho dong, tranh tao yeu cau thu hai. */
+    /** Chưa biết kết quả thì không cho đóng, tránh tạo yêu cầu thứ hai. */
     closePreview: () => {
       if (!refund.isPending && !uncertain) setPreview(null);
     },

@@ -4,7 +4,7 @@ import { Ticket } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 import { Logo } from "./logo";
 
-/** Header chung: mot vien thuoc, logo ben trai, noi dung do trang ghep vao. */
+/** Header chung: một viên thuốc, logo bên trái, nội dung do trang ghép vào. */
 export function SiteHeader({
   center,
   actions,

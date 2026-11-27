@@ -16,7 +16,7 @@ const LINE = "flex justify-between gap-4 border-t border-border py-2";
 const LINK =
   "flex min-h-11 w-full cursor-pointer items-center justify-center rounded-full px-4 text-[13px] font-semibold hover:bg-muted";
 
-/** Phan thu gon: tien, ma don, hoan tien va loi vao hoan ve. */
+/** Phần thu gọn: tiền, mã đơn, hoàn tiền và lối vào hoàn vé. */
 export function OrderDetails({
   order,
   refund,
@@ -91,7 +91,7 @@ export function OrderDetails({
             nhật sau khi xử lý với cổng thanh toán.
           </p>
         )}
-        {refundable &&
+        {(refundable || refund.active) &&
           (refund.active ? (
             <button
               type="button"

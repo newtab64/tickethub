@@ -15,13 +15,23 @@ describe("Ticket QR rules", () => {
     assert.equal(canShowQr({ status: "SOLD" }, "SUSPENDED"), false);
   });
 
-  test("han tinh tu luc nhan, lam tron len va khong vuot qua han goc", () => {
-    assert.equal(qrSecondsLeft(1000, 30, 1000), 30);
-    assert.equal(qrSecondsLeft(1000, 30, 30_999), 1);
-    assert.equal(qrSecondsLeft(1000, 30, 31_000), 0);
-    assert.equal(qrSecondsLeft(1000, 30, 90_000), 0);
-    // Dong ho may lui lai khong duoc keo dai ma.
-    assert.equal(qrSecondsLeft(1000, 30, 0), 30);
+  const at = (wall: number, mono = wall) => ({ wall, mono });
+
+  test("han tinh tu luc gui yeu cau, lam tron len va khong vuot han goc", () => {
+    const left = (now: number) => qrSecondsLeft(at(1000), 30, at(now));
+    assert.equal(left(1000), 30);
+    assert.equal(left(30_999), 1);
+    assert.equal(left(31_000), 0);
+    assert.equal(left(90_000), 0);
+    assert.equal(left(0), 30);
+  });
+
+  test("chinh dong ho khong keo dai ma, may ngu van tinh thoi gian", () => {
+    const sent = at(1_000_000, 500);
+    // Đồng hồ lùi 1 giờ nhưng đã trôi 40 giây thật.
+    assert.equal(qrSecondsLeft(sent, 30, at(1_000_000 - 3_600_000, 40_500)), 0);
+    // Máy ngủ: đồng hồ đơn điệu dừng lại, đồng hồ tường vẫn chạy.
+    assert.equal(qrSecondsLeft(sent, 30, at(1_045_000, 600)), 0);
   });
 
   test("loi 4xx la tu choi, tru qua tai va het thoi gian cho", () => {

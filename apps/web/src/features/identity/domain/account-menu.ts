@@ -7,7 +7,7 @@ export interface AccountMenuItem {
 
 const HELP: AccountMenuItem = { href: "/faq", label: "Trợ giúp" };
 
-/** Muc trong menu tai khoan theo vai tro (khong gom nut dang xuat). */
+/** Mục trong menu tài khoản theo vai trò (không gồm nút đăng xuất). */
 export function accountMenuItems(role: UserRole): AccountMenuItem[] {
   if (role === UserRole.ADMIN) {
     return [{ href: "/admin", label: "Cổng quản trị" }, HELP];

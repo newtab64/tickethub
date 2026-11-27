@@ -38,7 +38,13 @@ describe("Order page rules", () => {
     assert.equal(primaryAction(used), "none");
     assert.match(noQrReason(used)!, /không còn vé/);
     assert.match(noQrReason(order("PAID", []))!, /sẽ xuất hiện/);
-    assert.match(noQrReason(order("CANCELLED", []))!, /không có vé/);
+    assert.match(noQrReason(order("CANCELLED", []))!, /đã hủy/);
+    assert.match(
+      noQrReason(order("PAYMENT_EXPIRED_REFUND_PENDING", []))!,
+      /hoàn lại/,
+    );
+    assert.match(noQrReason(order("EXPIRED", []))!, /hết hạn giữ chỗ/);
+    assert.match(noQrReason(order("FAILED", []))!, /không thành công/);
   });
 
   test("ve da huy khong nam trong danh sach", () => {

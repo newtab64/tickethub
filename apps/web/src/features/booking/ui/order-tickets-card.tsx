@@ -9,7 +9,7 @@ import type { Refund } from "./use-refund";
 const ROW =
   "flex min-h-20 w-full items-center gap-4 px-5 py-4 text-left sm:px-6";
 
-/** The chinh: anh va thong tin su kien, moi ve mot dong. */
+/** Thẻ chính: ảnh và thông tin sự kiện, mỗi vé một dòng. */
 export function OrderTicketsCard({
   order,
   refund,

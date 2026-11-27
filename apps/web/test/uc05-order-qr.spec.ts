@@ -11,7 +11,7 @@ import {
 } from "@tickethub/shared";
 import { payByLocalIpn } from "./helpers/paid-order";
 
-// Mua ve that tren database test rieng.
+// Mua vé thật trên database test riêng.
 const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
 const slug = "liveshow-am-nhac-mua-thu-2026";
 test.describe.configure({ mode: "serial" });
@@ -70,7 +70,7 @@ test.beforeAll(async ({ request }) => {
   seated = await buy(request, 2, true);
 });
 
-/** Mo trang don voi dong ho gia, dem so lan xin ma. */
+/** Mở trang đơn với đồng hồ giả, đếm số lần xin mã. */
 async function openOrder(page: Page, order: BuyerOrderDetail) {
   await page
     .context()
@@ -183,13 +183,14 @@ test("Vé có ghế mở đúng chỗ ngồi; header và menu dùng được", a
 }) => {
   await openOrder(page, seated);
   const ticket = seated.tickets[1]!;
+  const label = `Hàng ${ticket.seatInfo.rowLabel}, ghế ${ticket.seatInfo.seatNumber}`;
   await page
     .getByTestId("order-ticket")
-    .filter({ hasText: ticket.seatInfo.formattedLabel })
+    .filter({ hasText: label })
     .getByRole("button")
     .click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toContainText(ticket.seatInfo.formattedLabel);
+  await expect(dialog).toContainText(label);
   await expect(dialog.getByTitle("Chạm để sao chép")).toHaveText(
     ticket.ticketCode,
   );
@@ -216,8 +217,11 @@ test("Màn 320px không tràn và mã đủ lớn", async ({ page }) => {
   expect(await overflow()).toBeLessThanOrEqual(0);
   await enter(page);
   await expect(qrImage(page)).toBeVisible();
+  // Chờ hộp thoại phóng to xong rồi mới đo.
+  await expect
+    .poll(async () => (await qrImage(page).boundingBox())!.width)
+    .toBeGreaterThanOrEqual(238);
   const box = (await qrImage(page).boundingBox())!;
-  expect(box.width).toBeGreaterThanOrEqual(238);
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(320);
   expect(
@@ -225,4 +229,107 @@ test("Màn 320px không tràn và mã đủ lớn", async ({ page }) => {
       .getByRole("dialog")
       .evaluate((el) => el.scrollWidth - el.clientWidth),
   ).toBeLessThanOrEqual(0);
+});
+
+test("Điện thoại mất sóng: mã hết hạn thì báo và thử lại được", async ({
+  page,
+  context,
+}) => {
+  await openOrder(page, standing);
+  await enter(page);
+  await expect(qrImage(page)).toBeVisible();
+  await context.setOffline(true);
+  await page.clock.runFor(31_000);
+  await expect(page.getByText("Mã đã hết hạn")).toBeVisible();
+  await expect(qrImage(page)).toHaveCount(0);
+  await context.setOffline(false);
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect(qrImage(page)).toBeVisible();
+});
+
+test("Phản hồi chậm không được hiện như mã mới", async ({ page }) => {
+  await openOrder(page, standing);
+  await page.route("**/tickets/*/qr", async (route) => {
+    const response = await route.fetch();
+    // Dưới hạn chờ 10 giây của yêu cầu.
+    await page.clock.runFor(8_000);
+    await route.fulfill({ response });
+  });
+  await enter(page);
+  await expect(page.getByRole("dialog")).toContainText(
+    /Mã đổi sau (1\d|2[0-2]) giây/,
+  );
+});
+
+test("Yêu cầu treo thì báo lỗi thay vì quay mãi", async ({ page }) => {
+  await openOrder(page, standing);
+  await page.route("**/tickets/*/qr", () => new Promise<void>(() => {}));
+  await enter(page);
+  await expect(page.getByRole("button", { name: "Thử lại" })).toBeVisible({
+    timeout: 15_000,
+  });
+});
+
+test("Đóng hộp thoại thì tiêu điểm về đúng nút đã mở", async ({ page }) => {
+  await openOrder(page, standing);
+  const button = page.getByRole("button", { name: "Hiện mã vào cổng" });
+  await button.focus();
+  await page.keyboard.press("Enter");
+  await expect(qrImage(page)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(button).toBeFocused();
+});
+
+test("Hoàn vé bị từ chối thì bỏ chọn và vẫn thoát được", async ({ page }) => {
+  let rejected = false;
+  await page.route("**/refund/request", (route) => {
+    rejected = true;
+    return route.fulfill({
+      status: 422,
+      contentType: "application/json",
+      body: JSON.stringify({
+        success: false,
+        error: { code: "NOT_REFUNDABLE", message: "Vé không còn hoàn được" },
+      }),
+    });
+  });
+  // Sau khi bị từ chối, máy chủ cho biết không còn vé nào hoàn được.
+  // Chỉ chặn API: URL trang web có cùng đường dẫn.
+  await page.route(`${api}/buyer/orders/${seated.id}`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    if (rejected) {
+      for (const ticket of body.data.tickets) ticket.status = "CHECKED_IN";
+    }
+    await route.fulfill({ response, json: body });
+  });
+  await openOrder(page, seated);
+  await page.getByText("Chi tiết đơn", { exact: true }).click();
+  await page.getByRole("button", { name: "Yêu cầu hoàn vé" }).click();
+  await page.getByRole("checkbox").first().check();
+  await page.getByRole("button", { name: /Xem số tiền hoàn/ }).click();
+  await page.getByLabel("Lý do hủy").fill("Thử hoàn vé bị từ chối");
+  await page.getByRole("button", { name: "Xác nhận hủy vé" }).click();
+  await expect(page.getByText("Vé không còn hoàn được")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Chọn vé muốn hoàn" }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Thôi, giữ vé" }).click();
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+});
+
+test("Kéo chuột để bôi đen chữ không đổi vé", async ({ page }) => {
+  await openOrder(page, seated);
+  await enter(page);
+  const dialog = page.getByRole("dialog");
+  await expect(qrImage(page)).toBeVisible();
+  const code = dialog.getByTitle("Chạm để sao chép");
+  const first = await code.innerText();
+  const box = (await dialog.getByRole("heading").boundingBox())!;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(box.x + box.width - 2, y);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 120, y, { steps: 5 });
+  await page.mouse.up();
+  await expect(code).toHaveText(first);
 });
