@@ -34,7 +34,7 @@ export function FlowShell({
           <Logo />
           <Link
             href="/buyer/orders"
-            className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-2 text-xs font-semibold hover:bg-accent hover:text-primary sm:text-sm"
+            className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:border-primary sm:text-sm"
           >
             <ReceiptText className="size-4 shrink-0" aria-hidden="true" />
             Đơn hàng của tôi

@@ -58,7 +58,7 @@ export function CheckoutDrawer({
 
         {/* 5-Minute Hold Notice Banner */}
         {holdSecondsLeft !== null && holdSecondsLeft > 0 && (
-          <div className="rounded-[10px] bg-emerald-50 border border-emerald-200 p-3.5 space-y-2">
+          <div className="rounded-[10px] bg-accent border border-primary/20 p-3.5 space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-primary font-bold text-[13px]">
                 <Timer className="size-4.5" />
@@ -69,7 +69,7 @@ export function CheckoutDrawer({
               </span>
             </div>
             {allocatedSeats.length > 0 && (
-              <div className="text-[12px] font-medium text-emerald-800 border-t border-emerald-200/60 pt-1.5 flex items-center justify-between">
+              <div className="text-[12px] font-medium text-accent-foreground border-t border-primary/20 pt-1.5 flex items-center justify-between">
                 <span>Vị trí ghế đã cấp tự động:</span>
                 <span className="tabular-nums font-bold">
                   Hàng {allocatedSeats[0]?.rowLabel} - Ghế{" "}
@@ -81,8 +81,8 @@ export function CheckoutDrawer({
         )}
 
         {/* Seated Together Reassurance Note */}
-        <div className="flex items-center gap-2 p-2.5 rounded-[8px] bg-emerald-50 border border-emerald-200 text-emerald-800 text-[12px] font-semibold">
-          <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
+        <div className="flex items-center gap-2 p-2.5 rounded-[8px] bg-success-soft border border-success-border text-success text-[12px] font-semibold">
+          <CheckCircle2 className="size-4 text-success shrink-0" />
           <span>
             {selectedListing.isStanding
               ? "Vé đứng tự do khu vực fanzone / sân khấu"
@@ -169,7 +169,7 @@ export function CheckoutDrawer({
                   setShowSubtotalModal(true);
                 }
               }}
-              className="w-full h-11 rounded-[10px] bg-primary hover:bg-emerald-700 text-white text-[14px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full h-11 rounded-[10px] bg-primary hover:bg-primary-strong text-white text-[14px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               <CheckCircle2 className="size-4.5" />
               Thanh toán qua VNPay &amp; Nhận vé QR

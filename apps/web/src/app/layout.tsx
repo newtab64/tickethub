@@ -19,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="vi" suppressHydrationWarning>
       <body
-        className="min-h-screen bg-white text-[#141d23] font-sans antialiased selection:bg-emerald-500/15 selection:text-emerald-700"
+        className="min-h-screen bg-white text-[#141d23] font-sans antialiased selection:bg-primary/15 selection:text-primary"
         suppressHydrationWarning
       >
         <PwaRegistrar />

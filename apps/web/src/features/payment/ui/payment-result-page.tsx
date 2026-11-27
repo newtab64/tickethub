@@ -54,7 +54,9 @@ function OrderResult({ orderId }: { orderId: string }) {
           className={
             state === "failed"
               ? "size-6 shrink-0 text-destructive"
-              : "size-6 shrink-0 text-primary"
+              : state === "success"
+                ? "size-6 shrink-0 text-success"
+                : "size-6 shrink-0 text-primary"
           }
         />
         {state === "success"

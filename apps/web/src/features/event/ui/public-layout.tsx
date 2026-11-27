@@ -39,19 +39,19 @@ export function PublicLayout({ children }: { children: React.ReactNode }) {
 
               <ul className="space-y-3 text-[12.5px] text-[#2b343a]">
                 <li className="flex items-center gap-2.5">
-                  <span className="size-6 rounded-full bg-emerald-50 text-primary flex items-center justify-center shrink-0">
+                  <span className="size-6 rounded-full bg-accent text-primary flex items-center justify-center shrink-0">
                     <ShieldCheck className="size-3.5" />
                   </span>
                   <span>Vé chính thức 100% từ Ban tổ chức</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="size-6 rounded-full bg-emerald-50 text-primary flex items-center justify-center shrink-0">
+                  <span className="size-6 rounded-full bg-accent text-primary flex items-center justify-center shrink-0">
                     <Clock className="size-3.5" />
                   </span>
                   <span>Giữ chỗ riêng 5 phút khi thanh toán</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="size-6 rounded-full bg-emerald-50 text-primary flex items-center justify-center shrink-0">
+                  <span className="size-6 rounded-full bg-accent text-primary flex items-center justify-center shrink-0">
                     <RefreshCcw className="size-3.5" />
                   </span>
                   <span>Hoàn tiền đầy đủ nếu sự kiện bị hủy</span>

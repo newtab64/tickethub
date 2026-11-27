@@ -85,4 +85,37 @@ describe("Design tokens: mau nhan cham", () => {
     );
     assert.equal(manifest.theme_color, "#4338ca");
   });
+
+  test("khong goi thang lop mau xanh cua Tailwind", () => {
+    assert.deepEqual(offenders(/(emerald|green|teal)-\d/), []);
+  });
+
+  test("cho mang nghia thanh cong dung token success", () => {
+    for (const file of [
+      "event/ui/event-detail-page.tsx",
+      "booking/ui/checkout-drawer.tsx",
+      "booking/ui/subtotal-modal.tsx",
+      "identity/ui/forgot-password-page.tsx",
+      "identity/ui/register-step.tsx",
+      "identity/ui/verify-email-page.tsx",
+      "organizer/domain/display-status.ts",
+      "organizer/ui/profile-page.tsx",
+      "settlement/ui/reconciliation-view.tsx",
+      "payment/ui/payment-result-page.tsx",
+    ]) {
+      const source = readFileSync(path.join(WEB, "src/features", file), "utf8");
+      assert.match(source, /(text|bg|border)-success/, file);
+    }
+  });
+
+  test("nut Don hang cua toi noi bat tren header trang", () => {
+    const shell = readFileSync(
+      path.join(WEB, "src/shared/ui/flow-shell.tsx"),
+      "utf8",
+    );
+    assert.match(
+      shell,
+      /border border-primary\/30 bg-accent [^"]*text-accent-foreground/,
+    );
+  });
 });

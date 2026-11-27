@@ -113,7 +113,7 @@ function VerifyEmailForm() {
   return (
     <Card className="shadow-lg shadow-slate-900/5 border-slate-200/90 rounded-2xl bg-white">
       <CardHeader className="text-center space-y-2 pb-2">
-        <div className="mx-auto size-11 rounded-full bg-emerald-50 border border-emerald-200/80 text-primary flex items-center justify-center">
+        <div className="mx-auto size-11 rounded-full bg-accent border border-primary/20 text-primary flex items-center justify-center">
           <MailCheck className="size-5" />
         </div>
         <CardTitle className="text-2xl font-bold text-slate-900">
@@ -127,7 +127,7 @@ function VerifyEmailForm() {
 
       {verified ? (
         <CardContent className="py-6 text-center space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm font-medium text-emerald-700">
+          <div className="inline-flex items-center gap-2 rounded-xl bg-success-soft border border-success-border px-4 py-3 text-sm font-medium text-success">
             <CheckCircle2 className="size-5 shrink-0" />
             <span>
               Tài khoản đã kích hoạt thành công! Đang chuyển về trang đăng
@@ -149,7 +149,7 @@ function VerifyEmailForm() {
             )}
 
             {resendMessage && (
-              <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
+              <div className="rounded-xl border border-success-border bg-success-soft p-3 text-xs font-medium text-success">
                 {resendMessage}
               </div>
             )}

@@ -220,8 +220,8 @@ export function RegisterStep({ flow }: { flow: AuthFlow }) {
               <div className="flex items-center justify-between text-[13px] text-muted-foreground">
                 <span id="password-hint">Tối thiểu 8 ký tự</span>
                 {watchedPassword && watchedPassword.length >= 8 && (
-                  <span className="inline-flex items-center gap-1 text-emerald-700 font-medium text-[11px]">
-                    <Check className="size-3 text-emerald-600" />
+                  <span className="inline-flex items-center gap-1 text-success font-medium text-[11px]">
+                    <Check className="size-3 text-success" />
                     <span>Đạt độ dài yêu cầu</span>
                   </span>
                 )}

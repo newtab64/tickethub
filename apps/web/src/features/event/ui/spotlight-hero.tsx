@@ -85,7 +85,7 @@ export function SpotlightHero({ events }: { events: EventCard[] }) {
           <div className="mt-6 flex flex-wrap items-center gap-4">
             <Link
               href={`/events/${active.slug}`}
-              className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-7 text-sm font-bold text-white hover:bg-emerald-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-dark"
+              className="inline-flex h-11 items-center gap-2 rounded-full bg-primary px-7 text-sm font-bold text-white hover:bg-primary-strong transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-surface-dark"
             >
               Xem sự kiện <ArrowRight className="size-4" />
             </Link>
@@ -116,7 +116,7 @@ export function SpotlightHero({ events }: { events: EventCard[] }) {
                     onClick={() => setIndex(i)}
                     className={`relative h-14 w-20 shrink-0 overflow-hidden rounded-lg transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white ${
                       isActive
-                        ? "opacity-100 outline outline-2 outline-offset-2 outline-emerald-400"
+                        ? "opacity-100 outline outline-2 outline-offset-2 outline-ring"
                         : "opacity-60 hover:opacity-100"
                     }`}
                   >

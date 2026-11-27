@@ -90,7 +90,7 @@ export function HeaderSearch() {
         onClick={() => setOpen((prev) => !prev)}
         className={`size-9 rounded-full inline-flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
           open
-            ? "bg-emerald-50 text-primary"
+            ? "bg-accent text-primary"
             : "bg-secondary text-foreground hover:bg-slate-200"
         }`}
       >
@@ -170,7 +170,7 @@ export function HeaderSearch() {
                         `/?q=${encodeURIComponent(query.trim())}#events-list`,
                       );
                     }}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-primary hover:bg-emerald-50 cursor-pointer"
+                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-primary hover:bg-accent cursor-pointer"
                   >
                     Xem tất cả kết quả cho &ldquo;{query.trim()}&rdquo;
                   </button>

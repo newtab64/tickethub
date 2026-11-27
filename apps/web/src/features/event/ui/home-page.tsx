@@ -275,7 +275,7 @@ function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
             type="button"
             onClick={() => setSelectedCity("TP. Hồ Chí Minh")}
             aria-label="Vị trí của tôi"
-            className="size-9 rounded-[8px] bg-primary hover:bg-emerald-700 text-white flex items-center justify-center transition-colors shrink-0"
+            className="size-9 rounded-[8px] bg-primary hover:bg-primary-strong text-white flex items-center justify-center transition-colors shrink-0"
           >
             <Navigation className="size-4 fill-current" />
           </button>
@@ -284,7 +284,7 @@ function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
             type="button"
             onClick={cycleCity}
             data-testid="city-filter"
-            className="h-9 px-3 rounded-[8px] border-[1.5px] border-primary bg-emerald-50/50 text-primary text-[13px] font-semibold inline-flex items-center gap-1.5 transition-colors"
+            className="h-9 px-3 rounded-[8px] border-[1.5px] border-primary bg-accent/50 text-primary text-[13px] font-semibold inline-flex items-center gap-1.5 transition-colors"
           >
             <MapPin className="size-3.5" />
             <span>{cityButtonLabel}</span>
@@ -296,7 +296,7 @@ function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
             onClick={cycleDate}
             className={`h-9 px-3 rounded-[8px] text-[13px] inline-flex items-center gap-1.5 transition-colors ${
               selectedDate !== "ALL"
-                ? "border-[1.5px] border-primary bg-emerald-50/50 text-primary font-semibold"
+                ? "border-[1.5px] border-primary bg-accent/50 text-primary font-semibold"
                 : "border border-[#dfe3e5] bg-white text-[#141d23] font-medium hover:border-[#868f97]"
             }`}
           >
@@ -326,7 +326,7 @@ function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
                 onClick={() => setSelectedCategory(genre.code)}
                 className={`h-9 px-3.5 rounded-[8px] text-[13px] transition-colors ${
                   isActive
-                    ? "border-[1.5px] border-primary bg-emerald-50/50 text-primary font-semibold"
+                    ? "border-[1.5px] border-primary bg-accent/50 text-primary font-semibold"
                     : "border border-[#dfe3e5] bg-white text-[#141d23] font-medium hover:border-[#868f97]"
                 }`}
               >
