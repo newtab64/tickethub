@@ -52,9 +52,9 @@ describe("Public event lookup (HTTP)", () => {
         city: "Hà Nội",
         status,
         mapKey: "arena-t-stage",
-        // Qua khu de dung dau danh sach sap theo ngay dien.
+        // Bat dau tu qua khu nhung chua ket thuc: dung dau danh sach.
         startTime: new Date("2020-01-01T12:00:00.000Z"),
-        endTime: new Date("2020-01-01T15:00:00.000Z"),
+        endTime: new Date("2099-01-01T15:00:00.000Z"),
         gateOpeningTime: new Date("2020-01-01T11:00:00.000Z"),
       })
       .returning();
@@ -166,6 +166,31 @@ describe("Public event lookup (HTTP)", () => {
     assert.equal((await get(draft.slug)).status, 404);
     assert.equal((await get(draft.id)).status, 404);
     assert.equal((await get(randomUUID())).status, 404);
+  });
+
+  it("su kien da ket thuc khong chiem cho trong danh sach cong khai", async () => {
+    const [profile] = await db
+      .select()
+      .from(organizerProfiles)
+      .where(eq(organizerProfiles.userId, userId));
+    const ended = await insertEvent(
+      profile!.id,
+      `ended-${stamp}`,
+      EventStatus.PUBLISHED,
+    );
+    await db
+      .update(events)
+      .set({ endTime: new Date("2020-01-02T00:00:00.000Z") })
+      .where(eq(events.id, ended.id));
+
+    const res = await fetch(`${base}/events?limit=50`);
+    const ids = (await res.json()).data.items.map(
+      (item: { id: string }) => item.id,
+    );
+    assert.ok(ids.includes(published.id));
+    assert.ok(!ids.includes(ended.id));
+    // Trang chi tiet van xem duoc su kien da qua.
+    assert.equal((await get(ended.slug)).status, 200);
   });
 
   it("hang ghe tinh ve con lai tu ghe that, khong tu bo dem", async () => {

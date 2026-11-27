@@ -3,7 +3,7 @@
 import { Suspense, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { MapPin, Calendar, ChevronDown, Navigation, X } from "lucide-react";
 import type { PublicEvent } from "@tickethub/shared";
 import { formatVnd } from "@/shared/lib/format";
@@ -91,6 +91,7 @@ function EventGridCard({
         <Link
           href={`/events/${event.slug}`}
           prefetch={false}
+          aria-label={event.title}
           className="block h-full w-full"
         >
           <EventPoster
@@ -161,7 +162,6 @@ export function HomePage({ events }: { events: PublicEvent[] }) {
 }
 
 function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const rawCategory = searchParams.get("category");
   // Tu khoa tim kiem nam tren URL (?q=) vi o tim kiem nam o header
@@ -179,10 +179,12 @@ function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
     const qs = params.toString();
     return `${qs ? `/?${qs}` : "/"}#events-list`;
   };
+  // Loc tai cho: chi doi URL (Next dong bo useSearchParams), khong goi lai may chu.
+  const replaceUrl = (code: CategoryCode, q: string) => {
+    window.history.replaceState(null, "", buildHref(code, q));
+  };
   const setSelectedCategory = (code: CategoryCode) => {
-    router.replace(buildHref(code, searchParams.get("q") ?? ""), {
-      scroll: false,
-    });
+    replaceUrl(code, searchParams.get("q") ?? "");
   };
   const [selectedCity, setSelectedCity] =
     useState<(typeof CITIES)[number]>(null);
@@ -255,11 +257,7 @@ function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
             </span>
             <button
               type="button"
-              onClick={() =>
-                router.replace(buildHref(selectedCategory, ""), {
-                  scroll: false,
-                })
-              }
+              onClick={() => replaceUrl(selectedCategory, "")}
               aria-label="Xóa tìm kiếm"
               className="inline-flex h-6 items-center gap-1 rounded-full border border-border px-2 text-xs font-medium text-foreground hover:bg-muted cursor-pointer"
             >

@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import {
   EventStatus,
   OutboxStatus,
@@ -243,8 +243,13 @@ export class DrizzleEventRepository implements EventRepository {
   }
 
   listPublished(limit: number) {
+    // Khong co tac vu chuyen su kien sang ENDED: loc theo gio ket thuc de su kien
+    // da qua khong chiem cho cua su kien sap dien.
     return db.query.events.findMany({
-      where: eq(events.status, EventStatus.PUBLISHED),
+      where: and(
+        eq(events.status, EventStatus.PUBLISHED),
+        gt(events.endTime, new Date()),
+      ),
       with: { ticketTypes: true },
       limit,
       orderBy: (e, { asc }) => [asc(e.startTime)],

@@ -100,3 +100,33 @@ test("Vé của tôi dẫn tới đơn hàng thật, không dựng vé từ URL"
   await expect(page).toHaveURL(/\/buyer\/orders$/);
   await expect(page.getByText("ORD-GIA-1")).toHaveCount(0);
 });
+
+test("Lọc thể loại tại chỗ, không gọi lại máy chủ", async ({ page }) => {
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  const pageLoads: string[] = [];
+  page.on("request", (request) => {
+    const url = new URL(request.url());
+    if (url.pathname === "/") pageLoads.push(url.href);
+  });
+  await page.getByRole("button", { name: "Thể thao", exact: true }).click();
+  await expect(page).toHaveURL(/category=SPORT/);
+  await expect(
+    page.getByRole("heading", { level: 3, name: /VBA Finals/ }).first(),
+  ).toBeVisible();
+  await page.waitForLoadState("networkidle");
+  expect(pageLoads).toEqual([]);
+});
+
+test("Ảnh hỏng thì liên kết ảnh của thẻ vẫn có tên", async ({ page }) => {
+  await page.route("**/_next/image**", (route) => route.abort());
+  await page.goto("/");
+  const trending = page.getByRole("region", { name: /Sự kiện thịnh hành/ });
+  await trending.scrollIntoViewIfNeeded();
+  const title = (await trending
+    .getByRole("heading", { level: 3 })
+    .first()
+    .textContent())!;
+  await expect(trending.locator("img")).toHaveCount(0);
+  await expect(trending.getByRole("link").first()).toHaveAccessibleName(title);
+});

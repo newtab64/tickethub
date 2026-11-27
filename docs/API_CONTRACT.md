@@ -194,6 +194,8 @@ Lấy thông tin người dùng đang đăng nhập thông qua Access Token Bear
 
 Tìm kiếm và lọc danh sách sự kiện, phân trang theo cursor.
 
+- Danh sách chỉ gồm sự kiện `PUBLISHED` chưa kết thúc (`endTime` sau thời điểm gọi), sắp theo `startTime` tăng dần.
+
 - Tham số truy vấn:
   - `keyword`: string (tìm kiếm tiếng Việt có dấu hoặc không dấu)
   - `city`: string
