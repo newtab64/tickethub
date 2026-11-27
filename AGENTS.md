@@ -64,20 +64,22 @@ Tài liệu này là Hiến chương Dự án bất biến (Immutable Project Co
 
 - Tuyệt đối **không** dùng Modal hoặc Popup cho thao tác thanh toán; `/checkout` bắt buộc là một trang giao diện toàn màn hình chuyên biệt (Standalone Page).
 - Thiết kế bố cục chuẩn theo phong cách các sàn vé quốc tế (tham khảo Viagogo/StubHub):
-  1. **Thanh tiêu đề cố định (Sticky Header):**
-     - Hiển thị đồng hồ đếm ngược kỹ thuật số dạng `MM:SS` (chuẩn 5 phút / 300 giây).
-     - Chuyển màu cảnh báo rõ ràng khi thời gian còn dưới 60 giây.
-  2. **Bố cục 2 cột trên màn hình máy tính (2-Column Layout):**
-     - **Cột bên trái (Thao tác thanh toán):**
-       - Biểu mẫu thông tin người nhận vé (Họ và tên, Email, Số điện thoại) với tính năng tự động điền (Autofill) từ tài khoản đang đăng nhập.
-       - Ô nhập mã giảm giá (Voucher / Coupon) kèm phản hồi kiểm tra ngay lập tức.
-       - Bộ chọn phương thức thanh toán VNPay (VNPay-QR, Thẻ nội địa ATM, Thẻ quốc tế Visa/Mastercard).
-       - Nút bấm xác nhận thanh toán nổi bật: "Thanh toán ngay qua VNPay".
-     - **Cột bên phải (Tóm tắt và Cam kết):**
+  1. **Hàng tiêu đề cố định (nằm dưới header chung, dính trên đầu khi cuộn):**
+     - Chứa tiêu đề "Thanh toán", đồng hồ đếm ngược kỹ thuật số dạng `MM:SS` (chuẩn 5 phút / 300 giây) và nút "Hủy giao dịch".
+     - Đồng hồ chuyển màu cam khi còn từ 120 giây trở xuống và màu đỏ khi còn dưới 60 giây.
+  2. **Bố cục 2 cột trên màn hình máy tính (2-Column Layout):** một thẻ chia đôi, các khối hai bên cao bằng nhau theo từng hàng.
+     - **Cột bên trái (Tóm tắt và Cam kết):**
        - Tóm tắt thông tin sự kiện (Tên sự kiện, Thời gian bắt đầu, Địa điểm tổ chức).
        - Chi tiết vị trí vé đã được hệ thống tự động cấp phát (Tên Zone, Danh sách số ghế/hàng ghế cụ thể, Đơn giá từng vé).
-       - Bảng phân tách chi phí minh bạch: Tạm tính, Phí dịch vụ (nếu có), Giảm giá voucher, Tổng tiền thanh toán đã bao gồm VAT.
+       - Bảng phân tách chi phí minh bạch: Tạm tính, Phí dịch vụ (nếu có), Giảm giá voucher (chỉ hiện khi lớn hơn 0), Tổng tiền thanh toán đã bao gồm VAT.
        - Huy hiệu bảo đảm an toàn giao dịch và cam kết 100% vé chính hãng.
+     - **Cột bên phải (Thao tác thanh toán):**
+       - Biểu mẫu thông tin người nhận vé (Họ và tên, Email, Số điện thoại) với tính năng tự động điền (Autofill) từ tài khoản đang đăng nhập.
+       - Ô nhập mã giảm giá (Voucher / Coupon), thu gọn cho tới khi người mua bấm "Thêm mã giảm giá", kèm phản hồi kiểm tra ngay lập tức.
+       - Bộ chọn phương thức thanh toán VNPay (VNPay-QR, Thẻ nội địa ATM, Thẻ quốc tế Visa/Mastercard).
+       - Nút bấm xác nhận thanh toán nổi bật: "Thanh toán ngay qua VNPay".
+     - **Trên điện thoại:** một cột theo luồng mua (sự kiện, ghế, người nhận, phương thức, mã giảm giá, chi phí, tổng tiền, nút thanh toán), kèm thanh thanh toán nổi ở đáy.
+     - **Phần chờ backend:** số điện thoại người nhận, chọn phương thức ngay trên trang và áp mã giảm giá mới chưa được API hỗ trợ; giao diện chỉ hiển thị thông tin, không dựng điều khiển giả.
   3. **Xử lý hết hạn và hủy giao dịch:**
      - Khi đồng hồ đếm ngược chạm mốc `00:00`, lập tức khóa màn hình, kích hoạt API giải phóng chỗ giữ và điều hướng người dùng về trang sự kiện kèm thông báo cảnh báo hết hạn giữ chỗ.
      - Có nút "Hủy giao dịch" rõ ràng để người dùng chủ động trả vé đang giữ về kho vé cho người khác đặt.

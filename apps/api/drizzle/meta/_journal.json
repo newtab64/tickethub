@@ -43,6 +43,13 @@
       "when": 1794445981571,
       "tag": "0005_goofy_ken_ellis",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795737121450,
+      "tag": "0006_event_seatmap_mapping",
+      "breakpoints": true
     }
   ]
 }

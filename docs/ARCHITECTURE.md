@@ -259,8 +259,7 @@ apps/web/src/
 | `identity`   | Đăng nhập 3 bước (email, mật khẩu, đăng ký), xác thực email, quên mật khẩu, phiên đăng nhập, xác thực JWT cho proxy                         | `/auth`, `/login`, `/register`, `/forgot-password`, `/verify-email`              |
 | `event`      | Trang chủ, trang giới thiệu sự kiện (SSR), tìm kiếm, sơ đồ khu vực, hình học sơ đồ, thông tin khu vực                                       | `/`, `/events/[id]`                                                              |
 | `booking`    | Đặt vé: quy tắc 1 đến 6 vé, phiên giữ chỗ 5 phút, client và proxy giữ chỗ                                                                   | `/events/[id]/booking`, `/api/v1/booking/hold`, `/api/v1/booking/release`        |
-| `payment`    | Thanh toán: đồng hồ giữ chỗ, mã giảm giá, tổng tiền, người nhận vé, tạo URL VNPay                                                           | `/checkout`                                                                      |
-| `ticketing`  | Vé của tôi                                                                                                                                  | `/my-tickets`                                                                    |
+| `payment`    | Thanh toán: đồng hồ giữ chỗ, tóm tắt đơn, kiểm tra trạng thái, tạo URL VNPay                                                                | `/checkout`                                                                      |
 | `organizer`  | Cổng Ban tổ chức: danh sách sự kiện, trình tạo sự kiện nhiều bước, hồ sơ, bản nháp tự lưu                                                   | `/organizer`, `/organizer/events`, `/organizer/events/new`, `/organizer/profile` |
 | `moderation` | Cổng quản trị: hàng đợi duyệt KYC và sự kiện, nhật ký kiểm toán                                                                             | `/admin`                                                                         |
 | `support`    | Trung tâm hỗ trợ công khai: câu hỏi thường gặp, điều khoản, chính sách bảo mật và hoàn vé, hướng dẫn sử dụng; viết bằng ngôn ngữ đời thường | `/faq`, `/guide`                                                                 |
@@ -282,31 +281,32 @@ Mỗi `page.tsx` không quá 40 dòng. Các thư mục cũ `components/`, `lib/`
 
 ### Mẫu tổ chức màn hình lớn
 
-Màn hình có nhiều trạng thái (đặt vé, thanh toán, đăng nhập 3 bước, danh sách sự kiện, trình tạo sự kiện) được tách thành:
+Màn hình có nhiều trạng thái (đặt vé, đăng nhập 3 bước, danh sách sự kiện, trình tạo sự kiện) được tách thành:
 
 - Một hook `use-<tên>-screen.ts` giữ toàn bộ trạng thái, hiệu ứng và hành động, trả về một đối tượng `vm`.
-- Các khối giao diện thuần trình bày nhận `vm` (ví dụ `checkout-header.tsx`, `payment-modal.tsx`, `wizard-step-1.tsx`), mỗi khối chỉ destructure phần nó dùng.
-- Logic không phụ thuộc React (ví dụ phân tích phản hồi giữ chỗ, tính tổng tiền, đánh giá mã giảm giá, lọc và sắp xếp sự kiện) nằm ở `domain/` và có test không cần trình duyệt.
-- Lời gọi mạng nằm ở `api/` (ví dụ `booking-client.ts`, `checkout-client.ts`, `auth-api.ts`).
+- Các khối giao diện thuần trình bày nhận `vm` (ví dụ `booking-header.tsx`, `wizard-step-1.tsx`), mỗi khối chỉ destructure phần nó dùng.
+- Logic không phụ thuộc React (ví dụ phân tích phản hồi giữ chỗ, trạng thái thanh toán, lọc và sắp xếp sự kiện) nằm ở `domain/` và có test không cần trình duyệt.
+- Lời gọi mạng nằm ở `api/` (ví dụ `booking-client.ts`, `auth-api.ts`).
 
 ### Hiện trạng cần lưu ý
 
 Các điểm sau phản ánh trạng thái triển khai hiện tại, không phải thay đổi của đợt tái cấu trúc:
 
-- Dữ liệu tạm: danh mục sự kiện và hạng vé (`features/event/data`), dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`), mã giảm giá và phí dịch vụ tính ở client (`features/payment/domain/checkout-rules.ts`). Cần thay bằng API khi backend sẵn sàng.
-- Bản đồ 21 trang trong tiêu chuẩn dự án (19 trang cốt lõi cùng `/faq` và `/guide`) mới triển khai một phần: các route `/events`, `/buyer/orders`, `/buyer/orders/[id]`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/my-tickets` thay cho `/buyer/orders`, `/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).
-- Màn hình thanh toán hiện dùng cửa sổ phụ (modal) để nhập thông tin người nhận và chọn phương thức, và khi tạo thanh toán lỗi sẽ chuyển tới `/buyer/orders/[id]?paymentSuccess=true`. Cả hai điểm này cần được rà soát theo quy chuẩn trang thanh toán độc lập và xử lý lỗi thanh toán.
+- Trang chủ, ô tìm kiếm, header, trang chi tiết và trang đặt vé đọc sự kiện từ API công khai (`features/event/api/public-events.ts`). Trang chủ và tìm kiếm đọc tối đa 50 sự kiện. `/my-tickets` chuyển hướng sang `/buyer/orders`.
+- Dữ liệu tạm: dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`). Cần thay bằng API khi backend sẵn sàng.
+- Bản đồ 21 trang trong tiêu chuẩn dự án (19 trang cốt lõi cùng `/faq` và `/guide`) mới triển khai một phần: các route `/events`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).
+- Trang thanh toán chưa áp dụng mã giảm giá mới, chưa nhập số điện thoại người nhận và chưa chọn phương thức VNPay trên trang: backend chưa nhận các dữ liệu này tại endpoint tạo thanh toán.
 
 ## Ranh giới vai trò và Ma trận phân quyền
 
 Hệ thống phân tách rõ trách nhiệm giữa các tầng client và vai trò người dùng nhằm ngăn ngừa xung đột lợi ích và bảo vệ tính minh bạch của thị trường vé:
 
-| Vai trò        | Client tương tác     | Chức năng chính                                                                            | Giới hạn nghiệp vụ (Restrictions)                                                   |
-| :------------- | :------------------- | :----------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
-| **BUYER**      | `BuyerBrowser`       | Mua vé, giữ chỗ ghế (`/booking/hold`), thanh toán qua VNPay, xem vé QR tại `/my-tickets`   | Bị chặn truy cập các route `/admin/*` và `/organizer/*`                             |
-| **ORGANIZER**  | `OrganizerDashboard` | Tạo sự kiện, cấu hình hạng vé, sơ đồ ghế, nộp hồ sơ KYC, xem báo cáo doanh thu             | **Không thể mua vé**, không có mục "Vé của tôi", bị chặn gọi API giữ chỗ và tạo đơn |
-| **ADMIN**      | `OrganizerDashboard` | Phê duyệt sự kiện, duyệt hồ sơ ban tổ chức, đối soát tài chính, kiểm tra nhật ký kiểm toán | **Không thể mua vé**, không có mục "Vé của tôi", bị chặn gọi API giữ chỗ và tạo đơn |
-| **GATE_STAFF** | `GateStaffPWA`       | Quét mã QR và xác thực vé vào cổng                                                         | Không thể mua vé, không can thiệp cấu hình sự kiện                                  |
+| Vai trò        | Client tương tác     | Chức năng chính                                                                               | Giới hạn nghiệp vụ (Restrictions)                                                   |
+| :------------- | :------------------- | :-------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------- |
+| **BUYER**      | `BuyerBrowser`       | Mua vé, giữ chỗ ghế (`/booking/hold`), thanh toán qua VNPay, xem đơn hàng tại `/buyer/orders` | Bị chặn truy cập các route `/admin/*` và `/organizer/*`                             |
+| **ORGANIZER**  | `OrganizerDashboard` | Tạo sự kiện, cấu hình hạng vé, sơ đồ ghế, nộp hồ sơ KYC, xem báo cáo doanh thu                | **Không thể mua vé**, không có mục "Vé của tôi", bị chặn gọi API giữ chỗ và tạo đơn |
+| **ADMIN**      | `OrganizerDashboard` | Phê duyệt sự kiện, duyệt hồ sơ ban tổ chức, đối soát tài chính, kiểm tra nhật ký kiểm toán    | **Không thể mua vé**, không có mục "Vé của tôi", bị chặn gọi API giữ chỗ và tạo đơn |
+| **GATE_STAFF** | `GateStaffPWA`       | Quét mã QR và xác thực vé vào cổng                                                            | Không thể mua vé, không can thiệp cấu hình sự kiện                                  |
 
 ## Các luồng xử lý chính
 

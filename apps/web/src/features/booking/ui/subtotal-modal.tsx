@@ -67,7 +67,6 @@ export function SubtotalModal({
             <span>Khu vực khán đài:</span>
             <span className="font-semibold text-foreground">
               {selectedListing.zoneName}
-              {selectedListing.row ? ` • ${selectedListing.row}` : ""}
             </span>
           </div>
           <div className="flex items-center justify-between text-muted-foreground text-[12.5px]">

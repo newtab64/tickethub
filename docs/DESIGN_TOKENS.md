@@ -2,7 +2,7 @@
 
 Tài liệu này là nguồn tham chiếu duy nhất cho ngôn ngữ thiết kế của `apps/web`. Các giá trị bên dưới phản ánh đúng những gì đang chạy trong [`globals.css`](../apps/web/src/app/globals.css) và các component hiện có.
 
-Nguyên tắc chung: nền trắng, viền mảnh, ít đổ bóng, một màu nhấn xanh lục (emerald). Mọi hình ảnh sự kiện là ảnh thật, không dùng minh họa vẽ tay.
+Nguyên tắc chung: mặc định nền trắng, viền mảnh, ít đổ bóng, một màu nhấn xanh lục (emerald). Trang thanh toán là ngoại lệ: nền xám lạnh, thẻ trắng có bóng mềm và thêm màu theo ngữ cảnh. Mọi hình ảnh sự kiện là ảnh thật, không dùng minh họa vẽ tay.
 
 ## 1. Màu sắc
 
@@ -26,6 +26,34 @@ Nguyên tắc chung: nền trắng, viền mảnh, ít đổ bóng, một màu n
 | `--venue-stage`        | `#334155` | Nền sân khấu trong sơ đồ                  |
 | `--venue-pitch`        | `#4ade80` | Mặt sân bóng trong sơ đồ sân vận động     |
 | `--venue-pitch-stroke` | `#22c55e` | Viền sân bóng trong sơ đồ sân vận động    |
+| `--primary-strong`     | `#047857` | Nút thanh toán chính                      |
+| `--checkout-page`      | `#e4e9ec` | Nền trang thanh toán                      |
+| `--checkout-border`    | `#c9d2d8` | Viền thẻ thanh toán                       |
+| `--gateway`            | `#0a5db0` | Biểu tượng cổng thanh toán                |
+| `--gateway-soft`       | `#e8f1fb` | Nền biểu tượng cổng thanh toán            |
+| `--warning`            | `#9a3412` | Chữ đồng hồ khi sắp hết hạn               |
+| `--warning-soft`       | `#fff7ed` | Nền đồng hồ khi sắp hết hạn               |
+| `--warning-border`     | `#fdba74` | Viền đồng hồ khi sắp hết hạn              |
+| `--warning-ring`       | `#ea580c` | Vòng tiến độ khi sắp hết hạn              |
+| `--pay-bar`            | `#06382b` | Nền thanh thanh toán trên điện thoại      |
+| `--pay-bar-muted`      | `#a9cfc1` | Chữ phụ trên thanh thanh toán             |
+
+Bóng đổ (khai báo trong `@theme inline`): `--shadow-sheet` cho thẻ thanh toán, `--shadow-pay-bar` cho thanh thanh toán trên điện thoại.
+
+### Màu theo ngữ cảnh ở trang thanh toán
+
+Mỗi màu gắn với một ý nghĩa, không dùng để trang trí.
+
+| Ngữ cảnh        | Màu                                                                    |
+| :-------------- | :--------------------------------------------------------------------- |
+| Hành động chính | `--primary-strong`, là khối xanh đậm duy nhất trong thẻ                |
+| Cổng thanh toán | `--gateway` trên `--gateway-soft`                                      |
+| Hợp lệ, an toàn | `--primary` cho dấu kiểm và biểu tượng khiên                           |
+| Đồng hồ giữ chỗ | Trung tính; nhóm `--warning` từ 120 giây; `--destructive` dưới 60 giây |
+| Hủy giao dịch   | `--destructive`                                                        |
+| Tổng thanh toán | Nền `--muted`, chữ `--foreground`                                      |
+
+Viền focus là một nét 2px theo `--ring`, bo theo khung; không ghép viền với bóng đổ.
 
 ### Giá trị thô đang dùng trực tiếp trong JSX
 
@@ -46,11 +74,11 @@ Quy ước cho code mới: dùng class theo token (`text-foreground`, `text-mute
 
 ## 2. Typography
 
-| Mục                | Giá trị                                                 |
-| :----------------- | :------------------------------------------------------ |
-| Font chữ           | Inter (`--font-sans`), có tiếng Việt                    |
-| Font số/mã         | JetBrains Mono (`--font-mono`), dùng cho mã đơn, số ghế |
-| Letter-spacing nền | `-0.005em`                                              |
+| Mục                | Giá trị                                              |
+| :----------------- | :--------------------------------------------------- |
+| Font chữ           | Inter (`--font-sans`), có tiếng Việt                 |
+| Số và mã           | Inter với `tabular-nums` cho đồng hồ, số ghế, mã đơn |
+| Letter-spacing nền | `-0.005em`                                           |
 
 Thang cỡ chữ đang dùng:
 

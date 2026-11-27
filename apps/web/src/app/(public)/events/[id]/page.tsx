@@ -1,13 +1,17 @@
+import { cache } from "react";
 import type { Metadata } from "next";
-import { EventDetailPage, getEventById } from "@/features/event";
+import { notFound } from "next/navigation";
+import { EventDetailPage, fetchPublicEvent } from "@/features/event";
 
 type PageProps = { params: Promise<{ id: string }> };
+
+// Metadata va trang dung chung mot lan doc.
+const loadEvent = cache(fetchPublicEvent);
 
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { id } = await params;
-  const event = getEventById(id);
+  const event = await loadEvent((await params).id);
   if (!event) return { title: "Không tìm thấy sự kiện | tickethub" };
   return {
     title: `${event.title} | tickethub`,
@@ -15,12 +19,13 @@ export async function generateMetadata({
     openGraph: {
       title: event.title,
       description: event.description,
-      images: [event.image],
+      images: [event.bannerUrl],
     },
   };
 }
 
 export default async function Page({ params }: PageProps) {
-  const { id } = await params;
-  return <EventDetailPage id={id} />;
+  const event = await loadEvent((await params).id);
+  if (!event) notFound();
+  return <EventDetailPage event={event} />;
 }

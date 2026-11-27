@@ -194,6 +194,8 @@ Lấy thông tin người dùng đang đăng nhập thông qua Access Token Bear
 
 Tìm kiếm và lọc danh sách sự kiện, phân trang theo cursor.
 
+- Danh sách chỉ gồm sự kiện `PUBLISHED` chưa kết thúc (`endTime` sau thời điểm gọi), sắp theo `startTime` tăng dần.
+
 - Tham số truy vấn:
   - `keyword`: string (tìm kiếm tiếng Việt có dấu hoặc không dấu)
   - `city`: string
@@ -232,9 +234,14 @@ Tìm kiếm và lọc danh sách sự kiện, phân trang theo cursor.
 
 #### `GET /api/v1/events/:slug`
 
-Lấy chi tiết sự kiện phục vụ SSR.
+Lấy chi tiết sự kiện đang mở bán, dùng cho trang chi tiết (SSR) và trang đặt vé.
 
-- Response 200: Chi tiết sự kiện kèm danh sách các hạng vé (`ticketTypes`).
+- Tham số `:slug` nhận slug hoặc UUID của sự kiện. Chuỗi dạng UUID chỉ được so với `id`.
+- Chỉ trả sự kiện `PUBLISHED`; còn lại là 404 `EVENT_NOT_FOUND`.
+- Response 200: Chi tiết sự kiện kèm danh sách các hạng vé (`ticketTypes`) sắp theo `sortOrder`, theo schema `PublicEventSchema` của `@tickethub/shared`.
+  - Với hạng ngồi, `soldCount` và `heldCount` được tính từ trạng thái ghế thật: `capacity - heldCount - soldCount` là số ghế còn giữ được.
+  - `mapKey`: khóa sơ đồ khu vực phía web (`arena-t-stage`, `stadium-concert`, `stadium-football`, `arena-basketball`, `theater`), `null` khi sự kiện không có sơ đồ.
+  - `ticketTypes[].mapZone`: mã khu `data-zone` trên sơ đồ đó, `null` khi hạng vé không gắn khu.
 
 #### `GET /api/v1/events/:id/seatmap`
 
@@ -403,6 +410,8 @@ Giữ chỗ vé trong thời hạn 5 phút với cơ chế tự động phân b�
   "items": [{ "ticketTypeId": "tt-vip-uuid", "quantity": 2 }]
 }
 ```
+
+- Máy chủ từ chối (400) khi hạng vé ngoài thời gian mở bán (`SALE_NOT_OPEN`) hoặc tổng số lượng vượt `maxPerOrder` của hạng vé (`MAX_PER_ORDER_EXCEEDED`).
 
 _Lưu ý: Hệ thống vẫn hỗ trợ tương thích trường hợp client chỉ định trực tiếp `seatId`:_
 

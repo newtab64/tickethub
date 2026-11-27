@@ -1,17 +1,16 @@
 "use client";
 
-import Image from "next/image";
 import {
   Flame,
   SlidersHorizontal,
   ChevronDown,
   X,
-  Eye,
   Users,
-  Sparkles,
   AlertCircle,
 } from "lucide-react";
+import { availabilityLabel } from "@/features/event";
 import { formatVnd } from "@/shared/lib/format";
+import { listingBlockReason } from "../domain/booking-rules";
 import type { BookingScreen } from "./use-booking-screen";
 
 /** Khung ben phai: bo loc va danh sach hang ve. */
@@ -32,7 +31,11 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
   } = vm;
 
   return (
-    <div className="w-full lg:w-[42%] xl:w-[38%] h-[58vh] lg:h-full flex flex-col bg-white overflow-hidden">
+    <div
+      className={`w-full flex flex-col bg-white overflow-hidden ${
+        vm.mapKey ? "lg:w-[42%] xl:w-[38%] h-[58vh] lg:h-full" : "h-full"
+      }`}
+    >
       {/* Top Filter Bar inside right pane */}
       <div className="px-4 py-3 border-b border-[#dfe3e5] bg-white flex items-center justify-between gap-3 shrink-0">
         <div className="text-[12.5px] text-[#606970] font-medium">
@@ -116,9 +119,12 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
           </div>
         ) : (
           filteredListings.map((listing) => {
-            const isHovered = hoveredZoneId === listing.zoneId;
+            // Hang ve khong gan khu co zoneId rong, khong duoc coi la cung mot khu.
+            const isHovered =
+              listing.zoneId !== "" && hoveredZoneId === listing.zoneId;
             const isSelected = selectedListing?.id === listing.id;
-            const isAvailable = listing.availableTickets >= ticketQuantity;
+            const blocked = listingBlockReason(listing, ticketQuantity);
+            const isAvailable = blocked === null;
 
             return (
               <div
@@ -126,10 +132,8 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
                 onMouseEnter={() => setHoveredZoneId(listing.zoneId)}
                 onMouseLeave={() => setHoveredZoneId(null)}
                 onClick={() => {
-                  if (!isAvailable) {
-                    setHoldErrorMessage(
-                      `Hạng vé ${listing.section} chỉ còn ${listing.availableTickets} vé, không đủ cho yêu cầu ${ticketQuantity} vé của bạn. Vui lòng giảm số lượng vé hoặc chọn hạng vé khác.`,
-                    );
+                  if (blocked) {
+                    setHoldErrorMessage(blocked);
                     return;
                   }
                   handleStartHold(listing);
@@ -144,36 +148,22 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
                         : "hover:bg-muted cursor-pointer"
                 }`}
               >
-                {/* Left: Clean Thumbnail Stage Photo */}
-                <div className="w-[110px] sm:w-[124px] aspect-[16/10] rounded-[8px] overflow-hidden bg-[#eff1f2] shrink-0 border border-[#dfe3e5]">
-                  <Image
-                    src={listing.viewFromSeatUrl}
-                    alt={listing.section}
-                    width={124}
-                    height={78}
-                    unoptimized
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
                 {/* Middle: Clean details with small metadata icons */}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2">
                     <h2 className="text-[14px] sm:text-[15px] font-bold text-foreground leading-snug">
-                      {listing.section}
+                      {listing.zoneName}
                     </h2>
                     {!isAvailable && (
                       <span className="px-2 py-0.5 rounded-[4px] bg-destructive/10 text-destructive text-[10.5px] font-bold">
-                        Chỉ còn {listing.availableTickets} vé
+                        {!listing.onSale
+                          ? "Ngoài giờ bán"
+                          : listing.availableTickets <= 0
+                            ? "Hết vé"
+                            : `Còn ${listing.availableTickets} vé`}
                       </span>
                     )}
                   </div>
-
-                  {listing.row && (
-                    <div className="text-[12px] text-[#606970]">
-                      {listing.row}
-                    </div>
-                  )}
 
                   <div className="space-y-0.5 pt-0.5 text-[11.5px] text-[#606970]">
                     <div className="flex items-center gap-1.5">
@@ -185,54 +175,23 @@ export function BookingListingsPane({ vm }: { vm: BookingScreen }) {
                       </span>
                     </div>
 
-                    {listing.section.toLowerCase().includes("vip") && (
-                      <div className="flex items-center gap-1.5">
-                        <Sparkles className="size-3.5 text-amber-600 shrink-0" />
-                        <span>Gói quyền lợi VIP &amp; Lối vào ưu tiên</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-1.5">
-                      <Eye className="size-3.5 text-[#606970] shrink-0" />
-                      <span>Tầm nhìn trực diện</span>
-                    </div>
-
-                    {listing.isLastTickets && isAvailable && (
-                      <div className="pt-0.5">
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#fef2f2] text-[#dc2626] border border-[#fecaca] text-[10.5px] font-bold">
-                          <Flame className="size-3 text-[#dc2626]" />
-                          Sắp hết vé
-                        </span>
-                      </div>
-                    )}
+                    {isAvailable &&
+                      availabilityLabel(listing.availableTickets) ===
+                        "Sắp hết" && (
+                        <div className="pt-0.5">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-[4px] bg-[#fef2f2] text-[#dc2626] border border-[#fecaca] text-[10.5px] font-bold">
+                            <Flame className="size-3 text-[#dc2626]" />
+                            Sắp hết vé
+                          </span>
+                        </div>
+                      )}
                   </div>
                 </div>
 
-                {/* Right: Price & Deal Score Badge */}
+                {/* Right: Price */}
                 <div className="text-right shrink-0 flex flex-col items-end">
                   <div className="text-[16px] sm:text-[17px] font-extrabold text-foreground leading-tight">
                     {formatVnd(listing.price)}
-                  </div>
-                  {!isAvailable && (
-                    <div className="text-[11px] text-destructive font-semibold pt-0.5">
-                      Không đủ {ticketQuantity} vé
-                    </div>
-                  )}
-                  {listing.originalPrice &&
-                    listing.originalPrice > listing.price && (
-                      <div className="text-[11px] text-[#606970] line-through">
-                        {formatVnd(listing.originalPrice)}
-                      </div>
-                    )}
-
-                  {/* Clean Deal Score: solid green square + green text, unboxed */}
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <span className="size-5 rounded-[4px] bg-[#059669] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                      {listing.dealScore}
-                    </span>
-                    <span className="text-[12px] font-bold text-[#059669]">
-                      {listing.dealLabel}
-                    </span>
                   </div>
                 </div>
               </div>

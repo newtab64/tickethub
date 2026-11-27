@@ -166,7 +166,7 @@ export async function apiClient<T>(
   return payload && "data" in payload ? payload.data : (payload as T);
 }
 
-/** Giữ meta phân trang của API BE2 ở ngoài data. */
+/** Giữ meta phân trang nằm ngoài data. */
 export function apiEnvelope<T>(
   endpoint: string,
   options?: RequestInit,

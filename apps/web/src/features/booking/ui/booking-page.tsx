@@ -1,50 +1,74 @@
 "use client";
 
-import { useMemo, Suspense } from "react";
-import { useParams } from "next/navigation";
-import { EVENTS, getEventById, type EventItem } from "@/features/event";
+import { Suspense } from "react";
+import { notFound, useParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import type { PublicEvent } from "@tickethub/shared";
+import { EventLoadError, fetchPublicEvent } from "@/features/event";
 import { useBookingScreen } from "./use-booking-screen";
 import { BookingHeader } from "./booking-header";
-import { BookingUrgencyStrip } from "./booking-urgency-strip";
 import { BookingMapPane } from "./booking-map-pane";
 import { BookingListingsPane } from "./booking-listings-pane";
 import { QuantityModal } from "./quantity-modal";
 import { CheckoutDrawer } from "./checkout-drawer";
 import { SubtotalModal } from "./subtotal-modal";
 
-export function BookingPage() {
-  const params = useParams<{ id: string }>();
-  const eventId = typeof params?.id === "string" ? params.id : "";
+const loading = (
+  <div
+    role="status"
+    className="h-screen flex items-center justify-center text-[13px] text-[#606970]"
+  >
+    Đang tải sơ đồ sự kiện...
+  </div>
+);
 
-  const event = useMemo(() => {
-    return getEventById(eventId) ?? EVENTS[0];
-  }, [eventId]);
+export function BookingPage() {
+  const { id } = useParams<{ id: string }>();
+  const query = useQuery({
+    queryKey: ["public-event", id],
+    queryFn: () => fetchPublicEvent(id),
+    retry: false,
+    // Ton ve thay doi lien tuc khi nhieu nguoi cung mua. Khi chua tai duoc thi
+    // khong tu goi lai, neu khong man hinh loi bi thay bang man hinh cho.
+    refetchInterval: (q) => (q.state.data ? 10_000 : false),
+  });
+
+  if (query.data === null) notFound();
+  if (!query.data) {
+    return query.isError ? (
+      <EventLoadError retry={() => void query.refetch()} />
+    ) : (
+      loading
+    );
+  }
 
   return (
-    <Suspense
-      fallback={
-        <div className="h-screen flex items-center justify-center text-[13px] text-[#606970]">
-          Đang tải sơ đồ sự kiện...
-        </div>
-      }
-    >
-      <EventSplitView key={event.id} event={event} />
+    <Suspense fallback={loading}>
+      <EventSplitView
+        key={query.data.id}
+        event={query.data}
+        updatedAt={query.dataUpdatedAt}
+        refresh={() => void query.refetch()}
+      />
     </Suspense>
   );
 }
 
-function EventSplitView({ event }: { event: EventItem }) {
-  const vm = useBookingScreen(event);
+function EventSplitView(props: {
+  event: PublicEvent;
+  updatedAt: number;
+  refresh: () => void;
+}) {
+  const vm = useBookingScreen(props.event, props.updatedAt, props.refresh);
   const { showQtyModal, selectedListing, showSubtotalModal } = vm;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-32px)] bg-white overflow-hidden text-[#141d23]">
+    <div className="flex flex-col h-screen bg-white overflow-hidden text-[#141d23]">
       <BookingHeader vm={vm} />
-      <BookingUrgencyStrip />
 
       {/* Khong gian lam viec chia doi toan chieu cao */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden relative">
-        <BookingMapPane vm={vm} />
+        {vm.mapKey && <BookingMapPane vm={vm} mapKey={vm.mapKey} />}
         <BookingListingsPane vm={vm} />
       </div>
 

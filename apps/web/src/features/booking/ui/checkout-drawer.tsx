@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { X, CheckCircle2, Timer, ShieldCheck } from "lucide-react";
 import { formatVnd } from "@/shared/lib/format";
@@ -44,7 +43,7 @@ export function CheckoutDrawer({
               Xác nhận đặt vé
             </span>
             <h2 className="text-[18px] font-extrabold text-[#141d23]">
-              {selectedListing.section}
+              {selectedListing.zoneName}
             </h2>
           </div>
           <button
@@ -65,14 +64,14 @@ export function CheckoutDrawer({
                 <Timer className="size-4.5" />
                 <span>Đang giữ chỗ • Mã {holdOrderCode}</span>
               </div>
-              <span className="font-mono text-[16px] font-extrabold text-primary">
+              <span className="tabular-nums text-[16px] font-extrabold text-primary">
                 {formatCountdown(holdSecondsLeft)}
               </span>
             </div>
             {allocatedSeats.length > 0 && (
               <div className="text-[12px] font-medium text-emerald-800 border-t border-emerald-200/60 pt-1.5 flex items-center justify-between">
                 <span>Vị trí ghế đã cấp tự động:</span>
-                <span className="font-mono font-bold">
+                <span className="tabular-nums font-bold">
                   Hàng {allocatedSeats[0]?.rowLabel} - Ghế{" "}
                   {allocatedSeats.map((s) => s.seatNumber).join(", ")}
                 </span>
@@ -80,20 +79,6 @@ export function CheckoutDrawer({
             )}
           </div>
         )}
-
-        {/* View From Seat preview */}
-        <div className="rounded-[10px] overflow-hidden border border-[#dfe3e5] bg-[#141d23] aspect-[16/9] relative">
-          <Image
-            src={selectedListing.viewFromSeatUrl}
-            alt="Góc nhìn thực tế từ chỗ ngồi"
-            fill
-            unoptimized
-            className="object-cover"
-          />
-          <span className="absolute bottom-2 left-2 px-2 py-1 rounded-[6px] bg-black/75 text-white text-[11px] font-semibold">
-            Góc nhìn thực tế sân khấu từ {selectedListing.section}
-          </span>
-        </div>
 
         {/* Seated Together Reassurance Note */}
         <div className="flex items-center gap-2 p-2.5 rounded-[8px] bg-emerald-50 border border-emerald-200 text-emerald-800 text-[12px] font-semibold">
@@ -110,8 +95,7 @@ export function CheckoutDrawer({
           <div className="flex items-center justify-between">
             <span className="text-[#606970]">Khu vực &amp; Vị trí:</span>
             <span className="font-bold text-[#141d23]">
-              {selectedListing.zoneName}{" "}
-              {selectedListing.row ? `• ${selectedListing.row}` : ""}
+              {selectedListing.zoneName}
             </span>
           </div>
           <div className="flex items-center justify-between">

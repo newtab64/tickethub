@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, ne, sql } from "drizzle-orm";
 import {
   EventStatus,
   OutboxStatus,
@@ -39,6 +39,9 @@ export class DrizzleOrganizerProfileLookup implements OrganizerProfileLookup {
     return profile ? { id: profile.id, status: profile.status } : null;
   }
 }
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export class DrizzleEventRepository implements EventRepository {
   async slugExists(slug: string) {
@@ -240,21 +243,30 @@ export class DrizzleEventRepository implements EventRepository {
   }
 
   listPublished(limit: number) {
+    // Khong co tac vu chuyen su kien sang ENDED: loc theo gio ket thuc de su kien
+    // da qua khong chiem cho cua su kien sap dien.
     return db.query.events.findMany({
-      where: eq(events.status, EventStatus.PUBLISHED),
+      where: and(
+        eq(events.status, EventStatus.PUBLISHED),
+        gt(events.endTime, new Date()),
+      ),
       with: { ticketTypes: true },
       limit,
       orderBy: (e, { asc }) => [asc(e.startTime)],
     });
   }
 
-  async findPublishedBySlug(slug: string) {
+  async findPublished(identifier: string) {
+    // Chuoi dang UUID chi so voi id: slug trung UUID khong chiem duoc lien ket.
+    const column = UUID_PATTERN.test(identifier) ? events.id : events.slug;
     const event = await db.query.events.findFirst({
       where: and(
-        eq(events.slug, slug),
+        eq(column, identifier),
         eq(events.status, EventStatus.PUBLISHED),
       ),
-      with: { ticketTypes: true },
+      with: {
+        ticketTypes: { orderBy: (t, { asc }) => [asc(t.sortOrder)] },
+      },
     });
     return event ?? null;
   }
@@ -303,7 +315,8 @@ export class DrizzleEventReadRepository implements EventReadRepository {
     });
   }
 
-  countSeatsByStatus(eventId: string): Promise<SeatStatusCounts[]> {
+  countSeatsByStatus(eventId: string | string[]): Promise<SeatStatusCounts[]> {
+    const eventIds = Array.isArray(eventId) ? eventId : [eventId];
     return db
       .select({
         ticketTypeId: seats.ticketTypeId,
@@ -337,7 +350,7 @@ export class DrizzleEventReadRepository implements EventReadRepository {
         `,
       })
       .from(seats)
-      .where(eq(seats.eventId, eventId))
+      .where(inArray(seats.eventId, eventIds))
       .groupBy(seats.ticketTypeId);
   }
 }

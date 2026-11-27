@@ -240,11 +240,11 @@ export class PublicEventsController {
   }
 
   // GET /api/v1/events/:slug
-  // Lay chi tiet su kien bang slug
+  // Lay chi tiet su kien bang slug hoac UUID
   @Get(":slug")
   async getPublicEventBySlug(@Param("slug") slug: string) {
     const data = await mapEventErrors(() =>
-      this.publicEvents.getPublicEventBySlug(slug),
+      this.publicEvents.getPublicEvent(slug),
     );
 
     return {

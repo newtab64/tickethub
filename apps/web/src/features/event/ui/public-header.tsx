@@ -14,8 +14,8 @@ import {
 } from "lucide-react";
 import { Logo } from "@/shared/ui/logo";
 import { useSession } from "@/features/identity";
-import { getEventById } from "../api/event-catalog";
-import { type CategoryCode } from "../domain/event.types";
+import { fetchPublicEvent } from "../api/public-events";
+import { categoryCode, type CategoryCode } from "../domain/event-discovery";
 import { HeaderSearch } from "./header-search";
 import { Badge } from "@/shared/ui/badge";
 
@@ -69,11 +69,29 @@ function PublicHeaderInner() {
   const eventId = pathname.startsWith("/events/")
     ? pathname.split("/")[2]
     : undefined;
+  // The loai cua su kien dang xem; loi tai thi khong danh dau muc nao.
+  const [viewed, setViewed] = useState<{
+    id: string;
+    category: CategoryCode | null;
+  } | null>(null);
+  useEffect(() => {
+    if (!eventId) return;
+    let ignore = false;
+    fetchPublicEvent(eventId)
+      .then((event) => {
+        if (ignore || !event) return;
+        setViewed({ id: eventId, category: categoryCode(event.category) });
+      })
+      .catch(() => undefined);
+    return () => {
+      ignore = true;
+    };
+  }, [eventId]);
   const activeCategory: string | null =
     pathname === "/"
       ? categoryParam
-      : eventId
-        ? (getEventById(eventId)?.category ?? null)
+      : eventId && viewed?.id === eventId
+        ? viewed.category
         : null;
 
   const handleLogout = async () => {

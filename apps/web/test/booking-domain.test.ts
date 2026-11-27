@@ -4,12 +4,18 @@ import {
   formatCountdown,
   insufficientTicketsMessage,
   parseHoldSession,
+  listingBlockReason,
 } from "../src/features/booking/domain/booking-rules.ts";
 import {
   buildZoneInfoMap,
   filterListingsByZone,
 } from "../src/features/event/domain/zone-info.ts";
 import type { TicketListing } from "../src/features/event/domain/event.types.ts";
+import {
+  eventMapKey,
+  toTicketListings,
+} from "../src/features/event/domain/ticket-listings.ts";
+import type { PublicEvent, PublicTicketType } from "@tickethub/shared";
 
 const NOW = Date.parse("2026-11-11T10:00:00.000Z");
 
@@ -79,20 +85,19 @@ function listing(
   zoneId: string,
   price: number,
   available: number,
+  overrides: Partial<TicketListing> = {},
 ): TicketListing {
   return {
     id: `${zoneId}-${price}`,
-    eventId: "e",
+    eventId: "e1",
     zoneId,
     zoneName: `Khu ${zoneId}`,
-    section: `Khu ${zoneId}`,
-    seatInfo: "",
     price,
     availableTickets: available,
-    dealScore: 1,
-    dealLabel: "Tốt",
-    features: [],
-    viewFromSeatUrl: "",
+    maxPerOrder: 6,
+    onSale: true,
+    isStanding: false,
+    ...overrides,
   };
 }
 
@@ -113,5 +118,100 @@ describe("Event domain: zone info", () => {
     assert.equal(filterListingsByZone(listings, "A").length, 2);
     assert.equal(filterListingsByZone(listings, "B").length, 1);
     assert.equal(filterListingsByZone(listings, null).length, 3);
+  });
+});
+
+describe("Event domain: zone info from live listings", () => {
+  test("skips unmapped ticket types and counts nothing outside the sale window", () => {
+    const map = buildZoneInfoMap([
+      listing("", 100, 5),
+      listing("A", 300, 5, { onSale: false }),
+    ]);
+    assert.deepEqual(Object.keys(map), ["A"]);
+    assert.equal(map.A?.count, 0);
+  });
+});
+
+const ticketType = (
+  overrides: Partial<PublicTicketType> = {},
+): PublicTicketType => ({
+  id: "t1",
+  name: "VIP",
+  description: null,
+  price: 500000,
+  capacity: 10,
+  heldCount: 2,
+  soldCount: 3,
+  isSeated: true,
+  saleStartTime: "2026-11-01T00:00:00.000Z",
+  saleEndTime: "2026-11-30T00:00:00.000Z",
+  maxPerOrder: 6,
+  mapZone: "5715",
+  ...overrides,
+});
+const publicEvent = (overrides: Partial<PublicEvent>) =>
+  ({ id: "e1", mapKey: null, ticketTypes: [], ...overrides }) as PublicEvent;
+
+describe("Event domain: ticket listings", () => {
+  const at = (iso: string, type = ticketType()) =>
+    toTicketListings(publicEvent({ ticketTypes: [type] }), Date.parse(iso))[0]!;
+
+  test("maps remaining tickets, zone and standing flag", () => {
+    assert.deepEqual(at("2026-11-10T00:00:00.000Z"), {
+      id: "t1",
+      eventId: "e1",
+      zoneId: "5715",
+      zoneName: "VIP",
+      price: 500000,
+      availableTickets: 5,
+      maxPerOrder: 6,
+      onSale: true,
+      isStanding: false,
+    });
+  });
+
+  test("is on sale from the opening instant until just before closing", () => {
+    assert.equal(at("2026-10-31T23:59:59.000Z").onSale, false);
+    assert.equal(at("2026-11-01T00:00:00.000Z").onSale, true);
+    assert.equal(at("2026-11-30T00:00:00.000Z").onSale, false);
+  });
+
+  test("keeps an unmapped ticket type in the list with an empty zone", () => {
+    const result = at(
+      "2026-11-10T00:00:00.000Z",
+      ticketType({ mapZone: null, isSeated: false }),
+    );
+    assert.equal(result.zoneId, "");
+    assert.equal(result.isStanding, true);
+  });
+
+  test("shows a map only for a known map key", () => {
+    assert.equal(eventMapKey(publicEvent({ mapKey: "theater" })), "theater");
+    assert.equal(eventMapKey(publicEvent({ mapKey: "khong-co" })), null);
+    assert.equal(eventMapKey(publicEvent({ mapKey: "toString" })), null);
+    assert.equal(eventMapKey(publicEvent({ mapKey: null })), null);
+  });
+});
+
+describe("Booking domain: blocked listings", () => {
+  test("blocks closed sales, sold out and over-limit quantities", () => {
+    assert.match(
+      listingBlockReason(listing("A", 1, 5, { onSale: false }), 1)!,
+      /thời gian mở bán/,
+    );
+    assert.match(listingBlockReason(listing("A", 1, 0), 1)!, /Hết vé/);
+    assert.match(listingBlockReason(listing("A", 1, 2), 3)!, /chỉ còn 2 vé/);
+    assert.match(
+      listingBlockReason(listing("A", 1, 50, { maxPerOrder: 2 }), 3)!,
+      /tối đa 2 vé/,
+    );
+    assert.match(
+      listingBlockReason(listing("A", 1, 50, { maxPerOrder: 10 }), 7)!,
+      /tối đa 6 vé/,
+    );
+  });
+
+  test("allows a quantity within every limit", () => {
+    assert.equal(listingBlockReason(listing("A", 1, 2), 2), null);
   });
 });
