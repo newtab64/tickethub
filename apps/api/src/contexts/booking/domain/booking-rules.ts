@@ -38,6 +38,30 @@ export function assertTicketTypesExist(
   }
 }
 
+/** Chi giu cho trong gio mo ban va khong vuot gioi han rieng cua hang ve. */
+export function assertTicketTypesOnSale(
+  items: HoldItem[],
+  known: Map<string, BookingTicketType>,
+  now: Date,
+): void {
+  const totals = new Map<string, number>();
+  for (const item of items) {
+    totals.set(
+      item.ticketTypeId,
+      (totals.get(item.ticketTypeId) ?? 0) + quantityOf(item),
+    );
+  }
+  for (const [id, quantity] of totals) {
+    const type = known.get(id)!;
+    if (now < type.saleStartTime || now >= type.saleEndTime) {
+      throw bookingErrors.saleNotOpen();
+    }
+    if (quantity > type.maxPerOrder) {
+      throw bookingErrors.maxPerOrderExceeded(type.maxPerOrder);
+    }
+  }
+}
+
 export interface ClassifiedItems {
   explicitSeated: HoldItem[];
   autoSeated: HoldItem[];

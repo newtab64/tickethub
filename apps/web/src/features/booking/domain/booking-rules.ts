@@ -1,3 +1,5 @@
+import type { TicketListing } from "@/features/event";
+
 /**
  * Validates ticket quantity according to UC04 specs (1 to 6 tickets per order)
  */
@@ -185,4 +187,24 @@ export function insufficientTicketsMessage(
   requested: number,
 ): string {
   return `Hạng vé ${section} chỉ còn ${available} vé, không đủ cho yêu cầu ${requested} vé của bạn. Vui lòng giảm số lượng vé hoặc chọn hạng vé khác.`;
+}
+
+/** Ly do khong the giu cho hang ve voi so luong nay; null khi giu duoc. */
+export function listingBlockReason(
+  listing: TicketListing,
+  quantity: number,
+): string | null {
+  const name = listing.zoneName;
+  if (!listing.onSale) {
+    return `Hạng vé ${name} đang ngoài thời gian mở bán.`;
+  }
+  if (listing.availableTickets <= 0) return `Hết vé hạng ${name}.`;
+  if (listing.availableTickets < quantity) {
+    return insufficientTicketsMessage(name, listing.availableTickets, quantity);
+  }
+  const limit = Math.min(6, listing.maxPerOrder);
+  if (quantity > limit) {
+    return `Hạng vé ${name} cho mua tối đa ${limit} vé mỗi đơn.`;
+  }
+  return null;
 }

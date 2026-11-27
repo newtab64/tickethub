@@ -59,7 +59,7 @@ export interface EventRepository {
     version: number | undefined;
   }>;
   listPublished(limit: number): Promise<EventWithTicketTypes[]>;
-  findPublishedBySlug(slug: string): Promise<EventWithTicketTypes | null>;
+  findPublished(identifier: string): Promise<EventWithTicketTypes | null>;
 }
 
 /** Cong doc cho cac mo hinh doc (so do ghe, ton kho). */
@@ -68,7 +68,7 @@ export interface EventReadRepository {
   listSeatsOrdered(eventId: string): Promise<SeatRow[]>;
   publishedEventExists(eventId: string): Promise<boolean>;
   listInventoryTicketTypes(eventId: string): Promise<InventoryTicketType[]>;
-  countSeatsByStatus(eventId: string): Promise<SeatStatusCounts[]>;
+  countSeatsByStatus(eventId: string | string[]): Promise<SeatStatusCounts[]>;
 }
 
 /** Cache doc-qua; loi ha tang bi nuot de khong lam hong luong chinh. */

@@ -30,7 +30,7 @@ export function createEventServices(
   const cache = overrides.cache ?? new RedisReadCache(redis);
   return {
     organizer: new OrganizerEventService(events, profiles),
-    publicEvents: new PublicEventService(events),
+    publicEvents: new PublicEventService(events, reader),
     readModel: new EventReadModel(cache, reader),
   };
 }

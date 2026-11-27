@@ -1,12 +1,6 @@
 // API cong khai cua feature event
-export { EVENTS, getEventById } from "./api/event-catalog";
-export { getEventListings } from "./data/event-listings";
-export { getEventVenueMapKey } from "./domain/event-listings";
-export type {
-  CategoryCode,
-  EventItem,
-  TicketListing,
-} from "./domain/event.types";
+export { eventMapKey, toTicketListings } from "./domain/ticket-listings";
+export type { TicketListing } from "./domain/event.types";
 export {
   clampPanToMap,
   fitMapRect,
@@ -22,3 +16,10 @@ export { EventDetailPage } from "./ui/event-detail-page";
 export { buildZoneInfoMap, filterListingsByZone } from "./domain/zone-info";
 export type { ZoneInfo } from "./domain/zone-info";
 export { EventPoster } from "./ui/event-poster";
+export { EventLoadError } from "./ui/event-load-error";
+export { fetchPublicEvent, fetchPublicEvents } from "./api/public-events";
+export {
+  availabilityLabel,
+  formatEventDateTime,
+  remainingTickets,
+} from "./domain/event-format";

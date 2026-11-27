@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, X } from "lucide-react";
-import { EVENTS } from "../api/event-catalog";
+import { fetchPublicEvents } from "../api/public-events";
+import {
+  filterEventCards,
+  toEventCards,
+  type EventCard,
+} from "../domain/event-discovery";
+import { formatEventDateTime } from "../domain/event-format";
+import { EventPoster } from "./event-poster";
 
 const MAX_SUGGESTIONS = 5;
 
@@ -38,13 +44,33 @@ export function HeaderSearch() {
     };
   }, [open]);
 
+  // Doc danh sach khi mo lan dau; loi thi lan mo sau thu lai.
+  const [events, setEvents] = useState<EventCard[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!open || events) return;
+    let ignore = false;
+    fetchPublicEvents()
+      .then((list) => {
+        if (!ignore) setEvents(toEventCards(list, Date.now()));
+      })
+      .catch(() => {
+        if (!ignore) setFailed(true);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [open, events]);
+
   const suggestions = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    return EVENTS.filter((ev) =>
-      `${ev.title} ${ev.venue} ${ev.city}`.toLowerCase().includes(q),
+    if (!query.trim()) return [];
+    // Khong loc theo ngay nen khong can moc thoi gian.
+    return filterEventCards(
+      events ?? [],
+      { category: "ALL", city: null, date: "ALL", query },
+      0,
     ).slice(0, MAX_SUGGESTIONS);
-  }, [query]);
+  }, [events, query]);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -106,26 +132,20 @@ export function HeaderSearch() {
               {suggestions.map((ev) => (
                 <li key={ev.id}>
                   <Link
-                    href={`/events/${ev.id}`}
+                    href={`/events/${ev.slug}`}
                     onClick={() => setOpen(false)}
                     className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-slate-50"
                   >
                     <span className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-secondary">
-                      <Image
-                        src={ev.image}
-                        alt=""
-                        fill
-                        unoptimized
-                        sizes="40px"
-                        className="object-cover"
-                      />
+                      <EventPoster event={ev} sizes="40px" />
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-semibold text-foreground">
                         {ev.title}
                       </span>
                       <span className="block truncate text-xs text-muted-foreground">
-                        {ev.dateRange} | {ev.venue}, {ev.city}
+                        {formatEventDateTime(ev.startTime)} | {ev.venueName},{" "}
+                        {ev.city}
                       </span>
                     </span>
                   </Link>
@@ -133,7 +153,11 @@ export function HeaderSearch() {
               ))}
               {suggestions.length === 0 && (
                 <li className="px-3 py-3 text-sm text-muted-foreground">
-                  Không có sự kiện phù hợp. Nhấn Enter để tìm trong danh sách.
+                  {events
+                    ? "Không có sự kiện phù hợp. Nhấn Enter để tìm trong danh sách."
+                    : failed
+                      ? "Không tải được sự kiện. Nhấn Enter để tìm trong danh sách."
+                      : "Đang tải sự kiện..."}
                 </li>
               )}
               {suggestions.length > 0 && (

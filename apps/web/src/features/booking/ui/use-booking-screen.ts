@@ -3,10 +3,10 @@
 import { useState, useMemo, useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
+import type { PublicEvent } from "@tickethub/shared";
 import {
-  getEventVenueMapKey,
-  getEventListings,
-  type EventItem,
+  eventMapKey,
+  toTicketListings,
   type TicketListing,
   buildZoneInfoMap,
   filterListingsByZone,
@@ -16,7 +16,7 @@ import {
   computeRemainingSeconds,
   formatCountdown,
   getHoldErrorInfo,
-  insufficientTicketsMessage,
+  listingBlockReason,
   nowMs,
   parseHoldSession,
 } from "../domain/booking-rules";
@@ -28,14 +28,22 @@ import {
 import { useSession } from "@/features/identity";
 
 /** Trang thai va hanh dong cua man hinh dat ve cho mot su kien. */
-export function useBookingScreen(event: EventItem) {
+export function useBookingScreen(
+  event: PublicEvent,
+  updatedAt: number,
+  refresh: () => void,
+) {
   const { user } = useSession();
   const isAdmin = user?.role === "ADMIN";
   const isOrganizer = user?.role === "ORGANIZER";
   const cannotBuyTickets = isAdmin || isOrganizer;
 
-  const mapKey = useMemo(() => getEventVenueMapKey(event), [event]);
-  const allListings = useMemo(() => getEventListings(event), [event]);
+  const mapKey = eventMapKey(event);
+  // Moc thoi gian la lan tai du lieu gan nhat (cap nhat moi 10 giay).
+  const allListings = useMemo(
+    () => toTicketListings(event, updatedAt),
+    [event, updatedAt],
+  );
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -135,14 +143,9 @@ export function useBookingScreen(event: EventItem) {
     // 1 phiên giữ chỗ / tài khoản / sự kiện: chặn bấm lặp hoặc giữ thêm khi đang giữ
     if (isHoldingTicket || holdOrderId) return;
 
-    if (listing.availableTickets < ticketQuantity) {
-      setHoldErrorMessage(
-        insufficientTicketsMessage(
-          listing.section,
-          listing.availableTickets,
-          ticketQuantity,
-        ),
-      );
+    const blocked = listingBlockReason(listing, ticketQuantity);
+    if (blocked) {
+      setHoldErrorMessage(blocked);
       return;
     }
 
@@ -170,6 +173,7 @@ export function useBookingScreen(event: EventItem) {
         // Tuyệt đối không mở checkout drawer khi API thất bại
         resetHoldState();
         setHoldErrorMessage(info.message);
+        if (info.action === "REFRESH") refresh();
         if (info.action === "LOGIN") {
           router.push(`/auth?redirect=${encodeURIComponent(pathname)}`);
         }
@@ -185,6 +189,7 @@ export function useBookingScreen(event: EventItem) {
       setAllocatedSeats(session.allocatedSeats);
       setSelectedListing(listing);
       setHoldErrorMessage(null);
+      refresh();
     } catch (err: unknown) {
       resetHoldState();
       setHoldErrorMessage(

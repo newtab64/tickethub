@@ -1,10 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "../src/database/db";
 import {
   users,
+  events,
   ticketTypes,
   seats,
   orders,
@@ -37,6 +38,22 @@ const SERVICE = {
   ) => requestUseCase.execute({ userId, role }, dto, key),
 };
 
+/** So tien ky vong dua tren gia 2.500.000 cua hang VIP trong su kien mau. */
+async function sampleVipTicketType() {
+  const [row] = await db
+    .select({ id: ticketTypes.id, eventId: ticketTypes.eventId })
+    .from(ticketTypes)
+    .innerJoin(events, eq(events.id, ticketTypes.eventId))
+    .where(
+      and(
+        eq(events.slug, "liveshow-am-nhac-mua-thu-2026"),
+        eq(ticketTypes.name, "Khu VIP A"),
+      ),
+    );
+  if (!row) throw new Error("Need the seeded sample event in db");
+  return row;
+}
+
 describe("RefundsService Integration Tests", () => {
   const service = SERVICE;
 
@@ -46,8 +63,7 @@ describe("RefundsService Integration Tests", () => {
     const [userB] = await db.select().from(users).offset(1).limit(1);
     if (!userA || !userB) throw new Error("Need 2 users in db");
 
-    const [tt] = await db.select().from(ticketTypes).limit(1);
-    if (!tt) throw new Error("Need at least 1 ticket type in db");
+    const tt = await sampleVipTicketType();
     const eventId = tt.eventId;
     const orderId = randomUUID();
 
@@ -97,8 +113,7 @@ describe("RefundsService Integration Tests", () => {
   it("successfully previews and executes partial refund, freeing the seat", async () => {
     const [user] = await db.select().from(users).limit(1);
     if (!user) throw new Error("Need at least 1 user in db");
-    const [tt] = await db.select().from(ticketTypes).limit(1);
-    if (!tt) throw new Error("Need at least 1 ticket type in db");
+    const tt = await sampleVipTicketType();
     const eventId = tt.eventId;
 
     // Create 2 seats

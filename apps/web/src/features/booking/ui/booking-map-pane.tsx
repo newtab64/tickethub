@@ -1,13 +1,18 @@
 "use client";
 
 import { X } from "lucide-react";
-import { SeatMap } from "@/features/event";
+import { SeatMap, type SeatMapProps } from "@/features/event";
 import type { BookingScreen } from "./use-booking-screen";
 
 /** Khung ben trai: so do khu vuc SVG tuong tac. */
-export function BookingMapPane({ vm }: { vm: BookingScreen }) {
+export function BookingMapPane({
+  vm,
+  mapKey,
+}: {
+  vm: BookingScreen;
+  mapKey: SeatMapProps["mapKey"];
+}) {
   const {
-    mapKey,
     activeZoneId,
     setActiveZoneId,
     hoveredZoneId,

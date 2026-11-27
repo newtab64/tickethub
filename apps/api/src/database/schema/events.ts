@@ -36,6 +36,8 @@ export const events = pgTable(
     venueName: varchar("venue_name", { length: 255 }).notNull(),
     venueAddress: text("venue_address").notNull(),
     city: varchar("city", { length: 100 }).notNull(),
+    // Khoa so do SVG phia web (VENUE_SVG); null thi khong hien so do.
+    mapKey: varchar("map_key", { length: 100 }),
     startTime: timestamp("start_time", { withTimezone: true }).notNull(),
     endTime: timestamp("end_time", { withTimezone: true }).notNull(),
     gateOpeningTime: timestamp("gate_opening_time", {

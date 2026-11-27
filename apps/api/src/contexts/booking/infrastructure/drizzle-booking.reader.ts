@@ -36,6 +36,9 @@ export class DrizzleBookingReader implements BookingReader {
       id: tt.id,
       price: tt.price,
       isSeated: tt.isSeated,
+      saleStartTime: tt.saleStartTime,
+      saleEndTime: tt.saleEndTime,
+      maxPerOrder: tt.maxPerOrder,
     }));
   }
 

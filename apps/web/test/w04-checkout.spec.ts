@@ -79,8 +79,7 @@ async function cancelHold(page: Page) {
     .getByRole("dialog")
     .getByRole("button", { name: "Hủy giữ chỗ", exact: true })
     .click();
-  // Sự kiện seed không nằm trong danh mục tĩnh nên đích là trang chủ.
-  await expect(page).toHaveURL(/localhost:3000\/$/);
+  await expect(page).toHaveURL(/\/events\/[0-9a-f-]{36}$/);
 }
 async function hold(request: APIRequestContext, quantity = 1, seated = false) {
   const response = await request.get(`${api}/events`);
@@ -547,7 +546,7 @@ test("Đồng hồ cảnh báo và hết hạn giải phóng đơn thật", asyn
       .filter({ hasText: "Phiên giữ chỗ sắp hết hạn" }),
   ).toBeVisible();
   await page.clock.fastForward(60_000);
-  await expect(page).toHaveURL(/holdExpired=1/);
+  await expect(page).toHaveURL(/\/events\/[0-9a-f-]{36}\?holdExpired=1/);
   await expect(
     page.getByRole("alert").filter({ hasText: "đã hết hạn" }),
   ).toBeVisible();

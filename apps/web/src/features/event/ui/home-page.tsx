@@ -3,10 +3,20 @@
 import { Suspense, useState, useMemo } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { MapPin, Calendar, ChevronDown, Navigation, X } from "lucide-react";
-import { EVENTS } from "../api/event-catalog";
-import { type CategoryCode, type EventItem } from "../domain/event.types";
+import type { PublicEvent } from "@tickethub/shared";
+import { formatVnd } from "@/shared/lib/format";
+import {
+  dateFilterOptions,
+  filterEventCards,
+  toEventCards,
+  type CategoryCode,
+  type DateFilter,
+  type EventCard,
+} from "../domain/event-discovery";
+import { formatEventDateTime } from "../domain/event-format";
+import { EventPoster } from "./event-poster";
 import { SpotlightHero } from "./spotlight-hero";
 
 const POPULAR_CATEGORIES = [
@@ -71,7 +81,7 @@ function EventGridCard({
   isSaved,
   onToggleSave,
 }: {
-  event: EventItem;
+  event: EventCard;
   isSaved: boolean;
   onToggleSave: (id: string) => void;
 }) {
@@ -79,16 +89,15 @@ function EventGridCard({
     <div className="group relative flex flex-col">
       <div className="relative aspect-[5/4] w-full overflow-hidden rounded-[16px] bg-[#eff1f2]">
         <Link
-          href={`/events/${event.id}`}
+          href={`/events/${event.slug}`}
           prefetch={false}
+          aria-label={event.title}
           className="block h-full w-full"
         >
-          <Image
-            src={event.image}
-            alt={event.title}
-            fill
+          <EventPoster
+            event={event}
             sizes="(min-width: 1200px) 276px, (min-width: 640px) 25vw, 50vw"
-            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            labeled
           />
         </Link>
 
@@ -103,7 +112,7 @@ function EventGridCard({
       </div>
 
       <Link
-        href={`/events/${event.id}`}
+        href={`/events/${event.slug}`}
         prefetch={false}
         className="pt-2 flex flex-col"
       >
@@ -111,40 +120,48 @@ function EventGridCard({
           {event.title}
         </h3>
         <p className="text-[12px] leading-[1.4] text-[#606970] truncate">
-          {event.dateRange}
+          {formatEventDateTime(event.startTime)}
         </p>
-        <p className="text-[14px] font-bold leading-[1.4] text-[#141d23] pt-0.5">
-          {event.fromPrice}
-        </p>
+        {event.minPrice !== null && (
+          <p className="text-[14px] font-bold leading-[1.4] text-[#141d23] pt-0.5">
+            {formatVnd(event.minPrice)}+
+          </p>
+        )}
       </Link>
     </div>
   );
 }
 
-const CATEGORY_CODES: CategoryCode[] = [
-  "CONCERT",
-  "SPORT",
-  "THEATER",
-  "FESTIVAL",
-];
+const CATEGORY_CODES: CategoryCode[] = ["CONCERT", "SPORT", "THEATER"];
 
-const heroEvents = EVENTS.filter((event) => event.featuredOrder).sort(
-  (a, b) => (a.featuredOrder ?? 99) - (b.featuredOrder ?? 99),
-);
+/** null la toan quoc. */
+const CITIES = [null, "TP. Hồ Chí Minh", "Hà Nội", "Đà Nẵng"] as const;
 
-export function HomePage() {
+const HERO_COUNT = 5;
+
+function dateLabel(filter: DateFilter, now: number): string {
+  if (filter === "ALL") return "Tất cả ngày";
+  if (filter === "WEEKEND") return "Cuối tuần này";
+  const [year, month] = filter.split("-").map(Number);
+  const suffix = year === new Date(now).getFullYear() ? "" : `/${year}`;
+  return `Tháng ${month}${suffix}`;
+}
+
+export function HomePage({ events }: { events: PublicEvent[] }) {
+  const [now] = useState(() => Date.now());
+  const cards = useMemo(() => toEventCards(events, now), [events, now]);
+
   return (
     <div className="bg-white">
-      <SpotlightHero events={heroEvents} />
+      <SpotlightHero events={cards.slice(0, HERO_COUNT)} />
       <Suspense fallback={<div className="min-h-56" />}>
-        <HomeContent />
+        <HomeContent cards={cards} now={now} />
       </Suspense>
     </div>
   );
 }
 
-function HomeContent() {
-  const router = useRouter();
+function HomeContent({ cards, now }: { cards: EventCard[]; now: number }) {
   const searchParams = useSearchParams();
   const rawCategory = searchParams.get("category");
   // Tu khoa tim kiem nam tren URL (?q=) vi o tim kiem nam o header
@@ -162,17 +179,16 @@ function HomeContent() {
     const qs = params.toString();
     return `${qs ? `/?${qs}` : "/"}#events-list`;
   };
-  const setSelectedCategory = (code: CategoryCode) => {
-    router.replace(buildHref(code, searchParams.get("q") ?? ""), {
-      scroll: false,
-    });
+  // Loc tai cho: chi doi URL (Next dong bo useSearchParams), khong goi lai may chu.
+  const replaceUrl = (code: CategoryCode, q: string) => {
+    window.history.replaceState(null, "", buildHref(code, q));
   };
-  const [selectedCity, setSelectedCity] = useState<"ALL" | "HCM" | "HN" | "DN">(
-    "HCM",
-  );
-  const [selectedDate, setSelectedDate] = useState<
-    "ALL" | "WEEKEND" | "NOV" | "DEC"
-  >("ALL");
+  const setSelectedCategory = (code: CategoryCode) => {
+    replaceUrl(code, searchParams.get("q") ?? "");
+  };
+  const [selectedCity, setSelectedCity] =
+    useState<(typeof CITIES)[number]>(null);
+  const [selectedDate, setSelectedDate] = useState<DateFilter>("ALL");
 
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [alertSubscribed, setAlertSubscribed] = useState(false);
@@ -184,94 +200,52 @@ function HomeContent() {
   };
 
   const cycleCity = () => {
-    const order: Array<"HCM" | "HN" | "DN" | "ALL"> = [
-      "HCM",
-      "HN",
-      "DN",
-      "ALL",
-    ];
-    const next = order[(order.indexOf(selectedCity) + 1) % order.length];
-    setSelectedCity(next);
+    setSelectedCity(
+      CITIES[(CITIES.indexOf(selectedCity) + 1) % CITIES.length]!,
+    );
   };
 
   const cycleDate = () => {
-    const order: Array<"ALL" | "WEEKEND" | "NOV" | "DEC"> = [
-      "ALL",
-      "WEEKEND",
-      "NOV",
-      "DEC",
-    ];
-    const next = order[(order.indexOf(selectedDate) + 1) % order.length];
-    setSelectedDate(next);
+    const order = dateFilterOptions(cards);
+    setSelectedDate(order[(order.indexOf(selectedDate) + 1) % order.length]!);
   };
 
-  const cityButtonLabel =
-    selectedCity === "HCM"
-      ? "TP. Hồ Chí Minh"
-      : selectedCity === "HN"
-        ? "Hà Nội"
-        : selectedCity === "DN"
-          ? "Đà Nẵng"
-          : "Toàn quốc";
+  const cityButtonLabel = selectedCity ?? "Toàn quốc";
+  const dateButtonLabel = dateLabel(selectedDate, now);
 
-  const dateButtonLabel =
-    selectedDate === "ALL"
-      ? "Tất cả ngày"
-      : selectedDate === "WEEKEND"
-        ? "Cuối tuần này"
-        : selectedDate === "NOV"
-          ? "Tháng 11"
-          : "Tháng 12";
-
-  // Filtered pool for carousels below the filter bar
-  const filteredPool = useMemo(() => {
-    return EVENTS.filter((ev) => {
-      if (selectedCategory !== "ALL" && ev.category !== selectedCategory) {
-        return false;
-      }
-      if (selectedDate !== "ALL" && ev.dateWindow !== selectedDate) {
-        return false;
-      }
-      if (searchQuery.trim() !== "") {
-        const q = searchQuery.toLowerCase();
-        return (
-          ev.title.toLowerCase().includes(q) ||
-          ev.venue.toLowerCase().includes(q) ||
-          ev.city.toLowerCase().includes(q)
-        );
-      }
-      return true;
-    });
-  }, [selectedCategory, selectedDate, searchQuery]);
+  // Tap su kien sau bo loc, dung chung cho moi muc ben duoi.
+  const filteredPool = useMemo(
+    () =>
+      filterEventCards(
+        cards,
+        {
+          category: selectedCategory,
+          city: selectedCity,
+          date: selectedDate,
+          query: searchQuery,
+        },
+        now,
+      ),
+    [cards, selectedCategory, selectedCity, selectedDate, searchQuery, now],
+  );
 
   const trendingEvents = useMemo(() => {
-    const list = filteredPool.filter((e) => e.trendingOrder);
-    return (list.length > 0 ? list : filteredPool).slice(0, 4);
-  }, [filteredPool]);
+    const onBanner = new Set(cards.slice(0, HERO_COUNT).map((c) => c.id));
+    const next = filteredPool.filter((c) => !onBanner.has(c.id));
+    return (next.length > 0 ? next : filteredPool).slice(0, 4);
+  }, [cards, filteredPool]);
 
-  const concertEvents = useMemo(() => {
-    return filteredPool
-      .filter(
-        (e) =>
-          (e.category === "CONCERT" || e.category === "FESTIVAL") &&
-          !e.featuredOrder &&
-          !e.trendingOrder,
-      )
-      .slice(0, 4);
-  }, [filteredPool]);
-
-  const sportEvents = useMemo(() => {
-    return filteredPool.filter((e) => e.category === "SPORT").slice(0, 4);
-  }, [filteredPool]);
-
-  const theaterEvents = useMemo(() => {
-    return filteredPool.filter((e) => e.category === "THEATER").slice(0, 4);
-  }, [filteredPool]);
+  const byCategory = (category: CategoryCode) =>
+    filteredPool.filter((c) => c.category === category).slice(0, 4);
+  const concertEvents = byCategory("CONCERT");
+  const sportEvents = byCategory("SPORT");
+  const theaterEvents = byCategory("THEATER");
 
   return (
     <>
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
-        <div className="pt-8" />
+        {/* Khong co banner thi chua cho cho header noi */}
+        <div className={cards.length > 0 ? "pt-8" : "pt-28"} />
 
         {searchQuery && (
           <div className="flex items-center gap-2 pb-3 text-[13px] text-muted-foreground">
@@ -283,11 +257,7 @@ function HomeContent() {
             </span>
             <button
               type="button"
-              onClick={() =>
-                router.replace(buildHref(selectedCategory, ""), {
-                  scroll: false,
-                })
-              }
+              onClick={() => replaceUrl(selectedCategory, "")}
               aria-label="Xóa tìm kiếm"
               className="inline-flex h-6 items-center gap-1 rounded-full border border-border px-2 text-xs font-medium text-foreground hover:bg-muted cursor-pointer"
             >
@@ -303,7 +273,7 @@ function HomeContent() {
         >
           <button
             type="button"
-            onClick={() => setSelectedCity("HCM")}
+            onClick={() => setSelectedCity("TP. Hồ Chí Minh")}
             aria-label="Vị trí của tôi"
             className="size-9 rounded-[8px] bg-primary hover:bg-emerald-700 text-white flex items-center justify-center transition-colors shrink-0"
           >
@@ -313,6 +283,7 @@ function HomeContent() {
           <button
             type="button"
             onClick={cycleCity}
+            data-testid="city-filter"
             className="h-9 px-3 rounded-[8px] border-[1.5px] border-primary bg-emerald-50/50 text-primary text-[13px] font-semibold inline-flex items-center gap-1.5 transition-colors"
           >
             <MapPin className="size-3.5" />
@@ -367,6 +338,12 @@ function HomeContent() {
 
         {/* 4. Trending Events Near Location */}
         <div className="space-y-12">
+          {filteredPool.length === 0 && (
+            <p role="status" className="text-sm text-muted-foreground">
+              Không có sự kiện phù hợp với bộ lọc.
+            </p>
+          )}
+
           {trendingEvents.length > 0 && (
             <section aria-labelledby="heading-trending">
               <div className="flex items-center justify-between mb-4">

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { X, CheckCircle2, Timer, ShieldCheck } from "lucide-react";
 import { formatVnd } from "@/shared/lib/format";
@@ -44,7 +43,7 @@ export function CheckoutDrawer({
               Xác nhận đặt vé
             </span>
             <h2 className="text-[18px] font-extrabold text-[#141d23]">
-              {selectedListing.section}
+              {selectedListing.zoneName}
             </h2>
           </div>
           <button
@@ -81,20 +80,6 @@ export function CheckoutDrawer({
           </div>
         )}
 
-        {/* View From Seat preview */}
-        <div className="rounded-[10px] overflow-hidden border border-[#dfe3e5] bg-[#141d23] aspect-[16/9] relative">
-          <Image
-            src={selectedListing.viewFromSeatUrl}
-            alt="Góc nhìn thực tế từ chỗ ngồi"
-            fill
-            unoptimized
-            className="object-cover"
-          />
-          <span className="absolute bottom-2 left-2 px-2 py-1 rounded-[6px] bg-black/75 text-white text-[11px] font-semibold">
-            Góc nhìn thực tế sân khấu từ {selectedListing.section}
-          </span>
-        </div>
-
         {/* Seated Together Reassurance Note */}
         <div className="flex items-center gap-2 p-2.5 rounded-[8px] bg-emerald-50 border border-emerald-200 text-emerald-800 text-[12px] font-semibold">
           <CheckCircle2 className="size-4 text-emerald-600 shrink-0" />
@@ -110,8 +95,7 @@ export function CheckoutDrawer({
           <div className="flex items-center justify-between">
             <span className="text-[#606970]">Khu vực &amp; Vị trí:</span>
             <span className="font-bold text-[#141d23]">
-              {selectedListing.zoneName}{" "}
-              {selectedListing.row ? `• ${selectedListing.row}` : ""}
+              {selectedListing.zoneName}
             </span>
           </div>
           <div className="flex items-center justify-between">
