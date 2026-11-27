@@ -226,3 +226,5 @@ export const BuyerOrderDetailSchema = z.object({
     }),
   ),
 });
+
+export type BuyerOrderDetail = z.infer<typeof BuyerOrderDetailSchema>;

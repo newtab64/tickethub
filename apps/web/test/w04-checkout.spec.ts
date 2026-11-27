@@ -594,20 +594,12 @@ test("Nút thanh toán dùng URL backend và chuyển VNPay không hủy chỗ",
   expect(result.data.status).toBe("PENDING");
 });
 
-test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với database thật", async ({
-  page,
-  request,
-}) => {
-  test.skip(
-    process.env.W04_IPN_TEST !== "true",
-    "Cần API test riêng bật ENABLE_VNPAY_IPN_PROCESSING=true",
-  );
-  const order = await hold(request, 2);
-  await loginBrowser(page);
+/** Xac nhan don bang IPN cuc bo, ky bang khoa thu nghiem cua API rieng. */
+async function payByLocalIpn(request: APIRequestContext, orderId: string) {
   const payment = VnpayPaymentResponseSchema.parse(
     (
       await (
-        await request.post(`${api}/payments/orders/${order.orderId}/vnpay`, {
+        await request.post(`${api}/payments/orders/${orderId}/vnpay`, {
           headers: headers(),
         })
       ).json()
@@ -632,6 +624,28 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
   params.set("vnp_SecureHash", signature);
   const ipn = await request.get(`${api}/payments/vnpay/ipn?${params}`);
   expect((await ipn.json()).RspCode).toBe("00");
+}
+
+/** Vao che do hoan ve, chon dong dau tien va mo phan xem truoc. */
+async function startRefund(page: Page) {
+  await page.getByText("Chi tiết đơn", { exact: true }).click();
+  await page.getByRole("button", { name: "Yêu cầu hoàn vé" }).click();
+  await expect(page.getByRole("checkbox")).toHaveCount(2);
+  await page.getByRole("checkbox").first().check();
+  await page.getByRole("button", { name: "Xem số tiền hoàn cho 1 vé" }).click();
+}
+
+test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với database thật", async ({
+  page,
+  request,
+}) => {
+  test.skip(
+    process.env.W04_IPN_TEST !== "true",
+    "Cần API test riêng bật ENABLE_VNPAY_IPN_PROCESSING=true",
+  );
+  const order = await hold(request, 2);
+  await loginBrowser(page);
+  await payByLocalIpn(request, order.orderId);
   await page.goto(`/checkout/result?orderId=${order.orderId}`);
   await expect(
     page.getByRole("heading", { name: "Thanh toán thành công", exact: true }),
@@ -646,9 +660,9 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
       poster.evaluate((image: HTMLImageElement) => image.naturalWidth),
     )
     .toBeGreaterThan(0);
-  await expect(page.getByRole("checkbox")).toHaveCount(2);
-  await page.getByRole("checkbox").first().check();
-  await page.getByRole("button", { name: "Xem trước số tiền hoàn" }).click();
+  await expect(page.getByTestId("order-ticket")).toHaveCount(2);
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await startRefund(page);
   await expect(page.getByText("Tỷ lệ hoàn: 100%")).toBeVisible();
   await page.getByLabel("Lý do hủy").fill("Kiểm thử W04 hoàn một phần vé");
   await page.screenshot({
@@ -670,9 +684,48 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
       ).json()
     ).data,
   );
+  await expect(page.getByTestId("order-ticket")).toHaveCount(1);
   expect(actual.status).toBe("PAID");
   expect(actual.tickets.filter((t) => t.status === "CANCELLED")).toHaveLength(
     1,
   );
   expect(actual.tickets.filter((t) => t.status === "SOLD")).toHaveLength(1);
+});
+
+test("Mất mạng khi xác nhận hoàn vé thì gửi lại đúng yêu cầu cũ", async ({
+  page,
+  request,
+}) => {
+  test.skip(
+    process.env.W04_IPN_TEST !== "true",
+    "Cần API test riêng bật ENABLE_VNPAY_IPN_PROCESSING=true",
+  );
+  const order = await hold(request, 2);
+  await loginBrowser(page);
+  await payByLocalIpn(request, order.orderId);
+  const keys: string[] = [];
+  await page.route("**/refund/request", (route) => {
+    keys.push(route.request().headers()["idempotency-key"] ?? "");
+    return keys.length === 1
+      ? route.abort("connectionrefused")
+      : route.continue();
+  });
+  await page.goto(`/buyer/orders/${order.orderId}`);
+  await startRefund(page);
+  await page.getByLabel("Lý do hủy").fill("Mất mạng khi hoàn vé");
+  await page
+    .getByRole("button", { name: "Xác nhận hủy vé", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Chưa xác nhận được kết quả");
+  // Chua biet ket qua thi khong duoc dong va tao yeu cau moi.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await page.getByRole("button", { name: "Gửi lại cùng yêu cầu" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Đã tiếp nhận yêu cầu hủy 1 vé",
+  );
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBeTruthy();
+  expect(keys[1]).toBe(keys[0]);
 });

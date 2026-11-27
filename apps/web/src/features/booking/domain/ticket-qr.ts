@@ -46,3 +46,41 @@ export function qrView({
   }
   return errorStatus === null ? "loading" : "offline";
 }
+
+interface OrderForView<T extends { status: string }> {
+  status: string;
+  event: { status: string };
+  tickets: T[];
+}
+
+/** Viec chinh cua trang don: tra tien, hien ma vao cong, hoac khong co. */
+export function primaryAction(
+  order: OrderForView<{ status: string }>,
+): "pay" | "qr" | "none" {
+  if (order.status === "PENDING") return "pay";
+  return order.tickets.some((t) => canShowQr(t, order.event.status))
+    ? "qr"
+    : "none";
+}
+
+export function noQrReason(
+  order: OrderForView<{ status: string }>,
+): string | null {
+  if (primaryAction(order) !== "none") return null;
+  if (order.tickets.length === 0) {
+    return order.status === "PAID"
+      ? "Vé sẽ xuất hiện sau khi hệ thống xác nhận thanh toán thành công."
+      : "Đơn này không có vé.";
+  }
+  if (order.event.status !== "PUBLISHED") {
+    return "Sự kiện hiện không mở vào cổng nên chưa có mã.";
+  }
+  return "Đơn này không còn vé hiệu lực.";
+}
+
+/** Ve hien tren the chinh; ve da huy chi ghi trong chi tiet don. */
+export function listedTickets<T extends { status: string }>(
+  order: OrderForView<T>,
+): T[] {
+  return order.tickets.filter((t) => t.status !== "CANCELLED");
+}
