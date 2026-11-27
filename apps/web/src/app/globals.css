@@ -21,6 +21,9 @@
   --color-checkout-border: var(--checkout-border);
   --color-gateway: var(--gateway);
   --color-gateway-soft: var(--gateway-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-border: var(--success-border);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
@@ -28,7 +31,7 @@
   --color-pay-bar-muted: var(--pay-bar-muted);
   --shadow-sheet:
     0 1px 2px rgb(16 26 32 / 0.06), 0 16px 40px rgb(16 26 32 / 0.1);
-  --shadow-pay-bar: 0 10px 28px rgb(6 32 24 / 0.35);
+  --shadow-pay-bar: 0 10px 28px rgb(30 27 75 / 0.35);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
@@ -59,23 +62,23 @@
   --card-foreground: #141d23;
   --popover: #ffffff;
   --popover-foreground: #141d23;
-  --primary: #059669;
+  --primary: #4338ca;
   --primary-foreground: #ffffff;
   --secondary: #eff1f2;
   --secondary-foreground: #141d23;
   --muted: #f5f7f8;
   --muted-foreground: #606970;
-  --accent: #ecfdf5;
-  --accent-foreground: #065f46;
+  --accent: #eef2ff;
+  --accent-foreground: #3730a3;
   --destructive: #d51b34;
   --border: #dfe3e5;
   --input: #dfe3e5;
-  --ring: #10b981;
+  --ring: #6366f1;
   --surface-dark: #0c141a;
   --venue-stage: #334155;
   --venue-pitch: #4ade80;
   --venue-pitch-stroke: #22c55e;
-  --primary-strong: #047857;
+  --primary-strong: #3730a3;
   --checkout-page: #e4e9ec;
   --checkout-border: #c9d2d8;
   --gateway: #0a5db0;
@@ -84,8 +87,11 @@
   --warning-soft: #fff7ed;
   --warning-border: #fdba74;
   --warning-ring: #ea580c;
-  --pay-bar: #06382b;
-  --pay-bar-muted: #a9cfc1;
+  --pay-bar: #1e1b4b;
+  --pay-bar-muted: #c7d2fe;
+  --success: #047857;
+  --success-soft: #ecfdf5;
+  --success-border: #a7f3d0;
   --radius: 12px;
   --auth-stage-offset: 0px;
 }

@@ -60,7 +60,7 @@ function FavoriteHeartIcon({ isSaved }: { isSaved: boolean }) {
         fillRule="evenodd"
         clipRule="evenodd"
         d="m8.869 4.893.754.867a.5.5 0 0 0 .754 0l.754-.867c.46-.528 1.944-1.932 3.992-1.16A3.616 3.616 0 0 1 17.1 8.789c-.948 1.874-2.965 4.466-7.101 7.39-4.136-2.924-6.154-5.517-7.101-7.39a3.617 3.617 0 0 1 1.979-5.055c2.047-.772 3.53.632 3.99 1.16"
-        fill={isSaved ? "#059669" : "#000"}
+        fill={isSaved ? "var(--primary)" : "#000"}
         fillOpacity={isSaved ? 1 : 0.38}
       />
       <path
