@@ -52,9 +52,10 @@ describe("Public event lookup (HTTP)", () => {
         city: "Hà Nội",
         status,
         mapKey: "arena-t-stage",
-        startTime: new Date("2027-01-01T12:00:00.000Z"),
-        endTime: new Date("2027-01-01T15:00:00.000Z"),
-        gateOpeningTime: new Date("2027-01-01T11:00:00.000Z"),
+        // Qua khu de dung dau danh sach sap theo ngay dien.
+        startTime: new Date("2020-01-01T12:00:00.000Z"),
+        endTime: new Date("2020-01-01T15:00:00.000Z"),
+        gateOpeningTime: new Date("2020-01-01T11:00:00.000Z"),
       })
       .returning();
     eventIds.push(row!.id);
@@ -210,6 +211,13 @@ describe("Public event lookup (HTTP)", () => {
     assert.equal(type.soldCount, 1);
     // Gia le do Ban to chuc nhap khong duoc lam hong ca su kien.
     assert.equal(type.price, 99000.5);
+
+    // Danh sach cong khai phai tinh giong trang chi tiet.
+    const list = await fetch(`${base}/events?limit=50`);
+    const listed = (await list.json()).data.items
+      .flatMap((item: { ticketTypes: unknown[] }) => item.ticketTypes)
+      .find((item: { id: string }) => item.id === seatedType!.id);
+    assert.equal(listed.capacity - listed.heldCount - listed.soldCount, 2);
   });
 
   it("may chu tu choi giu cho ngoai gio ban hoac vuot gioi han hang ve", async () => {

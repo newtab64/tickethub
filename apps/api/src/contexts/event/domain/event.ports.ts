@@ -68,7 +68,7 @@ export interface EventReadRepository {
   listSeatsOrdered(eventId: string): Promise<SeatRow[]>;
   publishedEventExists(eventId: string): Promise<boolean>;
   listInventoryTicketTypes(eventId: string): Promise<InventoryTicketType[]>;
-  countSeatsByStatus(eventId: string): Promise<SeatStatusCounts[]>;
+  countSeatsByStatus(eventId: string | string[]): Promise<SeatStatusCounts[]>;
 }
 
 /** Cache doc-qua; loi ha tang bi nuot de khong lam hong luong chinh. */

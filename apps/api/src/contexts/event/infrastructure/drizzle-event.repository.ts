@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import {
   EventStatus,
   OutboxStatus,
@@ -310,7 +310,8 @@ export class DrizzleEventReadRepository implements EventReadRepository {
     });
   }
 
-  countSeatsByStatus(eventId: string): Promise<SeatStatusCounts[]> {
+  countSeatsByStatus(eventId: string | string[]): Promise<SeatStatusCounts[]> {
+    const eventIds = Array.isArray(eventId) ? eventId : [eventId];
     return db
       .select({
         ticketTypeId: seats.ticketTypeId,
@@ -344,7 +345,7 @@ export class DrizzleEventReadRepository implements EventReadRepository {
         `,
       })
       .from(seats)
-      .where(eq(seats.eventId, eventId))
+      .where(inArray(seats.eventId, eventIds))
       .groupBy(seats.ticketTypeId);
   }
 }
