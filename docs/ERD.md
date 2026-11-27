@@ -120,6 +120,7 @@ erDiagram
         varchar venue_name
         text venue_address
         varchar city
+        varchar map_key
         timestamptz start_time
         timestamptz end_time
         timestamptz gate_opening_time
@@ -142,6 +143,7 @@ erDiagram
         int held_count
         int sold_count
         boolean is_seated
+        varchar map_zone
         timestamptz sale_start_time
         timestamptz sale_end_time
         int max_per_order
@@ -431,6 +433,7 @@ Lưu thông tin sự kiện, địa điểm và chính sách hoàn vé.
 | venue_name          | VARCHAR(255) | NOT NULL                                                                                                                 | Tên địa điểm tổ chức                                   |
 | venue_address       | TEXT         | NOT NULL                                                                                                                 | Địa chỉ địa điểm                                       |
 | city                | VARCHAR(100) | NOT NULL                                                                                                                 | Tỉnh hoặc thành phố                                    |
+| map_key             | VARCHAR(100) | NULL                                                                                                                     | Khóa sơ đồ khu vực phía web                            |
 | start_time          | TIMESTAMPTZ  | NOT NULL                                                                                                                 | Thời gian bắt đầu sự kiện                              |
 | end_time            | TIMESTAMPTZ  | NOT NULL CHECK (end_time > start_time)                                                                                   | Thời gian kết thúc sự kiện                             |
 | gate_opening_time   | TIMESTAMPTZ  | NOT NULL CHECK (gate_opening_time <= start_time)                                                                         | Thời gian mở cổng soát vé                              |
@@ -469,6 +472,7 @@ Phân hạng vé, định giá và kiểm soát số lượng phát hành.
 | held_count      | INT           | NOT NULL DEFAULT 0 CHECK (held_count >= 0)       | Số vé đang được giữ tạm thời           |
 | sold_count      | INT           | NOT NULL DEFAULT 0 CHECK (sold_count >= 0)       | Số vé đã thanh toán thành công         |
 | is_seated       | BOOLEAN       | NOT NULL DEFAULT true                            | true nếu có số ghế, false nếu khu đứng |
+| map_zone        | VARCHAR(50)   | NULL                                             | Mã khu trên sơ đồ của sự kiện          |
 | sale_start_time | TIMESTAMPTZ   | NOT NULL                                         | Thời điểm bắt đầu bán                  |
 | sale_end_time   | TIMESTAMPTZ   | NOT NULL CHECK (sale_end_time > sale_start_time) | Thời điểm kết thúc bán                 |
 | max_per_order   | INT           | NOT NULL DEFAULT 6 CHECK (max_per_order > 0)     | Giới hạn vé trên mỗi đơn hàng          |

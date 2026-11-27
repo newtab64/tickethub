@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useRef, useState, type ReactNode } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getEventById } from "@/features/event";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   CheckoutOrderSchema,
@@ -80,9 +79,7 @@ function Checkout({ orderId }: { orderId: string }) {
       ? null
       : remainingSeconds(deadline, Math.max(now, query.dataUpdatedAt));
   const active = order?.status === "PENDING" && seconds !== null && seconds > 0;
-  // Trang sự kiện hiện chỉ có danh mục tĩnh, đơn ngoài danh mục về trang chủ.
-  const eventPath =
-    order && getEventById(order.event.id) ? `/events/${order.event.id}` : "/";
+  const eventPath = order ? `/events/${order.event.id}` : "/";
   const { refetch } = query;
 
   // Thanh nổi trên mobile chỉ cần khi nút thanh toán chính chưa vào màn hình.

@@ -293,7 +293,8 @@ Màn hình có nhiều trạng thái (đặt vé, đăng nhập 3 bước, danh 
 
 Các điểm sau phản ánh trạng thái triển khai hiện tại, không phải thay đổi của đợt tái cấu trúc:
 
-- Dữ liệu tạm: danh mục sự kiện và hạng vé (`features/event/data`), dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`). Cần thay bằng API khi backend sẵn sàng.
+- Trang chi tiết sự kiện và trang đặt vé đọc sự kiện từ `GET /api/v1/events/:slug` (`features/event/api/public-events.ts`).
+- Dữ liệu tạm: danh mục sự kiện (`features/event/data`) còn dùng cho trang chủ, ô tìm kiếm, header và trang Vé của tôi, dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`). Cần thay bằng API khi backend sẵn sàng.
 - Bản đồ 21 trang trong tiêu chuẩn dự án (19 trang cốt lõi cùng `/faq` và `/guide`) mới triển khai một phần: các route `/events`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).
 - Trang thanh toán chưa áp dụng mã giảm giá mới, chưa nhập số điện thoại người nhận và chưa chọn phương thức VNPay trên trang: backend chưa nhận các dữ liệu này tại endpoint tạo thanh toán.
 

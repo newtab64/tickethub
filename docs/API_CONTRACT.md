@@ -232,9 +232,13 @@ Tìm kiếm và lọc danh sách sự kiện, phân trang theo cursor.
 
 #### `GET /api/v1/events/:slug`
 
-Lấy chi tiết sự kiện phục vụ SSR.
+Lấy chi tiết sự kiện đang mở bán, dùng cho trang chi tiết (SSR) và trang đặt vé.
 
-- Response 200: Chi tiết sự kiện kèm danh sách các hạng vé (`ticketTypes`).
+- Tham số `:slug` nhận slug hoặc UUID của sự kiện. Chuỗi dạng UUID chỉ được so với `id`.
+- Chỉ trả sự kiện `PUBLISHED`; còn lại là 404 `EVENT_NOT_FOUND`.
+- Response 200: Chi tiết sự kiện kèm danh sách các hạng vé (`ticketTypes`) sắp theo `sortOrder`, theo schema `PublicEventSchema` của `@tickethub/shared`.
+  - `mapKey`: khóa sơ đồ khu vực phía web (`arena-t-stage`, `stadium-concert`, `stadium-football`, `arena-basketball`, `theater`), `null` khi sự kiện không có sơ đồ.
+  - `ticketTypes[].mapZone`: mã khu `data-zone` trên sơ đồ đó, `null` khi hạng vé không gắn khu.
 
 #### `GET /api/v1/events/:id/seatmap`
 
