@@ -69,7 +69,11 @@ export function AccountMenu() {
         />
       </button>
       {open && (
-        <div className="absolute top-14 right-0 z-40 w-66 rounded-3xl bg-popover p-2 shadow-sheet ring-1 ring-foreground/5">
+        <div
+          id="account-menu"
+          // -right-1.5 bù padding phải của header để hai mép phải trùng nhau.
+          className="absolute top-14 -right-1.5 z-40 w-66 rounded-3xl bg-popover p-2 shadow-sheet ring-1 ring-foreground/5"
+        >
           <div className="mb-2 border-b border-border px-4 pt-2 pb-4">
             <p className="truncate text-[15px] font-semibold">{name}</p>
             <p className="truncate text-[13px] text-muted-foreground">

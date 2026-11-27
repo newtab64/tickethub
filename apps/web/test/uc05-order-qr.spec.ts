@@ -204,6 +204,16 @@ test("Vé có ghế mở đúng chỗ ngồi; header và menu dùng được", a
   await expect(
     page.getByRole("link", { name: "Trợ giúp", exact: true }),
   ).toBeVisible();
+  const rightEdge = async (selector: string) => {
+    const box = (await page.locator(selector).boundingBox())!;
+    return Math.round(box.x + box.width);
+  };
+  for (const width of [1280, 320]) {
+    await page.setViewportSize({ width, height: 720 });
+    expect(await rightEdge("#account-menu")).toBe(
+      await rightEdge('nav[aria-label="Điều hướng chính"]'),
+    );
+  }
 });
 
 test("Màn 320px không tràn và mã đủ lớn", async ({ page }) => {
