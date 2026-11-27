@@ -131,6 +131,10 @@ describe("Design tokens: mau nhan cham", () => {
     assert.ok(contrast(token(eyebrow), token("surface-dark")) >= 4.5, eyebrow);
   });
 
+  test("dung mau boi den mac dinh cua trinh duyet", () => {
+    assert.deepEqual(offenders(/selection:(bg|text)-|::selection/), []);
+  });
+
   test("nut Don hang cua toi noi bat tren header trang", () => {
     const shell = readFileSync(
       path.join(WEB, "src/shared/ui/flow-shell.tsx"),
