@@ -5,12 +5,11 @@ import {
   type Page,
   type Locator,
 } from "@playwright/test";
-import { createHmac } from "node:crypto";
 import {
   HoldSeatsResponseDataSchema,
   BuyerOrderDetailSchema,
-  VnpayPaymentResponseSchema,
 } from "@tickethub/shared";
+import { payByLocalIpn } from "./helpers/paid-order";
 
 // Chạy trên API trỏ tới database _test, PostgreSQL/Redis thật và dữ liệu seed.
 const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
@@ -594,6 +593,15 @@ test("Nút thanh toán dùng URL backend và chuyển VNPay không hủy chỗ",
   expect(result.data.status).toBe("PENDING");
 });
 
+/** Vào chế độ hoàn vé, chọn dòng đầu tiên và mở phần xem trước. */
+async function startRefund(page: Page) {
+  await page.getByText("Chi tiết đơn", { exact: true }).click();
+  await page.getByRole("button", { name: "Yêu cầu hoàn vé" }).click();
+  await expect(page.getByRole("checkbox")).toHaveCount(2);
+  await page.getByRole("checkbox").first().check();
+  await page.getByRole("button", { name: "Xem số tiền hoàn cho 1 vé" }).click();
+}
+
 test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với database thật", async ({
   page,
   request,
@@ -604,34 +612,7 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
   );
   const order = await hold(request, 2);
   await loginBrowser(page);
-  const payment = VnpayPaymentResponseSchema.parse(
-    (
-      await (
-        await request.post(`${api}/payments/orders/${order.orderId}/vnpay`, {
-          headers: headers(),
-        })
-      ).json()
-    ).data,
-  );
-  const params = new URLSearchParams({
-    vnp_TmnCode: process.env.W04_VNPAY_TEST_TMN || "W04LOCALTEST",
-    vnp_TxnRef: payment.transactionRef,
-    vnp_Amount: String(payment.amountVnd * 100),
-    vnp_ResponseCode: "00",
-    vnp_TransactionStatus: "00",
-    vnp_TransactionNo: String(Date.now()),
-    vnp_PayDate: "20261105220000",
-  });
-  params.sort();
-  const signature = createHmac(
-    "sha512",
-    process.env.W04_VNPAY_TEST_SECRET || "w04-local-signature-fixture-only",
-  )
-    .update(params.toString())
-    .digest("hex");
-  params.set("vnp_SecureHash", signature);
-  const ipn = await request.get(`${api}/payments/vnpay/ipn?${params}`);
-  expect((await ipn.json()).RspCode).toBe("00");
+  await payByLocalIpn(request, api, headers(), order.orderId);
   await page.goto(`/checkout/result?orderId=${order.orderId}`);
   await expect(
     page.getByRole("heading", { name: "Thanh toán thành công", exact: true }),
@@ -646,9 +627,9 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
       poster.evaluate((image: HTMLImageElement) => image.naturalWidth),
     )
     .toBeGreaterThan(0);
-  await expect(page.getByRole("checkbox")).toHaveCount(2);
-  await page.getByRole("checkbox").first().check();
-  await page.getByRole("button", { name: "Xem trước số tiền hoàn" }).click();
+  await expect(page.getByTestId("order-ticket")).toHaveCount(2);
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await startRefund(page);
   await expect(page.getByText("Tỷ lệ hoàn: 100%")).toBeVisible();
   await page.getByLabel("Lý do hủy").fill("Kiểm thử W04 hoàn một phần vé");
   await page.screenshot({
@@ -670,9 +651,48 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
       ).json()
     ).data,
   );
+  await expect(page.getByTestId("order-ticket")).toHaveCount(1);
   expect(actual.status).toBe("PAID");
   expect(actual.tickets.filter((t) => t.status === "CANCELLED")).toHaveLength(
     1,
   );
   expect(actual.tickets.filter((t) => t.status === "SOLD")).toHaveLength(1);
+});
+
+test("Mất mạng khi xác nhận hoàn vé thì gửi lại đúng yêu cầu cũ", async ({
+  page,
+  request,
+}) => {
+  test.skip(
+    process.env.W04_IPN_TEST !== "true",
+    "Cần API test riêng bật ENABLE_VNPAY_IPN_PROCESSING=true",
+  );
+  const order = await hold(request, 2);
+  await loginBrowser(page);
+  await payByLocalIpn(request, api, headers(), order.orderId);
+  const keys: string[] = [];
+  await page.route("**/refund/request", (route) => {
+    keys.push(route.request().headers()["idempotency-key"] ?? "");
+    return keys.length === 1
+      ? route.abort("connectionrefused")
+      : route.continue();
+  });
+  await page.goto(`/buyer/orders/${order.orderId}`);
+  await startRefund(page);
+  await page.getByLabel("Lý do hủy").fill("Mất mạng khi hoàn vé");
+  await page
+    .getByRole("button", { name: "Xác nhận hủy vé", exact: true })
+    .click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("Chưa xác nhận được kết quả");
+  // Chưa biết kết quả thì không được đóng và tạo yêu cầu mới.
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeVisible();
+  await page.getByRole("button", { name: "Gửi lại cùng yêu cầu" }).click();
+  await expect(page.getByRole("status")).toContainText(
+    "Đã tiếp nhận yêu cầu hủy 1 vé",
+  );
+  expect(keys).toHaveLength(2);
+  expect(keys[0]).toBeTruthy();
+  expect(keys[1]).toBe(keys[0]);
 });

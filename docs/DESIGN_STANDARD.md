@@ -17,3 +17,7 @@ Giao diện `apps/web` cần đơn giản, chuyên nghiệp và lấy người d
 7. **Dễ dùng cho mọi người.** Vùng chạm tối thiểu 44px, tương phản đạt AA, chuyển động tối đa 250ms và tắt được khi người dùng giảm chuyển động.
 8. **Nói bằng lời người dùng.** Không dùng thuật ngữ kỹ thuật.
 9. **Bố cục theo mục đích.** Trang để xem dùng một cột; trang để giao dịch dùng hai cột.
+10. **Bấm được thì nhìn ra được.** Dùng nền, viền, gạch chân hoặc mũi tên; phần mở rộng có mũi tên.
+11. **Chỉ nút hành động mới có nền.** Liên kết điều hướng là chữ trơn. Nút phụ dùng nền xám `fill` với chữ đen; màu nhấn dành cho một hành động chính.
+
+Ngoại lệ: logo dùng độ đậm 800.

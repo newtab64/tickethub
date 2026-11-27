@@ -13,3 +13,4 @@ export type {
   RegisterResponseData,
   CheckIdentifierResult,
 } from "./api/auth-api";
+export { AccountMenu } from "./ui/account-menu";
