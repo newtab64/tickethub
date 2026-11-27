@@ -32,7 +32,7 @@ export function SupportHero({
     <section className="bg-surface-dark text-white pt-24 pb-10 border-b border-border">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="max-w-2xl space-y-2.5">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-primary">
+          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-accent">
             <EyebrowIcon className="size-3.5" aria-hidden="true" /> {eyebrow}
           </span>
           <h1 className="text-[24px] sm:text-[30px] font-extrabold tracking-tight leading-tight">

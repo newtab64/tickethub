@@ -341,7 +341,7 @@ export function OrganizerProfilePage() {
       {savedMessage && (
         <div
           role="status"
-          className="p-3 rounded-md bg-primary/10 border border-primary/20 text-primary text-sm font-medium"
+          className="p-3 rounded-md bg-success-soft border border-success-border text-success text-sm font-medium"
         >
           {savedMessage}
         </div>

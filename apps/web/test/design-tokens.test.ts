@@ -102,10 +102,33 @@ describe("Design tokens: mau nhan cham", () => {
       "organizer/ui/profile-page.tsx",
       "settlement/ui/reconciliation-view.tsx",
       "payment/ui/payment-result-page.tsx",
+      "moderation/ui/event-control-status.tsx",
+      "organizer/ui/wizard-header.tsx",
     ]) {
       const source = readFileSync(path.join(WEB, "src/features", file), "utf8");
       assert.match(source, /(text|bg|border)-success/, file);
     }
+  });
+
+  test("thong bao luu ho so thanh cong dung token success", () => {
+    const source = readFileSync(
+      path.join(WEB, "src/features/organizer/ui/profile-page.tsx"),
+      "utf8",
+    );
+    assert.match(
+      source,
+      /\{savedMessage && \([\s\S]{0,160}?bg-success-soft[^"]*text-success/,
+    );
+  });
+
+  test("chu tren nen toi cua hero dat tuong phan 4.5", () => {
+    const hero = readFileSync(
+      path.join(WEB, "src/features/support/ui/support-hero.tsx"),
+      "utf8",
+    );
+    const eyebrow = hero.match(/uppercase tracking-wider text-([a-z-]+)"/)?.[1];
+    assert.ok(eyebrow, "khong tim thay nhan hero");
+    assert.ok(contrast(token(eyebrow), token("surface-dark")) >= 4.5, eyebrow);
   });
 
   test("nut Don hang cua toi noi bat tren header trang", () => {

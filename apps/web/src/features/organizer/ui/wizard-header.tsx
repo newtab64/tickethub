@@ -30,7 +30,7 @@ export function WizardHeader({ vm }: { vm: CreateEventWizard }) {
               </span>
             ) : savedAtTime ? (
               <span className="flex items-center gap-1.5 text-foreground font-medium">
-                <Check className="size-3.5 text-primary" />
+                <Check className="size-3.5 text-success" />
                 Đã lưu nháp lúc {savedAtTime}
               </span>
             ) : (
