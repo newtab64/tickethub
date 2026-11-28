@@ -397,7 +397,13 @@ function CheckoutRoute() {
 export default function CheckoutPage() {
   return (
     <FlowShell
-      header={<SiteHeader actions={<HeaderActions allowLogout={false} />} />}
+      // Bóng của header phủ lên nền hàng tiêu đề để không lộ mép.
+      header={
+        <SiteHeader
+          className="relative z-40"
+          actions={<HeaderActions allowLogout={false} />}
+        />
+      }
       className="bg-checkout-page"
       mainClassName="max-w-232 pt-2 pb-6 sm:pt-6 short:pt-3"
       footer={<CheckoutFooter />}

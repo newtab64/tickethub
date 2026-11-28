@@ -83,7 +83,7 @@ test("Hold timer turns amber at 120 seconds and red under 60", () => {
 test("Seat rows describe seated, unconfirmed and standing tickets", () => {
   const base = { quantity: 1, unitPrice: 100, subtotal: 100 };
   const seated = { id: "t1", name: "VIP", isSeated: true };
-  const [a, b, c] = seatRows([
+  const rows = seatRows([
     {
       ...base,
       id: "a",
@@ -100,6 +100,9 @@ test("Seat rows describe seated, unconfirmed and standing tickets", () => {
       seat: null,
     },
   ]);
+  const [a, b, c] = ["a", "b", "c"].map((id) =>
+    rows.find((row) => row.id === id),
+  );
   assert.deepEqual(a, {
     id: "a",
     title: "Khu VIP A",
@@ -118,6 +121,26 @@ test("Seat rows describe seated, unconfirmed and standing tickets", () => {
     detail: `3 vé x ${money(100)}`,
     amount: 300,
   });
+});
+test("Seat rows read in seat order", () => {
+  const seat = (id: string, rowLabel: string, seatNumber: string) => ({
+    id,
+    quantity: 1,
+    unitPrice: 100,
+    subtotal: 100,
+    ticketType: { id: "t1", name: "VIP", isSeated: true },
+    seat: { zoneName: "Khu VIP A", rowLabel, seatNumber },
+  });
+  const rows = seatRows([
+    seat("d", "B", "01"),
+    seat("c", "A", "10"),
+    seat("a", "A", "04"),
+    seat("b", "A", "07"),
+  ]);
+  assert.deepEqual(
+    rows.map((row) => row.id),
+    ["a", "b", "c", "d"],
+  );
 });
 test("Checkout title row uses no raw hex colour", () => {
   const source = readFileSync(
