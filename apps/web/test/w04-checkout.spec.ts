@@ -70,6 +70,18 @@ async function expectAligned(page: Page) {
   ).toBeLessThanOrEqual(1);
 }
 
+/** Bấm hủy ở khối đồng hồ rồi xác nhận trong hộp thoại. */
+async function cancelFromCapsule(page: Page) {
+  await page
+    .getByTestId("hold-capsule")
+    .getByRole("button", { name: "Hủy giao dịch" })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Hủy giao dịch", exact: true })
+    .click();
+}
+
 async function cancelHold(page: Page) {
   await page
     .getByRole("button", { name: "Hủy giao dịch", exact: true })
@@ -235,25 +247,52 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
   const bar = page.getByRole("button", { name: "Thanh toán", exact: true });
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(bar).toBeVisible();
-  // Thanh nổi rộng bằng đúng các khối bên trong thẻ, ở cả điện thoại và tablet.
+  // Thanh nổi nền đen chữ trắng để tách khỏi thẻ, rộng bằng đúng thẻ.
+  const floating = page.getByTestId("mobile-pay-bar");
+  await expect(floating).toHaveCSS("background-color", "rgb(20, 29, 35)");
+  await expect(floating.locator("strong")).toHaveCSS(
+    "color",
+    "rgb(255, 255, 255)",
+  );
   for (const width of [320, 390, 700]) {
     await page.setViewportSize({ width, height: 700 });
-    const pill = (await page.getByTestId("mobile-pay-bar").boundingBox())!;
-    const block = (await total.boundingBox())!;
-    expect([pill.x, pill.width]).toEqual([block.x, block.width]);
+    const pill = (await floating.boundingBox())!;
+    const card = (await page.getByTestId("checkout-sheet").boundingBox())!;
+    expect([pill.x, pill.width]).toEqual([card.x, card.width]);
   }
   // Đúng cỡ chữ và bo góc của mockup: tên và gợi ý không gãy dòng trên 390px.
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     (await payment.getByText("buyer@tickethub.vn").boundingBox())!.height,
   ).toBeLessThan(30);
+  expect(
+    (await page
+      .getByRole("button", { name: "Thanh toán ngay qua VNPay" })
+      .boundingBox())!.height,
+  ).toBe(48);
+  // Mỗi thông tin chỉ nói một lần; không có giảm giá thì không có tạm tính.
   await expect(
-    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
-  ).toHaveCSS("border-top-left-radius", "16px");
-  // Mỗi thông tin chỉ nói một lần, không hiện giảm giá bằng 0.
-  await expect(payment.getByText("Chọn tại cổng VNPay")).toBeVisible();
+    payment.getByText("Bạn chọn cách trả ở bước tiếp theo."),
+  ).toBeVisible();
+  await expect(summary.getByText("Đã gồm VAT")).toBeVisible();
   await expect(page.getByText("Giảm giá", { exact: true })).toHaveCount(0);
-  await expect(summary.getByText("Tạm tính")).toBeVisible();
+  await expect(page.getByText("Tạm tính")).toHaveCount(0);
+  // "Tổng cộng" và số tiền cùng đường chân chữ.
+  const baselines = await total.evaluate((block) =>
+    [
+      block.querySelector("[data-total-label]")!,
+      block.querySelector('[data-testid="checkout-total-amount"]')!,
+    ].map((element) => {
+      const mark = document.createElement("span");
+      mark.style.cssText =
+        "display:inline-block;width:0;height:0;vertical-align:baseline";
+      element.appendChild(mark);
+      const y = mark.getBoundingClientRect().top;
+      mark.remove();
+      return y;
+    }),
+  );
+  expect(Math.abs(baselines[0]! - baselines[1]!)).toBeLessThanOrEqual(1);
   await page.setViewportSize({ width: 320, height: 700 });
   await page
     .getByRole("button", { name: "Thanh toán ngay qua VNPay" })
@@ -408,7 +447,7 @@ test("Điện thoại nhỏ: không tràn, không gãy dòng, hiện đủ ghế
         "tiêu đề",
         page.getByRole("heading", { name: "Thanh toán", exact: true }),
       ],
-      ["nhãn tổng", total.getByText("Tổng thanh toán")],
+      ["nhãn tổng", total.getByText("Tổng cộng")],
       ["tên khu", page.getByText("Khu VIP A").first()],
       ["vị trí ghế", page.getByText(/Hàng .*, ghế/).first()],
     ] as const)
@@ -452,11 +491,179 @@ test("Điện thoại: lỗi hủy giữ chỗ và cảnh báo sắp hết hạn
     page.getByRole("alert").filter({ hasText: "Chưa hủy được" }),
   ).toBeInViewport();
   await page.clock.fastForward(246_000);
-  // Chữ đỏ cần nền trắng để đủ tương phản trên nền xám.
+  // Không hiện câu cảnh báo; trình đọc màn hình vẫn được báo.
+  const warning = page.getByRole("alert").filter({ hasText: "sắp hết hạn" });
+  await expect(warning).toHaveCount(1);
+  expect((await warning.boundingBox())!.width).toBeLessThanOrEqual(1);
+  // Còn từ 45 giây thì khóa nút trả tiền.
+  await page.clock.fastForward(10_000);
   await expect(
-    page.getByRole("alert").filter({ hasText: "sắp hết hạn" }),
-  ).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
+  ).toBeDisabled();
   await page.unroute("**/booking/release");
+});
+
+test("Đồng hồ và nút hủy nằm chung một khối, vừa màn 320px", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const capsule = page.getByTestId("hold-capsule");
+  const cancel = capsule.getByRole("button", { name: "Hủy giao dịch" });
+  await expect(capsule.getByRole("timer")).toBeVisible();
+  await expect(cancel).toHaveText("Hủy giao dịch");
+  const heading = page.getByRole("heading", {
+    name: "Thanh toán",
+    exact: true,
+  });
+  for (const width of [1280, 390, 320]) {
+    await page.setViewportSize({ width, height: 700 });
+    const box = (await capsule.boundingBox())!;
+    const button = (await cancel.boundingBox())!;
+    expect(box.x + box.width, `${width}px`).toBeLessThanOrEqual(width - 16);
+    expect(button.x + button.width).toBeLessThanOrEqual(box.x + box.width);
+    expect(button.height).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeLessThanOrEqual(60);
+    // Điện thoại: chữ tiêu đề nhường chỗ, chỉ còn cho trình đọc màn hình.
+    expect((await heading.boundingBox())!.width <= 1).toBe(width < 1024);
+  }
+  await cancelHold(page);
+});
+
+test("Có giảm giá thì hiện tạm tính; số tiền rất lớn vẫn vừa thanh nổi", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.route("**/booking/orders/*", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.totalAmount = 100_000_000_000;
+    body.data.discountAmount = 1_000_000_000;
+    body.data.finalAmount = 99_000_000_000;
+    await route.fulfill({ response, json: body });
+  });
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const total = page.getByTestId("checkout-total");
+  await expect(total.getByText("Tạm tính")).toBeVisible();
+  await expect(total.getByText("Giảm giá", { exact: true })).toBeVisible();
+  const bar = page.getByTestId("mobile-pay-bar");
+  await expect(bar).toBeVisible();
+  const pill = (await bar.boundingBox())!;
+  const button = (await bar.getByRole("button").boundingBox())!;
+  expect(button.x + button.width).toBeLessThanOrEqual(pill.x + pill.width);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+  await page.setViewportSize({ width: 360, height: 700 });
+  expect(
+    (await total.getByText("Tổng cộng").boundingBox())!.height,
+  ).toBeLessThan(34);
+  await page.unroute("**/booking/orders/*");
+  await cancelHold(page);
+});
+
+test("Màn 1280x800: sáu ghế mà nút trả tiền vẫn thấy ngay", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request, 6, true);
+  await loginBrowser(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  await expect(
+    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
+  ).toBeInViewport({ ratio: 1 });
+  const list = page.getByLabel("Danh sách ghế");
+  await expect(list).toHaveAttribute("tabindex", "0");
+  // Ghế thứ ba ló một phần để người mua biết còn cuộn được.
+  for (const height of [800, 900]) {
+    await page.setViewportSize({ width: 1280, height });
+    const frame = (await list.boundingBox())!;
+    const third = (await list.getByRole("listitem").nth(2).boundingBox())!;
+    const visible = frame.y + frame.height - third.y;
+    expect(visible, `${height}px`).toBeGreaterThanOrEqual(16);
+    expect(visible, `${height}px`).toBeLessThan(third.height);
+  }
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Liveshow Âm Nhạc Mùa Thu 2026",
+    }),
+  ).toHaveCount(1);
+  await cancelHold(page);
+});
+
+test("Điện thoại nằm ngang: lỗi hủy không bị hàng đồng hồ che", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  await page.route("**/booking/release", (route) =>
+    route.fulfill({
+      status: 500,
+      json: { success: false, error: { code: "E", message: "Chưa hủy được" } },
+    }),
+  );
+  await expect(page.getByTestId("checkout-sheet")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await cancelFromCapsule(page);
+  const error = page.getByRole("alert").filter({ hasText: "Chưa hủy được" });
+  await expect(error).toBeInViewport({ ratio: 1 });
+  const capsule = (await page.getByTestId("hold-capsule").boundingBox())!;
+  await expect
+    .poll(async () => (await error.boundingBox())!.y)
+    .toBeGreaterThanOrEqual(capsule.y + capsule.height);
+  await page.unroute("**/booking/release");
+  await cancelHold(page);
+});
+
+test("Màn còn chỗ thì thẻ nằm giữa và chân trang sát đáy", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const sheet = page.getByTestId("checkout-sheet");
+  await expect(sheet).toBeVisible();
+  const box = async (target: Locator) => (await target.boundingBox())!;
+  const footer = page.getByRole("contentinfo");
+  for (const height of [800, 1080]) {
+    await page.setViewportSize({ width: 1280, height });
+    const header = await box(
+      page.getByRole("navigation", { name: "Điều hướng chính" }),
+    );
+    const capsule = await box(page.getByTestId("hold-capsule"));
+    const card = await box(sheet);
+    const foot = await box(footer);
+    const above = capsule.y - (header.y + header.height);
+    const below = foot.y - (card.y + card.height);
+    expect(Math.abs(above - below), `${height}px`).toBeLessThanOrEqual(8);
+    expect(Math.abs(foot.y + foot.height - height)).toBeLessThanOrEqual(1);
+  }
+  // Điện thoại: liên kết xếp liền hàng nên chân trang thấp hơn.
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await box(footer)).height).toBeLessThanOrEqual(280);
+  // Màn thấp: nội dung chạy từ trên xuống, không bị đẩy khỏi trang.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const header = await box(
+    page.getByRole("navigation", { name: "Điều hướng chính" }),
+  );
+  expect(
+    (await box(page.getByTestId("hold-capsule"))).y,
+  ).toBeGreaterThanOrEqual(header.y + header.height);
+  await cancelHold(page);
 });
 
 test("Footer thẳng mép thẻ, không mang mã đơn, một lời cam kết", async ({

@@ -56,38 +56,40 @@ export function holdTone(seconds: number): HoldTone {
 
 export interface SeatRow {
   id: string;
-  badge: string;
   title: string;
   detail: string;
   amount: number;
 }
 
-/** Dòng hiển thị cho từng mục đơn; vé đứng không có hàng ghế. */
+const bySeat = new Intl.Collator("vi", { numeric: true });
+
+/** Dòng hiển thị theo thứ tự ghế; vé đứng không có hàng ghế. */
 export function seatRows(items: CheckoutOrder["items"]): SeatRow[] {
-  return items.map(
+  const rows = items.map(
     ({ id, quantity, unitPrice, subtotal, ticketType, seat }) => {
       const row = { id, amount: subtotal };
       if (!ticketType.isSeated)
         return {
           ...row,
-          badge: String(quantity),
           title: `Khu vực: ${ticketType.name} (Vé đứng)`,
           detail: `${quantity} vé x ${money(unitPrice)}`,
         };
       if (!seat)
         return {
           ...row,
-          badge: "?",
           title: ticketType.name,
           detail: "Vị trí ghế chưa được xác nhận",
         };
       return {
         ...row,
-        badge: seat.seatNumber,
         title: zoneLabel(seat.zoneName),
         detail: `Hàng ${seat.rowLabel}, ghế ${seat.seatNumber}`,
       };
     },
+  );
+  return rows.sort(
+    (a, b) =>
+      bySeat.compare(a.title, b.title) || bySeat.compare(a.detail, b.detail),
   );
 }
 

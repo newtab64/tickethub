@@ -7,23 +7,15 @@ import {
   type HoldTone,
 } from "../domain/order-checkout";
 
-const TONE: Record<HoldTone, { box: string; ring: string }> = {
-  calm: {
-    box: "border-border bg-background text-muted-foreground [&_strong]:text-foreground",
-    ring: "var(--primary)",
-  },
-  soon: {
-    box: "border-warning-border bg-warning-soft text-warning",
-    ring: "var(--warning-ring)",
-  },
-  urgent: {
-    box: "border-destructive/40 bg-background text-destructive",
-    ring: "var(--destructive)",
-  },
+const TONE: Record<HoldTone, { time: string; ring: string }> = {
+  calm: { time: "text-foreground", ring: "var(--primary)" },
+  soon: { time: "text-warning", ring: "var(--warning-ring)" },
+  urgent: { time: "text-destructive", ring: "var(--destructive)" },
 };
 // Khoét giữa hình tròn để thành vòng tiến độ.
 const RING_MASK = "radial-gradient(circle, transparent 5.5px, black 6px)";
 
+/** Hàng tiêu đề dính trên đầu: đồng hồ giữ chỗ và nút hủy chung một khối. */
 export function CheckoutTitleRow({
   seconds,
   cancelDisabled,
@@ -38,53 +30,49 @@ export function CheckoutTitleRow({
   const tone = holdTone(seconds ?? HOLD_SECONDS);
   const percent = ((seconds ?? HOLD_SECONDS) / HOLD_SECONDS) * 100;
   return (
-    <div className="sticky top-0 z-30 mb-1 grid grid-cols-[1fr_auto_auto] items-center gap-2 bg-checkout-page py-2.5 lg:mb-6 lg:grid-cols-[1fr_auto_1fr] lg:py-0 short:mb-3">
-      <h1 className="text-[22px] font-bold tracking-tight whitespace-nowrap max-[359px]:text-lg lg:text-[28px]">
+    <div className="sticky top-0 z-30 mb-2 flex items-center justify-between gap-4 bg-checkout-page py-2 lg:mb-4">
+      <h1 className="text-[28px] font-semibold tracking-tight max-lg:sr-only">
         Thanh toán
       </h1>
       <div
-        className={cn(
-          "flex h-11 items-center gap-2.5 rounded-full border pr-5 pl-3.5 text-[13px] shadow-sm max-[359px]:gap-2 max-[359px]:pr-3 max-[359px]:pl-2.5",
-          TONE[tone].box,
-        )}
+        data-testid="hold-capsule"
+        className="flex items-center justify-between gap-4 rounded-full bg-background py-1.5 pr-1.5 pl-4 shadow-sheet max-lg:w-full max-[359px]:gap-2"
       >
-        <span
-          aria-hidden="true"
-          className="size-5 rounded-full"
-          style={{
-            background: `conic-gradient(${TONE[tone].ring} ${percent}%, var(--border) 0)`,
-            mask: RING_MASK,
-          }}
-        />
-        <span className="hidden lg:inline">Giữ chỗ còn</span>
-        <strong
-          role="timer"
-          aria-label="Thời gian giữ chỗ"
-          className="text-lg font-bold tabular-nums"
-        >
-          {seconds === null ? "--:--" : formatTimer(seconds)}
-        </strong>
-      </div>
-      <Button
-        variant="outline"
-        aria-label="Hủy giao dịch"
-        className="h-11 justify-self-end rounded-full bg-background px-4 font-semibold text-destructive shadow-sm hover:text-destructive max-[359px]:px-3"
-        disabled={cancelDisabled}
-        onClick={onCancel}
-      >
-        {cancelling ? (
-          "Đang hủy..."
-        ) : (
-          <span>
-            Hủy<span className="hidden lg:inline"> giao dịch</span>
+        <p className="flex items-center gap-2 whitespace-nowrap">
+          <span
+            aria-hidden="true"
+            className="size-5 rounded-full"
+            style={{
+              background: `conic-gradient(${TONE[tone].ring} ${percent}%, var(--border) 0)`,
+              mask: RING_MASK,
+            }}
+          />
+          <span className="text-[13px] text-muted-foreground max-[359px]:sr-only">
+            Giữ chỗ
           </span>
-        )}
-      </Button>
-      {seconds !== null && tone === "urgent" && (
-        <p
-          role="alert"
-          className="col-span-full justify-self-center rounded-2xl bg-background px-3 py-1 text-center text-sm text-destructive"
+          <strong
+            role="timer"
+            aria-label="Thời gian giữ chỗ"
+            className={cn(
+              "text-[17px] font-semibold tabular-nums",
+              TONE[tone].time,
+            )}
+          >
+            {seconds === null ? "--:--" : formatTimer(seconds)}
+          </strong>
+        </p>
+        <Button
+          variant="secondary"
+          disabled={cancelDisabled}
+          onClick={onCancel}
+          className="max-[359px]:px-4"
         >
+          {cancelling ? "Đang hủy..." : "Hủy giao dịch"}
+        </Button>
+      </div>
+      {seconds !== null && tone === "urgent" && (
+        // Màu đồng hồ đã báo bằng mắt; câu này chỉ dành cho trình đọc màn hình.
+        <p role="alert" className="sr-only">
           Phiên giữ chỗ sắp hết hạn. Bạn cần còn hơn 45 giây để sang VNPay.
         </p>
       )}
