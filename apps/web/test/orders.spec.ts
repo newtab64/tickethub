@@ -213,6 +213,17 @@ test("Màn 320px: tên và trạng thái dài không tràn, danh sách lọc n�
   const menu = (await page.getByRole("listbox").boundingBox())!;
   expect(menu.x).toBeGreaterThanOrEqual(0);
   expect(menu.x + menu.width).toBeLessThanOrEqual(320);
+  // Không mục nào bị cắt chữ.
+  expect(
+    await page
+      .getByRole("option")
+      .locator("span")
+      .evaluateAll(
+        (labels) =>
+          labels.filter((label) => label.scrollWidth > label.clientWidth)
+            .length,
+      ),
+  ).toBe(0);
   // Chọn trạng thái dài nhất: ô lọc vẫn nằm trong màn.
   await page.getByRole("option").nth(6).click();
   expect(await overflow()).toBeLessThanOrEqual(0);

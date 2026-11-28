@@ -185,6 +185,8 @@ export function CustomSelect({
           className={cn(
             "absolute z-50 mt-2 max-h-96 w-full min-w-60 overflow-y-auto rounded-3xl bg-popover p-2 text-[15px] text-popover-foreground shadow-sheet ring-1 ring-foreground/5 focus:outline-none",
             align === "end" ? "right-0" : "left-0",
+            // Ô lọc trên nền xám hẹp hơn danh sách nên cho danh sách rộng riêng.
+            surface && "min-w-75",
           )}
         >
           {options.map((opt, idx) => {
@@ -203,16 +205,16 @@ export function CustomSelect({
                 onMouseEnter={() => setFocusedIndex(idx)}
                 id={`${id}-option-${idx}`}
                 className={cn(
-                  "flex min-h-11 cursor-pointer items-center justify-between rounded-2xl px-4",
+                  "flex min-h-11 cursor-pointer items-center justify-between rounded-2xl px-4 py-2",
                   isFocused && "bg-muted",
                   isSelected && "font-semibold",
                 )}
               >
-                <div className="flex items-center gap-2 truncate">
+                <div className="flex min-w-0 items-center gap-2">
                   {opt.icon && (
                     <opt.icon className="size-4 shrink-0 text-muted-foreground" />
                   )}
-                  <span className="truncate">{opt.label}</span>
+                  <span className="break-words">{opt.label}</span>
                 </div>
                 {isSelected && <Check className="ml-2 size-4 shrink-0" />}
               </li>
