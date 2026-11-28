@@ -28,17 +28,13 @@ Quy tắc trình bày chung nằm ở [DESIGN_STANDARD.md](DESIGN_STANDARD.md).
 | `--venue-stage`        | `#334155` | Nền sân khấu trong sơ đồ                  |
 | `--venue-pitch`        | `#4ade80` | Mặt sân bóng trong sơ đồ sân vận động     |
 | `--venue-pitch-stroke` | `#22c55e` | Viền sân bóng trong sơ đồ sân vận động    |
-| `--primary-strong`     | `#3730a3` | Nút thanh toán chính                      |
+| `--primary-strong`     | `#3730a3` | Rê chuột trên nút chính                   |
 | `--checkout-page`      | `#e4e9ec` | Nền trang thanh toán                      |
-| `--checkout-border`    | `#c9d2d8` | Viền thẻ thanh toán                       |
-| `--gateway`            | `#0a5db0` | Biểu tượng cổng thanh toán                |
-| `--gateway-soft`       | `#e8f1fb` | Nền biểu tượng cổng thanh toán            |
+| `--checkout-border`    | `#c9d2d8` | Đường kẻ chân trang thanh toán            |
 | `--warning`            | `#9a3412` | Chữ đồng hồ khi sắp hết hạn               |
 | `--warning-soft`       | `#fff7ed` | Nền đồng hồ khi sắp hết hạn               |
 | `--warning-border`     | `#fdba74` | Viền đồng hồ khi sắp hết hạn              |
 | `--warning-ring`       | `#ea580c` | Vòng tiến độ khi sắp hết hạn              |
-| `--pay-bar`            | `#1e1b4b` | Nền thanh thanh toán trên điện thoại      |
-| `--pay-bar-muted`      | `#c7d2fe` | Chữ phụ trên thanh thanh toán             |
 | `--success`            | `#047857` | Chữ và biểu tượng báo thành công, còn vé  |
 | `--success-soft`       | `#ecfdf5` | Nền thông báo thành công                  |
 | `--success-border`     | `#a7f3d0` | Viền thông báo thành công                 |
@@ -46,7 +42,7 @@ Quy tắc trình bày chung nằm ở [DESIGN_STANDARD.md](DESIGN_STANDARD.md).
 | `--fill-hover`         | `#d0d5db` | Nền nút phụ khi rê chuột                  |
 | `--field`              | `#eceef1` | Nền ô nhập, ô chọn và ô ngày giờ          |
 
-Bóng đổ (khai báo trong `@theme inline`): `--shadow-sheet` cho thẻ thanh toán, `--shadow-pay-bar` cho thanh thanh toán trên điện thoại.
+Bóng đổ (khai báo trong `@theme inline`): `--shadow-sheet` cho header, thẻ và thanh thanh toán nổi.
 
 ### Màu theo ngữ cảnh ở trang thanh toán
 
@@ -54,12 +50,9 @@ Mỗi màu gắn với một ý nghĩa, không dùng để trang trí.
 
 | Ngữ cảnh        | Màu                                                                    |
 | :-------------- | :--------------------------------------------------------------------- |
-| Hành động chính | `--primary-strong`, là khối chàm đậm duy nhất trong thẻ                |
-| Cổng thanh toán | `--gateway` trên `--gateway-soft`                                      |
-| Hợp lệ, an toàn | `--primary` cho dấu kiểm và biểu tượng khiên                           |
+| Hành động chính | `--primary`, là nút chàm duy nhất trong thẻ                            |
 | Đồng hồ giữ chỗ | Trung tính; nhóm `--warning` từ 120 giây; `--destructive` dưới 60 giây |
-| Hủy giao dịch   | `--destructive`                                                        |
-| Tổng thanh toán | Nền `--muted`, chữ `--foreground`                                      |
+| Hủy giao dịch   | Nút xám `--fill`; trong hộp thoại xác nhận là chữ `--destructive`      |
 
 Viền focus là một nét 2px theo `--ring`, bo theo khung; không ghép viền với bóng đổ.
 

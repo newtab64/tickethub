@@ -67,11 +67,11 @@ Tài liệu này là Hiến chương Dự án bất biến (Immutable Project Co
   1. **Hàng tiêu đề cố định (nằm dưới header chung, dính trên đầu khi cuộn):**
      - Chứa tiêu đề "Thanh toán", đồng hồ đếm ngược kỹ thuật số dạng `MM:SS` (chuẩn 5 phút / 300 giây) và nút "Hủy giao dịch".
      - Đồng hồ chuyển màu cam khi còn từ 120 giây trở xuống và màu đỏ khi còn dưới 60 giây.
-  2. **Bố cục 2 cột trên màn hình máy tính (2-Column Layout):** một thẻ chia đôi, các khối hai bên cao bằng nhau theo từng hàng.
+  2. **Bố cục 2 cột trên màn hình máy tính (2-Column Layout):** một thẻ chia đôi, đáy khối tổng tiền ngang đáy nút thanh toán.
      - **Cột bên trái (Tóm tắt và Cam kết):**
        - Tóm tắt thông tin sự kiện (Tên sự kiện, Thời gian bắt đầu, Địa điểm tổ chức).
        - Chi tiết vị trí vé đã được hệ thống tự động cấp phát (Tên Zone, Danh sách số ghế/hàng ghế cụ thể, Đơn giá từng vé).
-       - Bảng phân tách chi phí minh bạch: Tạm tính, Phí dịch vụ (nếu có), Giảm giá voucher (chỉ hiện khi lớn hơn 0), Tổng tiền thanh toán đã bao gồm VAT.
+       - Bảng phân tách chi phí minh bạch: Tạm tính (chỉ hiện khi có giảm giá hoặc phí), Phí dịch vụ (nếu có), Giảm giá voucher (chỉ hiện khi lớn hơn 0), Tổng tiền thanh toán đã bao gồm VAT.
        - Huy hiệu bảo đảm an toàn giao dịch và cam kết 100% vé chính hãng.
      - **Cột bên phải (Thao tác thanh toán):**
        - Biểu mẫu thông tin người nhận vé (Họ và tên, Email, Số điện thoại) với tính năng tự động điền (Autofill) từ tài khoản đang đăng nhập.

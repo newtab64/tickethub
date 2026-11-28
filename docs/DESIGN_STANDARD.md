@@ -4,7 +4,7 @@ Giao diện `apps/web` cần đơn giản, chuyên nghiệp và lấy người d
 
 ## Phạm vi
 
-Áp dụng cho trang làm mới. Trang cũ (gồm trang thanh toán) đưa về chuẩn ở công việc riêng.
+Áp dụng cho trang làm mới. Trang cũ đưa về chuẩn lần lượt từng trang.
 
 ## Quy tắc
 
