@@ -27,7 +27,6 @@
   --color-success-border: var(--success-border);
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
-  --color-warning-border: var(--warning-border);
   --shadow-sheet:
     0 1px 2px rgb(16 26 32 / 0.06), 0 16px 40px rgb(16 26 32 / 0.1);
   --color-input: var(--input);
@@ -81,7 +80,6 @@
   --checkout-border: #c9d2d8;
   --warning: #9a3412;
   --warning-soft: #fff7ed;
-  --warning-border: #fdba74;
   --warning-ring: #ea580c;
   --success: #047857;
   --success-soft: #ecfdf5;

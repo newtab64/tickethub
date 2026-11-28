@@ -24,9 +24,9 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
           <EventPoster event={order.event} sizes="80px" labeled />
         </div>
         <div className="min-w-0">
-          <h3 className="text-[17px] leading-snug font-semibold break-words">
+          <h2 className="text-[17px] leading-snug font-semibold break-words">
             {order.event.title}
-          </h3>
+          </h2>
           <p className="text-[13px] text-muted-foreground tabular-nums">
             <time dateTime={order.event.startTime}>
               {dateTime(order.event.startTime)}
@@ -41,7 +41,8 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
         <ul
           className={cn(
             scrolls &&
-              "lg:max-h-[9.75rem] lg:overflow-y-auto short:lg:max-h-[7.5rem]",
+              // Ghế thứ ba ló một phần để thấy là còn cuộn được.
+              "lg:max-h-48 lg:overflow-y-auto short:lg:max-h-[9.5rem]",
           )}
           {...(scrolls && { tabIndex: 0, "aria-label": "Danh sách ghế" })}
         >
@@ -80,8 +81,11 @@ export function OrderSummary({ order }: { order: CheckoutOrder }) {
               </div>
             </dl>
           )}
-          <p className="flex items-baseline justify-between gap-3 max-[359px]:gap-2">
-            <span data-total-label className="text-[17px] font-semibold">
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 max-[359px]:gap-x-2">
+            <span
+              data-total-label
+              className="text-[17px] font-semibold whitespace-nowrap"
+            >
               Tổng cộng
             </span>
             <strong

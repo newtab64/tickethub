@@ -31,9 +31,8 @@ Quy tắc trình bày chung nằm ở [DESIGN_STANDARD.md](DESIGN_STANDARD.md).
 | `--primary-strong`     | `#3730a3` | Rê chuột trên nút chính                   |
 | `--checkout-page`      | `#e4e9ec` | Nền trang thanh toán                      |
 | `--checkout-border`    | `#c9d2d8` | Đường kẻ chân trang thanh toán            |
-| `--warning`            | `#9a3412` | Chữ đồng hồ khi sắp hết hạn               |
-| `--warning-soft`       | `#fff7ed` | Nền đồng hồ khi sắp hết hạn               |
-| `--warning-border`     | `#fdba74` | Viền đồng hồ khi sắp hết hạn              |
+| `--warning`            | `#9a3412` | Chữ đồng hồ và nhãn cảnh báo              |
+| `--warning-soft`       | `#fff7ed` | Nền nhãn cảnh báo                         |
 | `--warning-ring`       | `#ea580c` | Vòng tiến độ khi sắp hết hạn              |
 | `--success`            | `#047857` | Chữ và biểu tượng báo thành công, còn vé  |
 | `--success-soft`       | `#ecfdf5` | Nền thông báo thành công                  |

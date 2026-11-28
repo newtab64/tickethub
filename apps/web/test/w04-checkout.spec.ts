@@ -70,6 +70,18 @@ async function expectAligned(page: Page) {
   ).toBeLessThanOrEqual(1);
 }
 
+/** Bấm hủy ở khối đồng hồ rồi xác nhận trong hộp thoại. */
+async function cancelFromCapsule(page: Page) {
+  await page
+    .getByTestId("hold-capsule")
+    .getByRole("button", { name: "Hủy giao dịch" })
+    .click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Hủy giao dịch", exact: true })
+    .click();
+}
+
 async function cancelHold(page: Page) {
   await page
     .getByRole("button", { name: "Hủy giao dịch", exact: true })
@@ -545,6 +557,10 @@ test("Có giảm giá thì hiện tạm tính; số tiền rất lớn vẫn v�
       () => document.documentElement.scrollWidth - window.innerWidth,
     ),
   ).toBeLessThanOrEqual(0);
+  await page.setViewportSize({ width: 360, height: 700 });
+  expect(
+    (await total.getByText("Tổng cộng").boundingBox())!.height,
+  ).toBeLessThan(34);
   await page.unroute("**/booking/orders/*");
   await cancelHold(page);
 });
@@ -560,10 +576,50 @@ test("Màn 1280x800: sáu ghế mà nút trả tiền vẫn thấy ngay", async 
   await expect(
     page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
   ).toBeInViewport({ ratio: 1 });
-  await expect(page.getByLabel("Danh sách ghế")).toHaveAttribute(
-    "tabindex",
-    "0",
+  const list = page.getByLabel("Danh sách ghế");
+  await expect(list).toHaveAttribute("tabindex", "0");
+  // Ghế thứ ba ló một phần để người mua biết còn cuộn được.
+  for (const height of [800, 900]) {
+    await page.setViewportSize({ width: 1280, height });
+    const frame = (await list.boundingBox())!;
+    const third = (await list.getByRole("listitem").nth(2).boundingBox())!;
+    const visible = frame.y + frame.height - third.y;
+    expect(visible, `${height}px`).toBeGreaterThanOrEqual(16);
+    expect(visible, `${height}px`).toBeLessThan(third.height);
+  }
+  await expect(
+    page.getByRole("heading", {
+      level: 2,
+      name: "Liveshow Âm Nhạc Mùa Thu 2026",
+    }),
+  ).toHaveCount(1);
+  await cancelHold(page);
+});
+
+test("Điện thoại nằm ngang: lỗi hủy không bị hàng đồng hồ che", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  await page.route("**/booking/release", (route) =>
+    route.fulfill({
+      status: 500,
+      json: { success: false, error: { code: "E", message: "Chưa hủy được" } },
+    }),
   );
+  await expect(page.getByTestId("checkout-sheet")).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  await cancelFromCapsule(page);
+  const error = page.getByRole("alert").filter({ hasText: "Chưa hủy được" });
+  await expect(error).toBeInViewport({ ratio: 1 });
+  const capsule = (await page.getByTestId("hold-capsule").boundingBox())!;
+  await expect
+    .poll(async () => (await error.boundingBox())!.y)
+    .toBeGreaterThanOrEqual(capsule.y + capsule.height);
+  await page.unroute("**/booking/release");
   await cancelHold(page);
 });
 

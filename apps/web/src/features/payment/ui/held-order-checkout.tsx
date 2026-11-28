@@ -317,13 +317,19 @@ function Checkout({ orderId }: { orderId: string }) {
             <>
               {paymentError && (
                 // Nút thanh toán trên mobile nằm xa vị trí lỗi.
-                <div ref={scrollToError} className="mb-3 scroll-mb-24">
+                <div
+                  ref={scrollToError}
+                  className="mb-3 scroll-mt-24 scroll-mb-24"
+                >
                   <FlowError error={paymentError} />
                 </div>
               )}
               {cancelError !== null && (
                 // Nút hủy nằm ở đầu trang, lỗi hiện cạnh nút thanh toán.
-                <div ref={scrollToError} className="mb-3 scroll-mb-24">
+                <div
+                  ref={scrollToError}
+                  className="mb-3 scroll-mt-24 scroll-mb-24"
+                >
                   <FlowError error={cancelError} />
                 </div>
               )}
