@@ -36,7 +36,7 @@ export function EventsToolbar({ vm }: { vm: OrganizerEventsScreen }) {
   return (
     <>
       <div className="bg-background rounded-lg border border-border p-3 sm:p-3.5 space-y-3">
-        <div className="flex flex-wrap lg:flex-nowrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5 xl:flex-nowrap">
           {/* Search Input (flexible) */}
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -74,7 +74,7 @@ export function EventsToolbar({ vm }: { vm: OrganizerEventsScreen }) {
           </div>
 
           {/* City Filter (CustomSelect) */}
-          <div className="w-[180px] shrink-0">
+          <div className="w-[200px] shrink-0">
             <CustomSelect
               value={selectedCity}
               onChange={(val) => {
@@ -102,7 +102,7 @@ export function EventsToolbar({ vm }: { vm: OrganizerEventsScreen }) {
           </div>
 
           {/* Sort Selection (CustomSelect) */}
-          <div className="w-[220px] shrink-0">
+          <div className="w-[260px] shrink-0">
             <CustomSelect
               value={selectedSort}
               onChange={(val) => {

@@ -35,7 +35,7 @@ function renderStatusBadge(status?: OrganizerVerificationStatus) {
       return <Badge variant="destructive">Bị từ chối (REJECTED)</Badge>;
     default:
       return (
-        <Badge className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">
+        <Badge className="h-auto min-h-7 whitespace-normal bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/20">
           Đang chờ duyệt (PENDING_VERIFICATION)
         </Badge>
       );

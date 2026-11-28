@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import type { UserRole, UserStatus } from "@tickethub/shared";
 import { authApi, type LoginResponseData } from "../api/auth-api";
-import { getAccessToken } from "@/shared/api/client";
+import { getAccessToken, refreshAccessToken } from "@/shared/api/client";
 
 export interface AuthUser {
   id: string;
@@ -38,10 +38,17 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const syncFromStorage = useCallback(() => {
+  const syncFromStorage = useCallback(async () => {
     if (typeof window === "undefined") return;
     try {
-      const token = getAccessToken();
+      // Access token chỉ sống 15 phút: còn người dùng đã lưu thì làm mới trước
+      // khi coi là đã đăng xuất.
+      const token =
+        getAccessToken() ??
+        (localStorage.getItem("tickethub_user")
+          ? await refreshAccessToken()
+          : null);
+      // Đọc sau khi chờ, để không khôi phục người dùng vừa đăng xuất.
       const storedUser = localStorage.getItem("tickethub_user");
 
       if (token && storedUser) {

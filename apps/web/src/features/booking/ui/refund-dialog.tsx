@@ -23,7 +23,7 @@ export function RefundDialog({ refund }: { refund: Refund }) {
         <DialogContent
           showCloseButton={false}
           {...returnFocus}
-          className="motion-reduce:animate-none max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto rounded-3xl p-6 text-[15px] sm:max-w-md"
+          className="max-h-[calc(100dvh-2rem)] gap-4 overflow-y-auto rounded-3xl p-6 text-[15px] sm:max-w-md"
         >
           <div className="flex items-start justify-between gap-4">
             <div>

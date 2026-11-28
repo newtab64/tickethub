@@ -99,7 +99,7 @@ export function TicketQrDialog({
         <DialogContent
           showCloseButton={false}
           {...returnFocus}
-          className="touch-pan-y motion-reduce:animate-none max-h-[calc(100dvh-2rem)] max-w-[min(22.5rem,calc(100%-2rem))] justify-items-center gap-4 overflow-y-auto rounded-3xl p-6 text-center sm:max-w-90"
+          className="touch-pan-y max-h-[calc(100dvh-2rem)] max-w-[min(22.5rem,calc(100%-2rem))] justify-items-center gap-4 overflow-y-auto rounded-3xl p-6 text-center sm:max-w-90"
           onKeyDown={(event) => {
             if (event.key === "ArrowRight") go(1);
             if (event.key === "ArrowLeft") go(-1);

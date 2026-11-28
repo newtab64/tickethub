@@ -41,7 +41,7 @@ export function AccountMenu({
     };
   }, [open]);
 
-  // Giữ chỗ để header không nhảy khi phiên đang được đọc.
+  // Giữ sẵn một ô trong lúc phiên đang được đọc.
   if (isLoading) return <span aria-hidden="true" className="size-11" />;
   if (!user) {
     return (

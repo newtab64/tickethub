@@ -101,6 +101,8 @@ describe("Chuẩn giao diện", () => {
   });
 
   test("hộp thoại tắt hiệu ứng khi giảm chuyển động", () => {
-    assert.match(read("shared/ui/dialog.tsx"), /motion-reduce:animate-none/);
+    // Cần dấu "!": data-open:animate-in đứng sau trong CSS và sẽ thắng.
+    const dialog = read("shared/ui/dialog.tsx");
+    assert.equal(dialog.match(/motion-reduce:animate-none!/g)?.length, 2);
   });
 });
