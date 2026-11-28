@@ -23,14 +23,16 @@ export function SiteHeader({
     <header className={cn("px-4 pt-3 sm:px-6", className)}>
       <nav
         aria-label="Điều hướng chính"
-        className="relative mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 rounded-full bg-background pr-1.5 pl-4 shadow-sheet sm:pl-6"
+        className="relative mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 rounded-full bg-background pr-1.5 pl-4 shadow-sheet max-[359px]:gap-1 max-[359px]:pl-3 sm:pl-6"
       >
         <div className="flex shrink-0 items-center gap-2">
           {leading}
           <Logo className={logoClassName} />
         </div>
         {center && <div className="min-w-0 flex-1">{center}</div>}
-        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+        <div className="flex shrink-0 items-center gap-2 max-[359px]:gap-0">
+          {actions}
+        </div>
       </nav>
     </header>
   );

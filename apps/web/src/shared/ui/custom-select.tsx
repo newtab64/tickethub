@@ -112,7 +112,10 @@ export function CustomSelect({
   };
 
   return (
-    <div className={`relative inline-block ${className}`} ref={containerRef}>
+    <div
+      className={`relative inline-block max-w-full ${className}`}
+      ref={containerRef}
+    >
       <button
         type="button"
         id={id}
@@ -134,18 +137,20 @@ export function CustomSelect({
           isOpen ? "outline-2 outline-primary outline-solid" : ""
         }`}
       >
-        <span className="truncate flex items-center gap-2">
+        <span className="flex min-w-0 items-center gap-2">
           {selectedOption ? (
             <>
               {selectedOption.icon && (
                 <selectedOption.icon className="size-4 text-muted-foreground shrink-0" />
               )}
-              <span className="text-foreground font-normal">
+              <span className="truncate font-normal text-foreground">
                 {selectedOption.label}
               </span>
             </>
           ) : (
-            <span className="text-muted-foreground">{placeholder}</span>
+            <span className="truncate text-muted-foreground">
+              {placeholder}
+            </span>
           )}
         </span>
         <ChevronDown

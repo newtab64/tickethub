@@ -148,3 +148,61 @@ test("Header khách: ba thể loại, mời đăng nhập, không chặn nội d
   );
   expect(blocked).toBe(false);
 });
+
+async function signIn(
+  page: import("@playwright/test").Page,
+  email: string,
+): Promise<void> {
+  const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
+  const login = await page.request.post(`${api}/auth/login`, {
+    data: { email, password: "Password123!" },
+  });
+  const { data } = await login.json();
+  await page.context().addCookies([
+    {
+      name: "accessToken",
+      value: data.accessToken,
+      url: "http://localhost:3000",
+    },
+  ]);
+  await page.addInitScript(
+    (user) => localStorage.setItem("tickethub_user", JSON.stringify(user)),
+    data.user,
+  );
+}
+
+test("Màn 320px: nút trên header và phân trang nằm trọn trong màn hình", async ({
+  page,
+}) => {
+  await signIn(page, "buyer@tickethub.vn");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Điều hướng chính" });
+  const account = nav.getByRole("button", { name: "Tài khoản" });
+  await expect(account).toBeVisible();
+  const right = async (target: typeof nav) => {
+    const box = (await target.boundingBox())!;
+    return box.x + box.width;
+  };
+  expect(await right(account)).toBeLessThanOrEqual(await right(nav));
+
+  await page.goto("/buyer/orders");
+  const next = page.getByRole("button", { name: "Trang sau" });
+  await expect(next).toBeVisible();
+  expect(await right(next as typeof nav)).toBeLessThanOrEqual(320);
+});
+
+test("Ô chọn của Ban tổ chức nằm trong cột của nó", async ({ page }) => {
+  await signIn(page, "organizer@tickethub.vn");
+  await page.goto("/organizer/events");
+  const boxes = page.getByRole("combobox");
+  await expect(boxes.first()).toBeVisible();
+  const overflow = await boxes.evaluateAll((items) =>
+    items.map(
+      (item) =>
+        item.getBoundingClientRect().right -
+        item.parentElement!.parentElement!.getBoundingClientRect().right,
+    ),
+  );
+  expect(Math.max(...overflow)).toBeLessThanOrEqual(0.5);
+});

@@ -105,7 +105,7 @@ export default function OrdersPage() {
       </ul>
       <nav
         aria-label="Phân trang đơn hàng"
-        className="mt-6 flex items-center gap-4"
+        className="mt-6 flex flex-wrap items-center gap-3"
       >
         <Button
           variant="outline"

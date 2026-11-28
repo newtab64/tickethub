@@ -82,7 +82,12 @@ describe("Chuẩn giao diện", () => {
     assert.equal(token("field"), "#eceef1");
     assert.ok(css.includes("--color-field: var(--field);"));
     assert.ok(contrast(token("muted-foreground"), token("field")) >= 4.5);
-    for (const name of ["input", "custom-select", "date-picker"]) {
+    for (const name of [
+      "input",
+      "custom-select",
+      "date-picker",
+      "date-range-popover",
+    ]) {
       const source = read(`shared/ui/${name}.tsx`);
       assert.match(source, /h-12 [^"`]*rounded-full [^"`]*bg-field/, name);
     }

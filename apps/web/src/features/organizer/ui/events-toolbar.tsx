@@ -60,7 +60,7 @@ export function EventsToolbar({ vm }: { vm: OrganizerEventsScreen }) {
           </div>
 
           {/* Status Filter (CustomSelect) */}
-          <div className="w-[170px] shrink-0">
+          <div className="w-[190px] shrink-0">
             <CustomSelect
               value={selectedStatus}
               onChange={(val) => {
@@ -74,7 +74,7 @@ export function EventsToolbar({ vm }: { vm: OrganizerEventsScreen }) {
           </div>
 
           {/* City Filter (CustomSelect) */}
-          <div className="w-[150px] shrink-0">
+          <div className="w-[180px] shrink-0">
             <CustomSelect
               value={selectedCity}
               onChange={(val) => {
@@ -88,7 +88,7 @@ export function EventsToolbar({ vm }: { vm: OrganizerEventsScreen }) {
           </div>
 
           {/* Date Range Popover */}
-          <div className="w-[165px] shrink-0">
+          <div className="w-[190px] shrink-0">
             <DateRangePopover
               fromDate={fromDate}
               toDate={toDate}
@@ -102,7 +102,7 @@ export function EventsToolbar({ vm }: { vm: OrganizerEventsScreen }) {
           </div>
 
           {/* Sort Selection (CustomSelect) */}
-          <div className="w-[185px] shrink-0">
+          <div className="w-[220px] shrink-0">
             <CustomSelect
               value={selectedSort}
               onChange={(val) => {
