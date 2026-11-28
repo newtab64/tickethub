@@ -1,3 +1,4 @@
+import { isRefundRejected } from "@tickethub/shared";
 import type { paymentState } from "./order-checkout.ts";
 
 type PaymentState = ReturnType<typeof paymentState>;
@@ -100,12 +101,7 @@ export function detailedState(
   refunds: { status: string }[],
 ): ResultState {
   if (status === "EXPIRED") return "expired";
-  // Còn yêu cầu đang chạy thì tiền vẫn đang được hoàn.
-  if (
-    state === "refund_pending" &&
-    refunds.length > 0 &&
-    refunds.every((refund) => refund.status === "FAILED")
-  ) {
+  if (state === "refund_pending" && isRefundRejected(refunds)) {
     return "refund_failed";
   }
   return state;

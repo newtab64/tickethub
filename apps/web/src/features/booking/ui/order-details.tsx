@@ -9,7 +9,11 @@ import {
   orderStatusLabel,
   refundStatusLabel,
 } from "@/features/payment";
-import { groupOrderItems, seatDetail } from "../domain/ticket-qr";
+import {
+  groupOrderItems,
+  orderStatusText,
+  seatDetail,
+} from "../domain/ticket-qr";
 import type { Refund } from "./use-refund";
 
 const LINE = "flex justify-between gap-4 border-t border-border py-2";
@@ -60,7 +64,9 @@ export function OrderDetails({
           </div>
           <div className={LINE}>
             <dt className="text-muted-foreground">Trạng thái</dt>
-            <dd>{orderStatusLabel[order.status]}</dd>
+            <dd className="text-right">
+              {orderStatusText(order, orderStatusLabel[order.status])}
+            </dd>
           </div>
           <div className={LINE}>
             <dt className="text-muted-foreground">Mã đơn</dt>

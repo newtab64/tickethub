@@ -1,3 +1,5 @@
+import { isRefundRejected } from "@tickethub/shared";
+
 export const QR_SOON_SECONDS = 5;
 
 /** Chỉ vé còn hiệu lực của sự kiện đang mở mới xin được mã QR. */
@@ -68,6 +70,24 @@ interface OrderForView<T extends { status: string }> {
   status: string;
   event: { status: string };
   tickets: T[];
+  refunds?: { status: string }[];
+}
+
+/** Đơn trả muộn mà VNPay từ chối hoàn tiền. */
+function lateRefundRejected(order: OrderForView<{ status: string }>) {
+  return (
+    order.status === "PAYMENT_EXPIRED_REFUND_PENDING" &&
+    isRefundRejected(order.refunds ?? [])
+  );
+}
+
+export function orderStatusText(
+  order: OrderForView<{ status: string }>,
+  label: string,
+): string {
+  return lateRefundRejected(order)
+    ? "Hết hạn giữ chỗ, chưa hoàn được tiền"
+    : label;
 }
 
 /** Việc chính của trang đơn: trả tiền, hiện mã vào cổng, hoặc không có. */
@@ -93,6 +113,9 @@ export function noQrReason(
   order: OrderForView<{ status: string }>,
 ): string | null {
   if (primaryAction(order) !== "none") return null;
+  if (lateRefundRejected(order)) {
+    return "Hoàn tiền chưa thực hiện được. Hãy liên hệ hỗ trợ kèm mã đơn.";
+  }
   if (order.tickets.length === 0) {
     return NO_TICKET_REASON[order.status] ?? "Đơn này không có vé.";
   }

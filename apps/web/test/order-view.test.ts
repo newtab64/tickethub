@@ -5,6 +5,7 @@ import {
   listedTickets,
   seatDetail,
   noQrReason,
+  orderStatusText,
   primaryAction,
 } from "../src/features/booking/domain/ticket-qr.ts";
 
@@ -45,6 +46,31 @@ describe("Order page rules", () => {
     );
     assert.match(noQrReason(order("EXPIRED", []))!, /hết hạn giữ chỗ/);
     assert.match(noQrReason(order("FAILED", []))!, /không thành công/);
+  });
+
+  test("hoàn tiền bị từ chối thì không nói là đang hoàn", () => {
+    const failed = {
+      ...order("PAYMENT_EXPIRED_REFUND_PENDING", []),
+      refunds: [{ status: "FAILED" }],
+    };
+    const retrying = {
+      ...failed,
+      refunds: [{ status: "FAILED" }, { status: "PENDING" }],
+    };
+    assert.equal(
+      noQrReason(failed),
+      "Hoàn tiền chưa thực hiện được. Hãy liên hệ hỗ trợ kèm mã đơn.",
+    );
+    assert.match(noQrReason(retrying)!, /đang được hoàn lại/i);
+    assert.equal(
+      orderStatusText(failed, "Hết hạn giữ chỗ, đang chờ hoàn tiền"),
+      "Hết hạn giữ chỗ, chưa hoàn được tiền",
+    );
+    assert.equal(orderStatusText(retrying, "nhãn gốc"), "nhãn gốc");
+    assert.equal(
+      orderStatusText({ ...failed, status: "PAID" }, "Đã thanh toán"),
+      "Đã thanh toán",
+    );
   });
 
   test("ve da huy khong nam trong danh sach", () => {
