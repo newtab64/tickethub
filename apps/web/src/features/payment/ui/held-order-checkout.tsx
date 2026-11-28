@@ -24,7 +24,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { CheckoutFooter } from "./checkout-footer";
@@ -355,19 +354,18 @@ function Checkout({ orderId }: { orderId: string }) {
         open={leaveRequest !== null}
         onOpenChange={(open) => !open && setLeaveRequest(null)}
       >
-        <DialogContent showCloseButton={false}>
-          <DialogTitle>Hủy giữ chỗ?</DialogTitle>
-          <DialogDescription>
-            Vé đang giữ sẽ được trả lại kho để người khác đặt mua.
-          </DialogDescription>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLeaveRequest(null)}>
-              Ở lại thanh toán
+        {/* Không có nút X: "Tiếp tục thanh toán" đã làm đúng việc đó. */}
+        <DialogContent showCloseButton={false} className="text-center">
+          <DialogTitle>Hủy giao dịch?</DialogTitle>
+          <DialogDescription>Ghế đang giữ sẽ được trả lại.</DialogDescription>
+          <div className="grid gap-2 pt-2">
+            <Button size="lg" onClick={() => setLeaveRequest(null)}>
+              Tiếp tục thanh toán
             </Button>
-            <Button variant="destructive" onClick={confirmLeave}>
-              Hủy giữ chỗ
+            <Button size="lg" variant="destructive" onClick={confirmLeave}>
+              Hủy giao dịch
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>

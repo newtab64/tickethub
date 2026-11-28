@@ -76,7 +76,7 @@ async function cancelHold(page: Page) {
     .click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Hủy giữ chỗ", exact: true })
+    .getByRole("button", { name: "Hủy giao dịch", exact: true })
     .click();
   await expect(page).toHaveURL(/\/events\/[0-9a-f-]{36}$/);
 }
@@ -314,7 +314,14 @@ test("URL báo thành công không thay thế xác nhận backend và thoát tra
   await expect(menu.getByRole("link", { name: "Trợ giúp" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Đăng xuất" })).toHaveCount(0);
   await menu.getByRole("link", { name: "Trợ giúp" }).click();
-  await dialog.getByRole("button", { name: "Ở lại thanh toán" }).click();
+  // Không có nút X: "Tiếp tục thanh toán" đã làm đúng việc đó.
+  await expect(dialog.getByRole("heading")).toHaveText("Hủy giao dịch?");
+  await expect(dialog).toContainText("Ghế đang giữ sẽ được trả lại.");
+  await expect(dialog.getByRole("button")).toHaveText([
+    "Tiếp tục thanh toán",
+    "Hủy giao dịch",
+  ]);
+  await dialog.getByRole("button", { name: "Tiếp tục thanh toán" }).click();
   await expect(page).toHaveURL(/\/checkout\?orderId=/);
   await expect(menu).toHaveCount(0);
   await account.click();
@@ -322,10 +329,10 @@ test("URL báo thành công không thay thế xác nhận backend và thoát tra
   await page.keyboard.press("Tab");
   await expect(menu).toHaveCount(0);
   await ordersLink.click();
-  await dialog.getByRole("button", { name: "Ở lại thanh toán" }).click();
+  await dialog.getByRole("button", { name: "Tiếp tục thanh toán" }).click();
   await expect(page).toHaveURL(/\/checkout\?orderId=/);
   await ordersLink.click();
-  await dialog.getByRole("button", { name: "Hủy giữ chỗ" }).click();
+  await dialog.getByRole("button", { name: "Hủy giao dịch" }).click();
   await expect(page).toHaveURL(/\/buyer\/orders$/);
   await expect
     .poll(async () => {
@@ -439,7 +446,7 @@ test("Điện thoại: lỗi hủy giữ chỗ và cảnh báo sắp hết hạn
     .click();
   await page
     .getByRole("dialog")
-    .getByRole("button", { name: "Hủy giữ chỗ", exact: true })
+    .getByRole("button", { name: "Hủy giao dịch", exact: true })
     .click();
   await expect(
     page.getByRole("alert").filter({ hasText: "Chưa hủy được" }),
