@@ -91,17 +91,13 @@ export function DateRangePopover({
             return !prev;
           });
         }}
-        className={`w-full h-10 px-3 rounded-md border text-sm text-left flex items-center justify-between gap-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-          hasValue
-            ? "border-primary bg-accent/30 text-foreground font-medium"
-            : "border-input bg-background text-foreground hover:bg-secondary/40"
-        } ${isOpen ? "ring-2 ring-ring" : ""}`}
+        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-full bg-field px-5 text-left text-[15px] text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-solid motion-reduce:transition-none ${
+          hasValue ? "font-semibold" : ""
+        } ${isOpen ? "outline-2 outline-primary outline-solid" : ""}`}
       >
         <div className="flex items-center gap-2 truncate">
           <CalendarIcon className="size-4 text-muted-foreground shrink-0" />
-          <span className="truncate text-xs sm:text-sm tabular-nums">
-            {label}
-          </span>
+          <span className="truncate tabular-nums">{label}</span>
         </div>
 
         <div className="flex items-center gap-1 shrink-0">

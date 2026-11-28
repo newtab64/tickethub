@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { UserRole } from "@tickethub/shared";
-import { accountMenuItems } from "../src/features/identity/domain/account-menu.ts";
+import {
+  accountMenuItems,
+  showsMyTickets,
+} from "../src/features/identity/domain/account-menu.ts";
 
 const APP = path.resolve(import.meta.dirname, "../src/app");
 const routes = (dir: string, prefix = ""): string[] =>
@@ -43,6 +46,20 @@ describe("Account menu", () => {
       for (const { href } of accountMenuItems(role)) {
         assert.ok(known.has(href.split("?")[0]!), `${role}: ${href}`);
       }
+    }
+  });
+});
+
+describe("Lối vào Vé của tôi", () => {
+  test("chỉ người mua đã đăng nhập mới thấy", () => {
+    assert.equal(showsMyTickets(UserRole.BUYER), true);
+    for (const role of [
+      UserRole.ORGANIZER,
+      UserRole.ADMIN,
+      UserRole.GATE_STAFF,
+      null,
+    ]) {
+      assert.equal(showsMyTickets(role), false, String(role));
     }
   });
 });

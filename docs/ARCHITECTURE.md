@@ -292,7 +292,7 @@ Màn hình có nhiều trạng thái (đặt vé, đăng nhập 3 bước, danh 
 
 Các điểm sau phản ánh trạng thái triển khai hiện tại, không phải thay đổi của đợt tái cấu trúc:
 
-- Trang đơn hàng (`/buyer/orders/[id]`) hiện mã QR động lấy từ `GET /api/v1/tickets/:id/qr`; mã được vẽ bằng `qrcode` ngay trong trình duyệt và không lưu lại. Header chung (`shared/ui/site-header.tsx`) hiện dùng ở trang này, các trang khác chuyển sau.
+- Trang đơn hàng (`/buyer/orders/[id]`) hiện mã QR động lấy từ `GET /api/v1/tickets/:id/qr`; mã được vẽ bằng `qrcode` ngay trong trình duyệt và không lưu lại. Header chung (`shared/ui/site-header.tsx`) dùng cho trang công khai, đặt vé, thanh toán và đơn hàng; cổng Ban tổ chức và Quản trị chưa chuyển.
 - Trang chủ, ô tìm kiếm, header, trang chi tiết và trang đặt vé đọc sự kiện từ API công khai (`features/event/api/public-events.ts`). Trang chủ và tìm kiếm đọc tối đa 50 sự kiện. `/my-tickets` chuyển hướng sang `/buyer/orders`.
 - Dữ liệu tạm: dữ liệu cổng Ban tổ chức và nhật ký kiểm duyệt (`features/organizer/data`, `features/moderation/data`), kết quả dự phòng của bước kiểm tra tài khoản (`features/identity/api/identifier-fallback.mock.ts`). Cần thay bằng API khi backend sẵn sàng.
 - Bản đồ 21 trang trong tiêu chuẩn dự án (19 trang cốt lõi cùng `/faq` và `/guide`) mới triển khai một phần: các route `/events`, `/profile`, `/organizer/dashboard`, `/organizer/events/[id]/stats`, `/gate/scanner`, `/gate/lookup`, `/admin/moderation`, `/admin/events/[id]/control` chưa có; một số trang có tên khác (`/auth` thay cho `/auth/login`, `/admin` thay cho `/admin/dashboard`, `/organizer` thay cho `/organizer/dashboard`).

@@ -15,8 +15,8 @@ import { EventPoster } from "./event-poster";
 
 const MAX_SUGGESTIONS = 5;
 
-// Bieu tuong tim kiem tren header; bam se truot mo thanh tim kiem ngay trong thanh header.
-// Phai dat ben trong mot phan tu cha co position: relative (thanh header dang noi).
+// Biểu tượng tìm kiếm trên header; bấm sẽ trượt mở thanh tìm kiếm ngay trong thanh header.
+// Phải đặt bên trong một phần tử cha có position: relative (thanh header đang nổi).
 export function HeaderSearch() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -44,7 +44,7 @@ export function HeaderSearch() {
     };
   }, [open]);
 
-  // Doc danh sach khi mo lan dau; loi thi lan mo sau thu lai.
+  // Đọc danh sách khi mở lần đầu; lỗi thì lần mở sau thử lại.
   const [events, setEvents] = useState<EventCard[] | null>(null);
   const [failed, setFailed] = useState(false);
   useEffect(() => {
@@ -64,7 +64,7 @@ export function HeaderSearch() {
 
   const suggestions = useMemo(() => {
     if (!query.trim()) return [];
-    // Khong loc theo ngay nen khong can moc thoi gian.
+    // Không lọc theo ngày nên không cần mốc thời gian.
     return filterEventCards(
       events ?? [],
       { category: "ALL", city: null, date: "ALL", query },
@@ -88,26 +88,22 @@ export function HeaderSearch() {
         aria-expanded={open}
         aria-controls="header-search-panel"
         onClick={() => setOpen((prev) => !prev)}
-        className={`size-9 rounded-full inline-flex items-center justify-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-          open
-            ? "bg-accent text-primary"
-            : "bg-secondary text-foreground hover:bg-slate-200"
-        }`}
+        className="inline-flex size-11 cursor-pointer items-center justify-center rounded-full transition-colors hover:bg-fill aria-expanded:bg-fill motion-reduce:transition-none"
       >
-        <Search className="size-4" />
+        <Search className="size-5" />
       </button>
 
       {open && (
         <div
           id="header-search-panel"
           role="search"
-          className="header-search-slide absolute inset-0 z-10 rounded-full bg-white"
+          className="header-search-slide absolute inset-0 z-10 rounded-full bg-background"
         >
           <form
             onSubmit={submit}
-            className="flex h-full items-center gap-3 pl-6 pr-2.5"
+            className="flex h-full items-center gap-3 pr-1.5 pl-6"
           >
-            <Search className="size-5 shrink-0 text-primary" />
+            <Search className="size-5 shrink-0 text-muted-foreground" />
             <input
               autoFocus
               type="text"
@@ -121,29 +117,29 @@ export function HeaderSearch() {
               type="button"
               aria-label="Đóng tìm kiếm"
               onClick={() => setOpen(false)}
-              className="size-9 shrink-0 rounded-full inline-flex items-center justify-center bg-secondary text-foreground hover:bg-slate-200 cursor-pointer"
+              className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full bg-fill hover:bg-fill-hover"
             >
               <X className="size-4" />
             </button>
           </form>
 
           {query.trim() && (
-            <ul className="absolute left-4 right-4 top-[calc(100%+8px)] rounded-3xl bg-white p-2 shadow-[0_16px_40px_rgba(0,0,0,0.22)] ring-1 ring-black/5">
+            <ul className="absolute top-[calc(100%+8px)] right-4 left-4 rounded-3xl bg-popover p-2 shadow-sheet ring-1 ring-foreground/5">
               {suggestions.map((ev) => (
                 <li key={ev.id}>
                   <Link
                     href={`/events/${ev.slug}`}
                     onClick={() => setOpen(false)}
-                    className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-slate-50"
+                    className="flex items-center gap-3 rounded-2xl px-3 py-2 hover:bg-muted"
                   >
-                    <span className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-secondary">
+                    <span className="relative size-10 shrink-0 overflow-hidden rounded-2xl bg-muted">
                       <EventPoster event={ev} sizes="40px" />
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-foreground">
+                      <span className="block truncate text-[15px] font-semibold text-foreground">
                         {ev.title}
                       </span>
-                      <span className="block truncate text-xs text-muted-foreground">
+                      <span className="block truncate text-[13px] text-muted-foreground">
                         {formatEventDateTime(ev.startTime)} | {ev.venueName},{" "}
                         {ev.city}
                       </span>
@@ -152,7 +148,7 @@ export function HeaderSearch() {
                 </li>
               ))}
               {suggestions.length === 0 && (
-                <li className="px-3 py-3 text-sm text-muted-foreground">
+                <li className="p-3 text-[13px] text-muted-foreground">
                   {events
                     ? "Không có sự kiện phù hợp. Nhấn Enter để tìm trong danh sách."
                     : failed
@@ -170,7 +166,7 @@ export function HeaderSearch() {
                         `/?q=${encodeURIComponent(query.trim())}#events-list`,
                       );
                     }}
-                    className="w-full rounded-xl px-3 py-2 text-left text-sm font-semibold text-primary hover:bg-accent cursor-pointer"
+                    className="min-h-11 w-full cursor-pointer rounded-2xl px-3 text-left text-[15px] font-semibold hover:bg-muted"
                   >
                     Xem tất cả kết quả cho &ldquo;{query.trim()}&rdquo;
                   </button>

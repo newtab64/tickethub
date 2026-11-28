@@ -11,7 +11,12 @@ const ITEM =
   "flex min-h-11 w-full items-center rounded-2xl px-4 text-left text-[15px] hover:bg-muted focus-visible:bg-muted";
 
 /** Góc phải header: menu tài khoản, hoặc nút đăng nhập khi chưa đăng nhập. */
-export function AccountMenu() {
+export function AccountMenu({
+  allowLogout = true,
+}: {
+  /** Trang đang giữ ghế tắt đăng xuất để không để lại chỗ giữ treo. */
+  allowLogout?: boolean;
+}) {
   const { user, isLoading, logout } = useSession();
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -36,7 +41,7 @@ export function AccountMenu() {
     };
   }, [open]);
 
-  // Giữ chỗ để header không nhảy khi phiên đang được đọc.
+  // Giữ sẵn một ô trong lúc phiên đang được đọc.
   if (isLoading) return <span aria-hidden="true" className="size-11" />;
   if (!user) {
     return (
@@ -51,7 +56,15 @@ export function AccountMenu() {
 
   const name = user.fullName?.trim() || user.email;
   return (
-    <div ref={root} className="relative">
+    <div
+      ref={root}
+      className="relative"
+      onBlur={(event) => {
+        // Safari không đặt focus khi bấm chuột: không rõ đích thì giữ menu.
+        const next = event.relatedTarget;
+        if (next && !event.currentTarget.contains(next)) setOpen(false);
+      }}
+    >
       <button
         ref={trigger}
         type="button"
@@ -90,17 +103,19 @@ export function AccountMenu() {
               {item.label}
             </Link>
           ))}
-          <button
-            type="button"
-            className={`${ITEM} cursor-pointer text-destructive`}
-            onClick={async () => {
-              setOpen(false);
-              await logout();
-              router.push("/auth");
-            }}
-          >
-            Đăng xuất
-          </button>
+          {allowLogout && (
+            <button
+              type="button"
+              className={`${ITEM} cursor-pointer text-destructive`}
+              onClick={async () => {
+                setOpen(false);
+                await logout();
+                router.push("/auth");
+              }}
+            >
+              Đăng xuất
+            </button>
+          )}
         </div>
       )}
     </div>

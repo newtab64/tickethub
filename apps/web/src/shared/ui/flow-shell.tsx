@@ -1,13 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { ReceiptText } from "lucide-react";
 import { ZodError } from "zod";
 import { ApiError } from "@/shared/api/client";
 import { cn } from "@/shared/lib/utils";
-import { Logo } from "./logo";
 
 export function FlowShell({
   title,
@@ -22,30 +19,13 @@ export function FlowShell({
   footer?: ReactNode;
   className?: string;
   mainClassName?: string;
-  /** Thay header mặc định; các trang chưa đổi sang header chung để trống. */
-  header?: ReactNode;
+  header: ReactNode;
 }) {
   return (
     <div
       className={cn("min-h-screen bg-background text-foreground", className)}
     >
-      {header ?? (
-        <header className="px-4 pt-3 sm:px-6">
-          <nav
-            className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-3 rounded-full border border-border bg-background px-4 shadow-sm sm:px-6"
-            aria-label="Điều hướng mua vé"
-          >
-            <Logo />
-            <Link
-              href="/buyer/orders"
-              className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-accent px-3 py-2 text-xs font-semibold text-accent-foreground transition-colors hover:border-primary sm:text-sm"
-            >
-              <ReceiptText className="size-4 shrink-0" aria-hidden="true" />
-              Đơn hàng của tôi
-            </Link>
-          </nav>
-        </header>
-      )}
+      {header}
       <main
         className={cn(
           "mx-auto max-w-[1248px] px-4 pt-8 pb-12 sm:px-6 sm:pt-10",
@@ -53,7 +33,7 @@ export function FlowShell({
         )}
       >
         {title && (
-          <h1 className="mb-6 text-2xl font-bold tracking-tight sm:mb-8 sm:text-3xl">
+          <h1 className="mb-6 text-[28px] font-semibold tracking-tight sm:mb-8">
             {title}
           </h1>
         )}

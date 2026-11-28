@@ -13,4 +13,4 @@ export type {
   RegisterResponseData,
   CheckIdentifierResult,
 } from "./api/auth-api";
-export { AccountMenu } from "./ui/account-menu";
+export { HeaderActions } from "./ui/header-actions";

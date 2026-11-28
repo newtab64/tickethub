@@ -9,6 +9,8 @@ import { z } from "zod";
 import { BuyerOrderDetailSchema } from "@tickethub/shared";
 import { apiClient } from "@/shared/api/client";
 import { money, paymentState } from "../domain/order-checkout";
+import { HeaderActions } from "@/features/identity";
+import { SiteHeader } from "@/shared/ui/site-header";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { Button } from "@/shared/ui/button";
 
@@ -152,7 +154,10 @@ function ResultRoute() {
 }
 export default function ResultPage() {
   return (
-    <FlowShell title="Kết quả thanh toán">
+    <FlowShell
+      title="Kết quả thanh toán"
+      header={<SiteHeader actions={<HeaderActions />} />}
+    >
       <Suspense fallback={<p>Đang tải...</p>}>
         <ResultRoute />
       </Suspense>

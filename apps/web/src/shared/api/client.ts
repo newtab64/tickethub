@@ -54,7 +54,7 @@ export class ApiError extends Error {
  * Tự động gọi /auth/refresh bằng HTTP-Only Cookie khi Access Token hết hạn.
  * Dùng cơ chế khóa (mutex) refreshPromise để tránh gọi trùng nhiều lần cùng lúc.
  */
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
@@ -62,7 +62,6 @@ async function refreshAccessToken(): Promise<string | null> {
       const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
         credentials: "include", // Gửi kèm HTTP-Only refresh token cookie
-        headers: { "Content-Type": "application/json" },
       });
 
       if (!res.ok) {
@@ -99,7 +98,8 @@ export async function apiClient<T>(
   const url = `${API_BASE_URL}${endpoint}`;
 
   const headers: Record<string, string> = {
-    "Content-Type": "application/json",
+    // API trả 400 khi khai báo JSON mà không gửi body.
+    ...(options?.body ? { "Content-Type": "application/json" } : {}),
     ...(options?.headers as Record<string, string> | undefined),
   };
 

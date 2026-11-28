@@ -61,7 +61,6 @@ export function useBookingScreen(
   const [selectedListing, setSelectedListing] = useState<TicketListing | null>(
     null,
   );
-  const [isSaved, setIsSaved] = useState<boolean>(false);
   const [showSubtotalModal, setShowSubtotalModal] = useState<boolean>(false);
 
   // 5-minute Hold countdown & server state (UC04)
@@ -227,9 +226,7 @@ export function useBookingScreen(
 
   return {
     event,
-    user,
     isAdmin,
-    isOrganizer,
     cannotBuyTickets,
     mapKey,
     router,
@@ -242,8 +239,6 @@ export function useBookingScreen(
     hoveredZoneId,
     setHoveredZoneId,
     selectedListing,
-    isSaved,
-    setIsSaved,
     showSubtotalModal,
     setShowSubtotalModal,
     holdOrderId,

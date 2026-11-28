@@ -77,7 +77,7 @@ test("Header đánh dấu thể loại của sự kiện đang xem", async ({ pa
   await expect(
     page
       .getByRole("banner")
-      .getByRole("link", { name: "Sân khấu & Hài kịch", exact: true }),
+      .getByRole("link", { name: "Sân khấu", exact: true }),
   ).toHaveAttribute("aria-current", "page");
 });
 
@@ -130,4 +130,147 @@ test("Ảnh hỏng thì liên kết ảnh của thẻ vẫn có tên", async ({ 
     .textContent())!;
   await expect(trending.locator("img")).toHaveCount(0);
   await expect(trending.getByRole("link").first()).toHaveAccessibleName(title);
+});
+
+test("Header khách: ba thể loại, mời đăng nhập, không chặn nội dung", async ({
+  page,
+}) => {
+  await page.goto("/faq");
+  const header = page.getByRole("banner").filter({ visible: true });
+  await expect(
+    header.getByRole("link", { name: /^(Hòa nhạc|Thể thao|Sân khấu)$/ }),
+  ).toHaveText(["Hòa nhạc", "Thể thao", "Sân khấu"]);
+  await expect(header.getByRole("link", { name: "Đăng nhập" })).toBeVisible();
+  await expect(header.getByRole("link", { name: "Vé của tôi" })).toHaveCount(0);
+  // Vùng hai bên viên thuốc phải bấm xuyên xuống trang.
+  const blocked = await page.evaluate(
+    () => !!document.elementFromPoint(4, 40)?.closest("header"),
+  );
+  expect(blocked).toBe(false);
+});
+
+async function signIn(
+  page: import("@playwright/test").Page,
+  email: string,
+): Promise<void> {
+  const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
+  const login = await page.request.post(`${api}/auth/login`, {
+    data: { email, password: "Password123!" },
+  });
+  const { data } = await login.json();
+  await page.context().addCookies([
+    {
+      name: "accessToken",
+      value: data.accessToken,
+      url: "http://localhost:3000",
+    },
+  ]);
+  await page.addInitScript(
+    (user) => localStorage.setItem("tickethub_user", JSON.stringify(user)),
+    data.user,
+  );
+}
+
+test("Màn 320px: nút trên header và phân trang nằm trọn trong màn hình", async ({
+  page,
+}) => {
+  await signIn(page, "buyer@tickethub.vn");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/");
+  const nav = page.getByRole("navigation", { name: "Điều hướng chính" });
+  const account = nav.getByRole("button", { name: "Tài khoản" });
+  await expect(account).toBeVisible();
+  const right = async (target: typeof nav) => {
+    const box = (await target.boundingBox())!;
+    return box.x + box.width;
+  };
+  expect(await right(account)).toBeLessThanOrEqual(await right(nav));
+
+  await page.goto("/buyer/orders");
+  const next = page.getByRole("button", { name: "Trang sau" });
+  await expect(next).toBeVisible();
+  expect(await right(next as typeof nav)).toBeLessThanOrEqual(320);
+});
+
+test("Bộ lọc của Ban tổ chức không tràn và không cắt nhãn", async ({
+  page,
+}) => {
+  await signIn(page, "organizer@tickethub.vn");
+  await page.goto("/organizer/events");
+  const boxes = page.getByRole("combobox");
+  for (const width of [1024, 1100, 1280]) {
+    await page.setViewportSize({ width, height: 720 });
+    await expect(boxes.first()).toBeVisible();
+    const overflow = await boxes.evaluateAll((items) =>
+      items.map(
+        (item) =>
+          item.getBoundingClientRect().right -
+          item.parentElement!.parentElement!.parentElement!.getBoundingClientRect()
+            .right,
+      ),
+    );
+    expect(Math.max(...overflow), String(width)).toBeLessThanOrEqual(0.5);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - window.innerWidth,
+      ),
+      String(width),
+    ).toBeLessThanOrEqual(0);
+  }
+  const cut = await boxes.evaluateAll((items) =>
+    items.flatMap((item) =>
+      [...item.querySelectorAll(".truncate")]
+        .filter((label) => label.scrollWidth > label.clientWidth)
+        .map((label) => label.textContent),
+    ),
+  );
+  expect(cut).toEqual([]);
+});
+
+test("Tạo sự kiện trên màn 320px: ô ngày giờ đọc được", async ({ page }) => {
+  await signIn(page, "organizer@tickethub.vn");
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto("/organizer/events/new");
+  const labels = page.locator("button .truncate").filter({
+    hasText: /^(dd\/mm\/yyyy|HH:mm)$/,
+  });
+  await expect(labels.first()).toBeVisible();
+  expect(
+    await labels.evaluateAll(
+      (items) =>
+        items.filter((item) => item.scrollWidth > item.clientWidth).length,
+    ),
+  ).toBe(0);
+});
+
+test("Hết hạn access token nhưng còn phiên thì header vẫn là người mua", async ({
+  page,
+}) => {
+  const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
+  // Đăng nhập chỉ giữ cookie refresh, như sau 15 phút.
+  const login = await page.request.post(`${api}/auth/login`, {
+    data: { email: "buyer@tickethub.vn", password: "Password123!" },
+  });
+  const { data } = await login.json();
+  await page.addInitScript(
+    (user) => localStorage.setItem("tickethub_user", JSON.stringify(user)),
+    data.user,
+  );
+  await page.context().clearCookies({ name: /^access_?[tT]oken$/ });
+  await page.goto("/faq");
+  const header = page.getByRole("banner").filter({ visible: true });
+  await expect(header.getByRole("button", { name: "Tài khoản" })).toBeVisible();
+  await expect(header.getByRole("link", { name: "Vé của tôi" })).toBeVisible();
+});
+
+test("Đăng xuất thu hồi phiên ở máy chủ", async ({ page }) => {
+  const api = process.env.W04_API_URL || "http://localhost:4000/api/v1";
+  await signIn(page, "buyer@tickethub.vn");
+  await page.goto("/faq");
+  const header = page.getByRole("banner").filter({ visible: true });
+  await header.getByRole("button", { name: "Tài khoản" }).click();
+  await header.getByRole("button", { name: "Đăng xuất" }).click();
+  await expect(page).toHaveURL(/\/auth/);
+  const refresh = await page.request.post(`${api}/auth/refresh`);
+  expect(refresh.ok()).toBe(false);
 });

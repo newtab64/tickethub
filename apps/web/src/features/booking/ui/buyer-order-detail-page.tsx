@@ -4,11 +4,11 @@ import { use, useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { BuyerOrderDetailSchema } from "@tickethub/shared";
-import { AccountMenu } from "@/features/identity";
+import { HeaderActions } from "@/features/identity";
 import { apiClient } from "@/shared/api/client";
 import { Button } from "@/shared/ui/button";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
-import { MyTicketsLink, SiteHeader } from "@/shared/ui/site-header";
+import { SiteHeader } from "@/shared/ui/site-header";
 import {
   canShowQr,
   listedTickets,
@@ -143,16 +143,7 @@ export default function OrderDetailPage({
     <FlowShell
       className="bg-checkout-page"
       mainClassName="max-w-132 pt-8"
-      header={
-        <SiteHeader
-          actions={
-            <>
-              <MyTicketsLink current />
-              <AccountMenu />
-            </>
-          }
-        />
-      }
+      header={<SiteHeader actions={<HeaderActions ticketsCurrent />} />}
     >
       {BuyerOrderDetailSchema.shape.id.safeParse(id).success ? (
         <OrderDetail key={id} id={id} />

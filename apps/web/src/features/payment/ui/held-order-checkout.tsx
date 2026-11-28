@@ -16,13 +16,14 @@ import {
   orderStatusLabel,
   paymentFailureMessage,
 } from "../domain/order-checkout";
+import { HeaderActions } from "@/features/identity";
+import { SiteHeader } from "@/shared/ui/site-header";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { Button } from "@/shared/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogTitle,
 } from "@/shared/ui/dialog";
 import { CheckoutFooter } from "./checkout-footer";
@@ -353,19 +354,18 @@ function Checkout({ orderId }: { orderId: string }) {
         open={leaveRequest !== null}
         onOpenChange={(open) => !open && setLeaveRequest(null)}
       >
-        <DialogContent showCloseButton={false}>
-          <DialogTitle>Hủy giữ chỗ?</DialogTitle>
-          <DialogDescription>
-            Vé đang giữ sẽ được trả lại kho để người khác đặt mua.
-          </DialogDescription>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLeaveRequest(null)}>
-              Ở lại thanh toán
+        {/* Không có nút X: "Tiếp tục thanh toán" đã làm đúng việc đó. */}
+        <DialogContent showCloseButton={false} className="text-center">
+          <DialogTitle>Hủy giao dịch?</DialogTitle>
+          <DialogDescription>Ghế đang giữ sẽ được trả lại.</DialogDescription>
+          <div className="grid gap-2 pt-2">
+            <Button size="lg" onClick={() => setLeaveRequest(null)}>
+              Tiếp tục thanh toán
             </Button>
-            <Button variant="destructive" onClick={confirmLeave}>
-              Hủy giữ chỗ
+            <Button size="lg" variant="destructive" onClick={confirmLeave}>
+              Hủy giao dịch
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </>
@@ -396,6 +396,7 @@ function CheckoutRoute() {
 export default function CheckoutPage() {
   return (
     <FlowShell
+      header={<SiteHeader actions={<HeaderActions allowLogout={false} />} />}
       className="bg-checkout-page"
       mainClassName="pt-3 pb-6 sm:pt-8 short:pt-3.5"
       footer={<CheckoutFooter />}

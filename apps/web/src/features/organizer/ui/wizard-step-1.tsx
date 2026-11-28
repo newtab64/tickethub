@@ -321,7 +321,7 @@ export function WizardStep1({ vm }: { vm: CreateEventWizard }) {
                     Thời gian bắt đầu{" "}
                     <span className="text-destructive">*</span>
                   </span>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <DatePicker
                       value={startDate}
                       onChange={(val) => {
@@ -366,7 +366,7 @@ export function WizardStep1({ vm }: { vm: CreateEventWizard }) {
                   <span className="block text-xs font-semibold text-foreground">
                     Thời gian kết thúc (tùy chọn)
                   </span>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <DatePicker
                       value={endDate}
                       onChange={(val) => {

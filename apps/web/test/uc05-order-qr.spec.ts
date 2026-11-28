@@ -343,3 +343,14 @@ test("Kéo chuột để bôi đen chữ không đổi vé", async ({ page }) =>
   await page.mouse.up();
   await expect(code).toHaveText(first);
 });
+
+test("Giảm chuyển động thì hộp thoại không có hiệu ứng", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openOrder(page, standing);
+  await enter(page);
+  await expect(page.getByRole("dialog")).toHaveCSS("animation-name", "none");
+  await expect(page.locator('[data-slot="dialog-overlay"]')).toHaveCSS(
+    "animation-name",
+    "none",
+  );
+});

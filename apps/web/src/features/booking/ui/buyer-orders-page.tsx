@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { BuyerOrderPageSchema, OrderStatus } from "@tickethub/shared";
 import { apiEnvelope } from "@/shared/api/client";
 import { money, dateTime, orderStatusLabel } from "@/features/payment";
+import { HeaderActions } from "@/features/identity";
+import { SiteHeader } from "@/shared/ui/site-header";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { Button } from "@/shared/ui/button";
 
@@ -24,7 +26,10 @@ export default function OrdersPage() {
   });
   const orders = query.data?.data;
   return (
-    <FlowShell title="Đơn hàng của tôi">
+    <FlowShell
+      title="Đơn hàng của tôi"
+      header={<SiteHeader actions={<HeaderActions ticketsCurrent />} />}
+    >
       <label className="mb-5 flex flex-wrap items-center gap-3 text-sm font-semibold">
         Trạng thái
         <select
@@ -100,7 +105,7 @@ export default function OrdersPage() {
       </ul>
       <nav
         aria-label="Phân trang đơn hàng"
-        className="mt-6 flex items-center gap-4"
+        className="mt-6 flex flex-wrap items-center gap-3"
       >
         <Button
           variant="outline"
