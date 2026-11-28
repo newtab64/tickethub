@@ -44,6 +44,7 @@ Quy tắc trình bày chung nằm ở [DESIGN_STANDARD.md](DESIGN_STANDARD.md).
 | `--success-border`     | `#a7f3d0` | Viền thông báo thành công                 |
 | `--fill`               | `#e1e4e8` | Nền nút phụ trên header và dòng thu gọn   |
 | `--fill-hover`         | `#d0d5db` | Nền nút phụ khi rê chuột                  |
+| `--field`              | `#eceef1` | Nền ô nhập, ô chọn và ô ngày giờ          |
 
 Bóng đổ (khai báo trong `@theme inline`): `--shadow-sheet` cho thẻ thanh toán, `--shadow-pay-bar` cho thanh thanh toán trên điện thoại.
 
@@ -87,7 +88,7 @@ Quy ước cho code mới: dùng class theo token (`text-foreground`, `text-mute
 | Số và mã           | Inter với `tabular-nums` cho đồng hồ, số ghế, mã đơn |
 | Letter-spacing nền | `-0.005em`                                           |
 
-Thang cỡ chữ đang dùng:
+Trang và thành phần đã đưa về [chuẩn giao diện](DESIGN_STANDARD.md) chỉ dùng 28, 17, 15 và 13px với hai độ đậm. Bảng dưới còn áp dụng cho các trang chưa làm mới:
 
 | Cỡ             | Vai trò                         |
 | :------------- | :------------------------------ |
@@ -138,9 +139,17 @@ Token Tailwind tương ứng: `--radius-sm` 6px, `--radius-md` 8px, `--radius-lg
 
 Cao `36px`, bo `8px`. Mặc định: viền `--border`, nền trắng. Đang chọn: viền `1.5px` `--primary`, nền `accent/50`, chữ `--primary`, đậm hơn.
 
-### Nút chính
+### Thành phần chung
 
-Component `Button` mặc định dùng `bg-primary`, hover giảm độ đậm còn 80%. Nút tự dựng ngoài `Button` (logo, nút định vị) dùng `bg-primary` và hover `primary-strong`; nên thống nhất về một kiểu khi có thời gian.
+| Thành phần                                | Quy cách                                                                                                                                            |
+| :---------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`                                  | Viên thuốc, 15px đậm, cao 44px (`lg` 48px). Chính: `--primary`, rê chuột `--primary-strong`. Phụ và viền: `--fill`. Nguy hiểm: chữ `--destructive`. |
+| `Input`, nút mở danh sách chọn, ngày, giờ | Viên thuốc cao 48px, nền `--field`, không viền; focus viền `--primary` 2px, lỗi viền `--destructive` 2px.                                           |
+| `Card`                                    | Bo 24px, không viền, bóng `--shadow-sheet`.                                                                                                         |
+| `Dialog`                                  | Bo 24px, nút đóng tròn 44px, tắt hiệu ứng khi giảm chuyển động.                                                                                     |
+| `Badge`                                   | Viên thuốc 13px đậm: `success`, `warning`, `destructive`, `neutral`.                                                                                |
+
+Nền `--field` chênh với nền trắng khoảng 1.15:1, thấp hơn mức 3:1 cho đường bao điều khiển; đây là lựa chọn thiết kế đã duyệt.
 
 ### Trạng thái focus
 
