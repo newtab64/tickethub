@@ -93,7 +93,7 @@ export async function apiClient<T>(
   endpoint: string,
   options?: RequestInit,
   _isRetry = false,
-  _mode: "json" | "envelope" = "json",
+  _mode: "json" | "envelope" | "blob" = "json",
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
 
@@ -145,6 +145,8 @@ export async function apiClient<T>(
     }
   }
 
+  if (response.ok && _mode === "blob") return (await response.blob()) as T;
+
   const payload = (await response
     .json()
     .catch(() => null)) as ApiStandardResponse<T> | null;
@@ -170,4 +172,12 @@ export function apiEnvelope<T>(
   options?: RequestInit,
 ): Promise<T> {
   return apiClient<T>(endpoint, options, false, "envelope");
+}
+
+/** Tải tệp với cùng Bearer token và cơ chế refresh như request JSON. */
+export function apiBlob(
+  endpoint: string,
+  options?: RequestInit,
+): Promise<Blob> {
+  return apiClient<Blob>(endpoint, options, false, "blob");
 }

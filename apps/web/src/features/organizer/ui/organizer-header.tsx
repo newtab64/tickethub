@@ -48,13 +48,24 @@ export function OrganizerHeader() {
   const isEventsActive =
     pathname.startsWith("/organizer/events") &&
     pathname !== "/organizer/events/new";
+  const isOperationsPage =
+    /^\/organizer\/(dashboard|staff|gate-monitor)(?:\/|$)/.test(pathname) ||
+    /^\/organizer\/events\/[^/]+\/stats$/.test(pathname);
   const isCreatePage = pathname.startsWith("/organizer/events/new");
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-xs">
-      <div className="max-w-[1200px] mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <header
+      className={
+        isOperationsPage
+          ? "sticky top-0 z-30 px-4 pt-3 sm:px-6"
+          : "sticky top-0 z-30 border-b border-border bg-background/95 backdrop-blur-xs"
+      }
+    >
+      <div
+        className={`mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 sm:px-6 ${isOperationsPage ? "h-14 rounded-full border border-border bg-background shadow-sm" : "h-16"}`}
+      >
         {/* Left: Logo + Organizer Portal Nav */}
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           <Logo />
           <span
             className="h-4 w-px bg-border hidden sm:block"
@@ -74,7 +85,16 @@ export function OrganizerHeader() {
               }`}
             >
               <Calendar className="size-3.5 sm:size-4" />
-              <span>Sự kiện</span>
+              <span className="whitespace-nowrap">Sự kiện</span>
+            </Link>
+            <Link
+              href="/organizer/dashboard"
+              className={`rounded-md px-2 py-2 text-xs hover:bg-secondary sm:text-sm ${isOperationsPage ? "hidden sm:inline-flex" : ""}`}
+              aria-current={
+                pathname === "/organizer/dashboard" ? "page" : undefined
+              }
+            >
+              Báo cáo & vận hành
             </Link>
           </nav>
         </div>
