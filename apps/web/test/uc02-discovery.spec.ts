@@ -171,7 +171,7 @@ async function signIn(
   );
 }
 
-test("Màn 320px: nút trên header và phân trang nằm trọn trong màn hình", async ({
+test("Màn 320px: nút trên header và ô lọc đơn nằm trọn trong màn hình", async ({
   page,
 }) => {
   await signIn(page, "buyer@tickethub.vn");
@@ -187,9 +187,9 @@ test("Màn 320px: nút trên header và phân trang nằm trọn trong màn hìn
   expect(await right(account)).toBeLessThanOrEqual(await right(nav));
 
   await page.goto("/buyer/orders");
-  const next = page.getByRole("button", { name: "Trang sau" });
-  await expect(next).toBeVisible();
-  expect(await right(next as typeof nav)).toBeLessThanOrEqual(320);
+  const filter = page.getByRole("combobox", { name: "Lọc theo trạng thái" });
+  await expect(filter).toBeVisible();
+  expect(await right(filter as typeof nav)).toBeLessThanOrEqual(320);
 });
 
 test("Bộ lọc của Ban tổ chức không tràn và không cắt nhãn", async ({

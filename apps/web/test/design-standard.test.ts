@@ -33,6 +33,7 @@ const STANDARD_FILES = [
   ),
   ...[
     "buyer-order-detail-page",
+    "buyer-orders-page",
     "order-details",
     "order-tickets-card",
     "refund-dialog",
