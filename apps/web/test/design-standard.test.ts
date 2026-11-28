@@ -13,6 +13,7 @@ const STANDARD_FILES = [
   ...["button", "input", "card", "dialog", "badge"].map(
     (name) => `shared/ui/${name}.tsx`,
   ),
+  "features/payment/ui/checkout-title-row.tsx",
   ...["site-header", "logo", "flow-shell"].map(
     (name) => `shared/ui/${name}.tsx`,
   ),

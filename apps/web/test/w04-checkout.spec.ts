@@ -452,11 +452,45 @@ test("Điện thoại: lỗi hủy giữ chỗ và cảnh báo sắp hết hạn
     page.getByRole("alert").filter({ hasText: "Chưa hủy được" }),
   ).toBeInViewport();
   await page.clock.fastForward(246_000);
-  // Chữ đỏ cần nền trắng để đủ tương phản trên nền xám.
+  // Không hiện câu cảnh báo; trình đọc màn hình vẫn được báo.
+  const warning = page.getByRole("alert").filter({ hasText: "sắp hết hạn" });
+  await expect(warning).toHaveCount(1);
+  expect((await warning.boundingBox())!.width).toBeLessThanOrEqual(1);
+  // Còn từ 45 giây thì khóa nút trả tiền.
+  await page.clock.fastForward(10_000);
   await expect(
-    page.getByRole("alert").filter({ hasText: "sắp hết hạn" }),
-  ).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
+  ).toBeDisabled();
   await page.unroute("**/booking/release");
+});
+
+test("Đồng hồ và nút hủy nằm chung một khối, vừa màn 320px", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const capsule = page.getByTestId("hold-capsule");
+  const cancel = capsule.getByRole("button", { name: "Hủy giao dịch" });
+  await expect(capsule.getByRole("timer")).toBeVisible();
+  await expect(cancel).toHaveText("Hủy giao dịch");
+  const heading = page.getByRole("heading", {
+    name: "Thanh toán",
+    exact: true,
+  });
+  for (const width of [1280, 390, 320]) {
+    await page.setViewportSize({ width, height: 700 });
+    const box = (await capsule.boundingBox())!;
+    const button = (await cancel.boundingBox())!;
+    expect(box.x + box.width, `${width}px`).toBeLessThanOrEqual(width - 16);
+    expect(button.x + button.width).toBeLessThanOrEqual(box.x + box.width);
+    expect(button.height).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeLessThanOrEqual(60);
+    // Điện thoại: chữ tiêu đề nhường chỗ, chỉ còn cho trình đọc màn hình.
+    expect((await heading.boundingBox())!.width <= 1).toBe(width < 1024);
+  }
+  await cancelHold(page);
 });
 
 test("Footer thẳng mép thẻ, không mang mã đơn, một lời cam kết", async ({
