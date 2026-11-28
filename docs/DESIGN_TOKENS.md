@@ -40,6 +40,7 @@ Quy tắc trình bày chung nằm ở [DESIGN_STANDARD.md](DESIGN_STANDARD.md).
 | `--fill`               | `#e1e4e8` | Nền nút phụ trên header và dòng thu gọn   |
 | `--fill-hover`         | `#d0d5db` | Nền nút phụ khi rê chuột                  |
 | `--field`              | `#eceef1` | Nền ô nhập, ô chọn và ô ngày giờ          |
+| `--control-border`     | `#aab4bc` | Viền nút và ô chọn nằm trên nền xám       |
 
 Bóng đổ (khai báo trong `@theme inline`): `--shadow-sheet` cho header, thẻ và thanh thanh toán nổi.
 
@@ -134,13 +135,15 @@ Cao `36px`, bo `8px`. Mặc định: viền `--border`, nền trắng. Đang ch�
 
 ### Thành phần chung
 
-| Thành phần                                | Quy cách                                                                                                                                            |
-| :---------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Button`                                  | Viên thuốc, 15px đậm, cao 44px (`lg` 48px). Chính: `--primary`, rê chuột `--primary-strong`. Phụ và viền: `--fill`. Nguy hiểm: chữ `--destructive`. |
-| `Input`, nút mở danh sách chọn, ngày, giờ | Viên thuốc cao 48px, nền `--field`, không viền; focus viền `--primary` 2px, lỗi viền `--destructive` 2px.                                           |
-| `Card`                                    | Bo 24px, không viền, bóng `--shadow-sheet`.                                                                                                         |
-| `Dialog`                                  | Bo 24px, nút đóng tròn 44px, tắt hiệu ứng khi giảm chuyển động.                                                                                     |
-| `Badge`                                   | Viên thuốc 13px đậm: `success`, `warning`, `destructive`, `neutral`.                                                                                |
+| Thành phần                                         | Quy cách                                                                                                                                            |
+| :------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Button`                                           | Viên thuốc, 15px đậm, cao 44px (`lg` 48px). Chính: `--primary`, rê chuột `--primary-strong`. Phụ và viền: `--fill`. Nguy hiểm: chữ `--destructive`. |
+| `Input`, nút mở danh sách chọn, ngày, giờ          | Viên thuốc cao 48px, nền `--field`, không viền; focus viền `--primary` 2px, lỗi viền `--destructive` 2px.                                           |
+| `Button variant="surface"`, `CustomSelect surface` | Cho điều khiển nằm thẳng trên nền xám: nền trắng, viền `--control-border`, bóng nhẹ, cao 44px hoặc 48px.                                            |
+| Danh sách mở ra của ô chọn                         | Bo 24px, mỗi mục cao 44px, chữ 15px; mục đang chọn đậm và có dấu kiểm.                                                                              |
+| `Card`                                             | Bo 24px, không viền, bóng `--shadow-sheet`.                                                                                                         |
+| `Dialog`                                           | Bo 24px, nút đóng tròn 44px, tắt hiệu ứng khi giảm chuyển động.                                                                                     |
+| `Badge`                                            | Viên thuốc 13px đậm: `success`, `warning`, `destructive`, `neutral`.                                                                                |
 
 Nền `--field` chênh với nền trắng khoảng 1.15:1, thấp hơn mức 3:1 cho đường bao điều khiển; đây là lựa chọn thiết kế đã duyệt.
 
