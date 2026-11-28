@@ -16,6 +16,8 @@ import {
   orderStatusLabel,
   paymentFailureMessage,
 } from "../domain/order-checkout";
+import { HeaderActions } from "@/features/identity";
+import { SiteHeader } from "@/shared/ui/site-header";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { Button } from "@/shared/ui/button";
 import {
@@ -396,6 +398,7 @@ function CheckoutRoute() {
 export default function CheckoutPage() {
   return (
     <FlowShell
+      header={<SiteHeader actions={<HeaderActions allowLogout={false} />} />}
       className="bg-checkout-page"
       mainClassName="pt-3 pb-6 sm:pt-8 short:pt-3.5"
       footer={<CheckoutFooter />}

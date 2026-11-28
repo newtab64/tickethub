@@ -13,6 +13,12 @@ const STANDARD_FILES = [
   ...["button", "input", "card", "dialog", "badge"].map(
     (name) => `shared/ui/${name}.tsx`,
   ),
+  ...["site-header", "logo", "flow-shell"].map(
+    (name) => `shared/ui/${name}.tsx`,
+  ),
+  ...["account-menu", "header-actions"].map(
+    (name) => `features/identity/ui/${name}.tsx`,
+  ),
   ...[
     "buyer-order-detail-page",
     "order-details",
@@ -58,7 +64,10 @@ describe("Chuẩn giao diện", () => {
     test(`${file} đúng chuẩn`, () => {
       const source = read(file);
       const broken = RULES.filter(([label, pattern]) => {
-        if (file === LOGO && label.startsWith("độ đậm")) return false;
+        // Logo là ngoại lệ: 800, 24px và 20px trên điện thoại.
+        if (file === LOGO && /^(độ đậm|cỡ chữ ngoài 28)/.test(label)) {
+          return false;
+        }
         return pattern.test(source);
       }).map(([label, pattern]) => `${label}: ${source.match(pattern)![0]}`);
       assert.deepEqual(broken, []);

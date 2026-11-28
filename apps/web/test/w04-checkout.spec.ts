@@ -100,6 +100,16 @@ async function hold(request: APIRequestContext, quantity = 1, seated = false) {
   return order;
 }
 
+test("Chưa đăng nhập: header trang kết quả mời đăng nhập", async ({ page }) => {
+  await page.goto("/checkout/result");
+  const header = page.getByRole("banner");
+  await expect(header.getByRole("link", { name: "Đăng nhập" })).toBeVisible();
+  await expect(header.getByRole("link", { name: "Vé của tôi" })).toHaveCount(0);
+  await expect(header.getByRole("button", { name: "Tài khoản" })).toHaveCount(
+    0,
+  );
+});
+
 test("Thiếu đơn không tạo checkout giả và đơn không tồn tại không cho thanh toán", async ({
   page,
 }) => {
@@ -293,10 +303,24 @@ test("URL báo thành công không thay thế xác nhận backend và thoát tra
   await page.goto(`/checkout?orderId=${order.orderId}`);
   await expect(page.getByTestId("checkout-sheet")).toBeVisible();
   const ordersLink = page.getByRole("link", {
-    name: "Đơn hàng của tôi",
+    name: "Vé của tôi",
     exact: true,
   });
   const dialog = page.getByRole("dialog");
+  // Đang giữ chỗ thì không đăng xuất, và link trong menu vẫn hỏi trước khi rời.
+  const account = page.getByRole("button", { name: "Tài khoản" });
+  const menu = page.locator("#account-menu");
+  await account.click();
+  await expect(menu.getByRole("link", { name: "Trợ giúp" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Đăng xuất" })).toHaveCount(0);
+  await menu.getByRole("link", { name: "Trợ giúp" }).click();
+  await dialog.getByRole("button", { name: "Ở lại thanh toán" }).click();
+  await expect(page).toHaveURL(/\/checkout\?orderId=/);
+  await expect(menu).toHaveCount(0);
+  await account.click();
+  await menu.getByRole("link", { name: "Trợ giúp" }).focus();
+  await page.keyboard.press("Tab");
+  await expect(menu).toHaveCount(0);
   await ordersLink.click();
   await dialog.getByRole("button", { name: "Ở lại thanh toán" }).click();
   await expect(page).toHaveURL(/\/checkout\?orderId=/);

@@ -28,3 +28,8 @@ export function accountMenuItems(role: UserRole): AccountMenuItem[] {
   }
   return [HELP];
 }
+
+/** Chỉ người mua mới có vé của riêng mình để xem trên header. */
+export function showsMyTickets(role: UserRole | null): boolean {
+  return role === UserRole.BUYER;
+}

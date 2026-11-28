@@ -134,15 +134,4 @@ describe("Design tokens: mau nhan cham", () => {
   test("dung mau boi den mac dinh cua trinh duyet", () => {
     assert.deepEqual(offenders(/selection:(bg|text)-|::selection/), []);
   });
-
-  test("nut Don hang cua toi noi bat tren header trang", () => {
-    const shell = readFileSync(
-      path.join(WEB, "src/shared/ui/flow-shell.tsx"),
-      "utf8",
-    );
-    assert.match(
-      shell,
-      /border border-primary\/30 bg-accent [^"]*text-accent-foreground/,
-    );
-  });
 });

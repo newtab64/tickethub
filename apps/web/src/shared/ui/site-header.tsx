@@ -6,9 +6,14 @@ import { Logo } from "./logo";
 
 /** Header chung: một viên thuốc, logo bên trái, nội dung do trang ghép vào. */
 export function SiteHeader({
+  leading,
+  logoClassName,
   center,
   actions,
 }: {
+  /** Đứng trước logo, ví dụ nút Quay lại. */
+  leading?: ReactNode;
+  logoClassName?: string;
   center?: ReactNode;
   actions: ReactNode;
 }) {
@@ -18,7 +23,10 @@ export function SiteHeader({
         aria-label="Điều hướng chính"
         className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 rounded-full bg-background pr-1.5 pl-4 shadow-sheet sm:pl-6"
       >
-        <Logo />
+        <div className="flex shrink-0 items-center gap-2">
+          {leading}
+          <Logo className={logoClassName} />
+        </div>
         {center && <div className="min-w-0 flex-1">{center}</div>}
         <div className="flex shrink-0 items-center gap-2">{actions}</div>
       </nav>
@@ -26,7 +34,13 @@ export function SiteHeader({
   );
 }
 
-export function MyTicketsLink({ current = false }: { current?: boolean }) {
+export function MyTicketsLink({
+  current = false,
+  className,
+}: {
+  current?: boolean;
+  className?: string;
+}) {
   return (
     <Link
       href="/buyer/orders"
@@ -37,6 +51,7 @@ export function MyTicketsLink({ current = false }: { current?: boolean }) {
         current
           ? "bg-foreground text-background"
           : "bg-fill hover:bg-fill-hover",
+        className,
       )}
     >
       <Ticket aria-hidden="true" className="size-4.5" />
