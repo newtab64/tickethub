@@ -247,18 +247,26 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
   const bar = page.getByRole("button", { name: "Thanh toán", exact: true });
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(bar).toBeVisible();
-  // Thanh nổi nền đen chữ trắng để tách khỏi thẻ, rộng bằng đúng thẻ.
+  // Thanh nổi nền đen chữ trắng để tách khỏi thẻ.
   const floating = page.getByTestId("mobile-pay-bar");
   await expect(floating).toHaveCSS("background-color", "rgb(20, 29, 35)");
   await expect(floating.locator("strong")).toHaveCSS(
     "color",
     "rgb(255, 255, 255)",
   );
-  for (const width of [320, 390, 700]) {
+  // Thanh thụt vào so với thẻ 16px mỗi bên; màn hẹp thì rộng bằng thẻ.
+  for (const [width, inset] of [
+    [320, 0],
+    [390, 16],
+    [700, 16],
+  ] as const) {
     await page.setViewportSize({ width, height: 700 });
     const pill = (await floating.boundingBox())!;
     const card = (await page.getByTestId("checkout-sheet").boundingBox())!;
-    expect([pill.x, pill.width]).toEqual([card.x, card.width]);
+    expect([pill.x, pill.width], `${width}px`).toEqual([
+      card.x + inset,
+      card.width - 2 * inset,
+    ]);
   }
   // Đúng cỡ chữ và bo góc của mockup: tên và gợi ý không gãy dòng trên 390px.
   await page.setViewportSize({ width: 390, height: 844 });

@@ -337,10 +337,10 @@ function Checkout({ orderId }: { orderId: string }) {
           }
         />
       </div>
-      {/* Nền đen để tách khỏi thẻ trắng; mép trùng mép thẻ bằng lề trang. */}
+      {/* Nền đen và thụt vào so với thẻ để thấy là thanh nổi. */}
       <div
         data-testid="mobile-pay-bar"
-        className={`fixed inset-x-4 bottom-3 z-30 flex items-center justify-between gap-3 rounded-full bg-foreground py-2 pr-2 pl-6 shadow-sheet transition-[translate,visibility] motion-reduce:transition-none max-[359px]:gap-2 max-[359px]:pl-4 sm:inset-x-6 lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
+        className={`fixed inset-x-8 bottom-3 z-30 flex items-center justify-between gap-3 rounded-full bg-foreground py-2 pr-2 pl-6 shadow-sheet transition-[translate,visibility] motion-reduce:transition-none max-[359px]:inset-x-4 max-[359px]:gap-2 max-[359px]:pl-4 sm:inset-x-10 lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
       >
         <p className="flex flex-col text-[13px] text-background/75">
           Tổng cộng
