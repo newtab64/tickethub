@@ -1,18 +1,148 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CircleCheck, CircleX, Clock3, RotateCcw } from "lucide-react";
+import { Check, CircleHelp, Clock3, RotateCcw, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { z } from "zod";
-import { BuyerOrderDetailSchema } from "@tickethub/shared";
+import {
+  BuyerOrderDetailSchema,
+  type BuyerOrderDetail,
+} from "@tickethub/shared";
 import { apiClient } from "@/shared/api/client";
 import { money, paymentState } from "../domain/order-checkout";
+import {
+  resultView,
+  type ResultState,
+  type ResultView,
+} from "../domain/payment-result";
+import { EventPoster } from "@/features/event";
 import { HeaderActions } from "@/features/identity";
 import { SiteHeader } from "@/shared/ui/site-header";
 import { FlowShell, FlowError } from "@/shared/ui/flow-shell";
 import { Button } from "@/shared/ui/button";
+import { cn } from "@/shared/lib/utils";
+
+const TONE: Record<ResultView["tone"], string> = {
+  success: "bg-success-soft text-success",
+  warning: "bg-warning-soft text-warning",
+  destructive: "bg-destructive/10 text-destructive",
+  neutral: "bg-fill text-foreground",
+};
+const ICON: Record<ResultState, typeof Check> = {
+  success: Check,
+  processing: Clock3,
+  refund_pending: RotateCcw,
+  refunded: RotateCcw,
+  failed: X,
+  unknown: CircleHelp,
+  error: CircleHelp,
+};
+
+function Checking() {
+  return (
+    <div className="grid justify-items-center gap-2 text-center">
+      <span
+        aria-hidden="true"
+        className="mb-2 size-16 animate-spin rounded-full border-6 border-fill border-t-primary motion-reduce:animate-none"
+      />
+      <p role="status" className="text-[17px] font-semibold">
+        Đang kiểm tra thanh toán
+      </p>
+      <p className="text-[13px] text-muted-foreground">
+        Việc này thường mất vài giây.
+      </p>
+    </div>
+  );
+}
+
+function OrderLine({ order }: { order: BuyerOrderDetail }) {
+  return (
+    <div className="mt-6 border-t border-border pt-4 text-left">
+      <div className="flex items-center gap-4">
+        <div className="relative size-16 shrink-0 overflow-hidden rounded-2xl bg-muted">
+          <EventPoster event={order.event} sizes="64px" labeled />
+        </div>
+        <div className="min-w-0">
+          <p className="font-semibold break-words">{order.event.title}</p>
+          <p className="text-[13px] break-all text-muted-foreground">
+            {order.orderCode}
+          </p>
+        </div>
+      </div>
+      <p className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3">
+        <span className="text-muted-foreground">Tổng cộng</span>
+        <strong className="text-[17px] font-semibold whitespace-nowrap tabular-nums">
+          {money(order.finalAmount)}
+        </strong>
+      </p>
+    </div>
+  );
+}
+
+/** Một thẻ cho mỗi trạng thái: một nút chính và một liên kết phụ. */
+function ResultCard({
+  state,
+  order,
+  error,
+  retry,
+}: {
+  state: ResultState;
+  order?: BuyerOrderDetail;
+  error?: ReactNode;
+  retry?: { run: () => void; busy: boolean };
+}) {
+  const view = resultView(state);
+  const Icon = ICON[state];
+  const orderHref = order ? `/buyer/orders/${order.id}` : "/buyer/orders";
+  const { primary, secondary } = view;
+  return (
+    <>
+      <section
+        data-testid="result-card"
+        className="rounded-3xl bg-background p-6 text-center shadow-sheet"
+      >
+        <span
+          className={cn(
+            "mx-auto mb-4 flex size-16 items-center justify-center rounded-full",
+            TONE[view.tone],
+          )}
+        >
+          <Icon aria-hidden="true" className="size-7" />
+        </span>
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+          {view.title}
+        </h1>
+        {view.text && <p className="mt-2 text-muted-foreground">{view.text}</p>}
+        {error && <div className="mt-4">{error}</div>}
+        {order && <OrderLine order={order} />}
+      </section>
+      {primary.kind === "retry" ? (
+        <Button
+          size="lg"
+          className="w-full"
+          disabled={retry?.busy}
+          onClick={retry?.run}
+        >
+          {primary.label}
+        </Button>
+      ) : (
+        <Button asChild size="lg" className="w-full">
+          <Link href={primary.kind === "order" ? orderHref : "/buyer/orders"}>
+            {primary.label}
+          </Link>
+        </Button>
+      )}
+      <Link
+        href={secondary.href === "order" ? orderHref : secondary.href}
+        className="mx-auto flex min-h-11 items-center font-semibold underline underline-offset-4"
+      >
+        {secondary.label}
+      </Link>
+    </>
+  );
+}
 
 function OrderResult({ orderId }: { orderId: string }) {
   const query = useQuery({
@@ -24,93 +154,16 @@ function OrderResult({ orderId }: { orderId: string }) {
     retry: false,
     refetchInterval: (q) => (q.state.data?.status === "PENDING" ? 3000 : false),
   });
-  if (query.isPending)
-    return <p role="status">Đang kiểm tra thanh toán với hệ thống...</p>;
+  if (query.isPending) return <Checking />;
   const order = query.data;
-  if (!order)
-    return (
-      <>
-        <FlowError error={query.error} />
-        <Button className="mt-4" onClick={() => query.refetch()}>
-          Kiểm tra lại
-        </Button>
-      </>
-    );
-  const state = paymentState(order.status);
-  const StatusIcon =
-    state === "success"
-      ? CircleCheck
-      : state === "failed"
-        ? CircleX
-        : state === "processing"
-          ? Clock3
-          : RotateCcw;
   return (
-    <section
-      className="max-w-2xl space-y-5 rounded-xl border border-border bg-background p-5 sm:p-7"
-      aria-live="polite"
-    >
-      <h2 className="flex items-center gap-3 text-xl font-bold tracking-tight">
-        <StatusIcon
-          aria-hidden="true"
-          className={
-            state === "failed"
-              ? "size-6 shrink-0 text-destructive"
-              : state === "success"
-                ? "size-6 shrink-0 text-success"
-                : "size-6 shrink-0 text-primary"
-          }
-        />
-        {state === "success"
-          ? "Thanh toán thành công"
-          : state === "processing"
-            ? "Đang chờ xác nhận thanh toán"
-            : state === "refunded"
-              ? "Đơn đã hủy toàn bộ vé"
-              : state === "refund_pending"
-                ? "Đang chờ hoàn tiền"
-                : "Đơn hàng chưa được thanh toán thành công"}
-      </h2>
-      <div className="space-y-2 rounded-xl bg-muted p-4">
-        <p className="text-xs text-muted-foreground">{order.orderCode}</p>
-        <p className="font-semibold">{order.event.title}</p>
-        <p className="flex flex-wrap justify-between gap-2 text-sm">
-          Tổng thanh toán{" "}
-          <strong className="tabular-nums">{money(order.finalAmount)}</strong>
-        </p>
-      </div>
-      {state === "processing" && (
-        <p>
-          Trang sẽ tự cập nhật khi VNPay xác nhận. Nếu đã bị trừ tiền, bạn đừng
-          thanh toán lại.
-        </p>
-      )}
-      {state === "failed" && (
-        <p>Nếu đã bị trừ tiền, hãy liên hệ hỗ trợ và gửi kèm mã đơn.</p>
-      )}
-      {(state === "refunded" || state === "refund_pending") && (
-        <p>Bạn có thể xem tiến độ hoàn tiền trong chi tiết đơn.</p>
-      )}
-      {query.error && <FlowError error={query.error} />}
-      <div className="flex flex-wrap gap-4">
-        <Link
-          className="font-semibold text-primary underline"
-          href={`/buyer/orders/${order.id}`}
-        >
-          Xem chi tiết đơn hàng
-        </Link>
-        <Link className="underline" href="/buyer/orders">
-          Đơn hàng của tôi
-        </Link>
-      </div>
-      <Button
-        variant="outline"
-        disabled={query.isFetching}
-        onClick={() => query.refetch()}
-      >
-        Kiểm tra lại trạng thái
-      </Button>
-    </section>
+    <ResultCard
+      // Không dùng vnp_ResponseCode hay paymentSuccess trên URL để xác nhận.
+      state={order ? paymentState(order.status) : "error"}
+      order={order}
+      error={query.error && <FlowError error={query.error} />}
+      retry={{ run: () => void query.refetch(), busy: query.isFetching }}
+    />
   );
 }
 
@@ -118,7 +171,8 @@ function ResultRoute() {
   const params = useSearchParams();
   const explicitId = params.get("orderId");
   const transactionRef = params.get("vnp_TxnRef");
-  const [returnedId, setReturnedId] = useState<string | null>(null);
+  // undefined: chưa đọc xong sessionStorage, chưa kết luận được.
+  const [returnedId, setReturnedId] = useState<string | null>();
   useEffect(() => {
     let id: string | null = null;
     try {
@@ -135,32 +189,27 @@ function ResultRoute() {
     }
     queueMicrotask(() => setReturnedId(id));
   }, [transactionRef]);
+  if (explicitId === null && returnedId === undefined) return <Checking />;
   const valid = z
     .string()
     .uuid()
     .safeParse(explicitId ?? returnedId);
-  if (!valid.success)
-    return (
-      <p>
-        Không xác định được đơn hàng từ lần thanh toán này.{" "}
-        <Link className="text-primary underline" href="/buyer/orders">
-          Kiểm tra đơn hàng của tôi
-        </Link>
-        .
-      </p>
-    );
-  // Không dùng vnp_ResponseCode hoặc paymentSuccess trên URL để xác nhận trả tiền.
+  if (!valid.success) return <ResultCard state="unknown" />;
   return <OrderResult key={valid.data} orderId={valid.data} />;
 }
+
 export default function ResultPage() {
   return (
     <FlowShell
-      title="Kết quả thanh toán"
       header={<SiteHeader actions={<HeaderActions />} />}
+      className="flex flex-col bg-checkout-page"
+      mainClassName="flex w-full max-w-132 flex-1 flex-col justify-center pt-6 pb-8 sm:pt-6"
     >
-      <Suspense fallback={<p>Đang tải...</p>}>
-        <ResultRoute />
-      </Suspense>
+      <div aria-live="polite" className="flex flex-col gap-4">
+        <Suspense fallback={<Checking />}>
+          <ResultRoute />
+        </Suspense>
+      </div>
     </FlowShell>
   );
 }

@@ -19,6 +19,7 @@ const STANDARD_FILES = [
     "order-summary",
     "payment-panel",
     "checkout-footer",
+    "payment-result-page",
   ].map((name) => `features/payment/ui/${name}.tsx`),
   ...["site-header", "logo", "flow-shell"].map(
     (name) => `shared/ui/${name}.tsx`,
