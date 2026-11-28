@@ -47,11 +47,12 @@ Bóng đổ (khai báo trong `@theme inline`): `--shadow-sheet` cho header, th�
 
 Mỗi màu gắn với một ý nghĩa, không dùng để trang trí.
 
-| Ngữ cảnh        | Màu                                                                    |
-| :-------------- | :--------------------------------------------------------------------- |
-| Hành động chính | `--primary`, là nút chàm duy nhất trong thẻ                            |
-| Đồng hồ giữ chỗ | Trung tính; nhóm `--warning` từ 120 giây; `--destructive` dưới 60 giây |
-| Hủy giao dịch   | Nút xám `--fill`; trong hộp thoại xác nhận là chữ `--destructive`      |
+| Ngữ cảnh           | Màu                                                                    |
+| :----------------- | :--------------------------------------------------------------------- |
+| Hành động chính    | `--primary`, là nút chàm duy nhất trong thẻ                            |
+| Đồng hồ giữ chỗ    | Trung tính; nhóm `--warning` từ 120 giây; `--destructive` dưới 60 giây |
+| Hủy giao dịch      | Nút xám `--fill`; trong hộp thoại xác nhận là chữ `--destructive`      |
+| Thanh trả tiền nổi | Nền `--foreground`, chữ `--background`, nút chính chàm                 |
 
 Viền focus là một nét 2px theo `--ring`, bo theo khung; không ghép viền với bóng đổ.
 

@@ -247,9 +247,13 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
   const bar = page.getByRole("button", { name: "Thanh toán", exact: true });
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(bar).toBeVisible();
-  // Thanh nổi trắng rộng bằng đúng thẻ, ở cả điện thoại và tablet.
+  // Thanh nổi nền đen chữ trắng để tách khỏi thẻ, rộng bằng đúng thẻ.
   const floating = page.getByTestId("mobile-pay-bar");
-  await expect(floating).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(floating).toHaveCSS("background-color", "rgb(20, 29, 35)");
+  await expect(floating.locator("strong")).toHaveCSS(
+    "color",
+    "rgb(255, 255, 255)",
+  );
   for (const width of [320, 390, 700]) {
     await page.setViewportSize({ width, height: 700 });
     const pill = (await floating.boundingBox())!;

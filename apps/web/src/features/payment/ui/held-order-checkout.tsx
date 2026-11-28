@@ -337,20 +337,21 @@ function Checkout({ orderId }: { orderId: string }) {
           }
         />
       </div>
-      {/* Mép thanh trùng mép thẻ: bằng lề trang. */}
+      {/* Nền đen để tách khỏi thẻ trắng; mép trùng mép thẻ bằng lề trang. */}
       <div
         data-testid="mobile-pay-bar"
-        className={`fixed inset-x-4 bottom-3 z-30 flex items-center justify-between gap-3 rounded-full bg-background py-2 pr-2 pl-6 shadow-sheet ring-1 ring-foreground/5 transition-[translate,visibility] motion-reduce:transition-none max-[359px]:gap-2 max-[359px]:pl-4 sm:inset-x-6 lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
+        className={`fixed inset-x-4 bottom-3 z-30 flex items-center justify-between gap-3 rounded-full bg-foreground py-2 pr-2 pl-6 shadow-sheet transition-[translate,visibility] motion-reduce:transition-none max-[359px]:gap-2 max-[359px]:pl-4 sm:inset-x-6 lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
       >
-        <p className="flex flex-col text-[13px] text-muted-foreground">
+        <p className="flex flex-col text-[13px] text-background/75">
           Tổng cộng
-          <strong className="text-[17px] font-semibold whitespace-nowrap text-foreground tabular-nums max-[359px]:text-[15px]">
+          <strong className="text-[17px] font-semibold whitespace-nowrap text-background tabular-nums max-[359px]:text-[15px]">
             {money(order.finalAmount)}
           </strong>
         </p>
         <Button
           size="lg"
-          className="max-[359px]:px-4"
+          // Viền focus trắng mới thấy được trên nền đen.
+          className="focus-visible:ring-background max-[359px]:px-4"
           disabled={payDisabled}
           onClick={() => payment.mutate()}
         >
