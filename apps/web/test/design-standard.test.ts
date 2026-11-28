@@ -19,6 +19,10 @@ const STANDARD_FILES = [
   ...["account-menu", "header-actions"].map(
     (name) => `features/identity/ui/${name}.tsx`,
   ),
+  "features/booking/ui/booking-header.tsx",
+  ...["public-header", "header-search"].map(
+    (name) => `features/event/ui/${name}.tsx`,
+  ),
   ...[
     "buyer-order-detail-page",
     "order-details",

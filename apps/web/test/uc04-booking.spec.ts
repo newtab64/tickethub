@@ -117,3 +117,37 @@ test("Sự kiện không có sơ đồ: rê một hạng vé không tô các h�
   await row("Vé đứng").hover();
   await expect(row("Ghế khán đài")).not.toHaveClass(/(^| )bg-muted( |$)/);
 });
+
+test("Header đặt vé: quay lại, không điều khiển giả, vừa màn 320px", async ({
+  page,
+}) => {
+  await loginBrowser(page);
+  await page.route(`${api}/events/*`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.title = "Đại nhạc hội mùa thu ".repeat(8).trim();
+    await route.fulfill({ response, json: body });
+  });
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(`/events/${slug}/booking?modal=false`);
+  // Trang đặt vé nằm trong <main> nên header không mang vai trò banner.
+  const header = page.locator("header").filter({ visible: true });
+  const back = header.getByRole("link", { name: "Quay lại" });
+  await expect(back).toHaveAttribute("href", `/events/${slug}`);
+  await expect(header.getByRole("textbox")).toHaveCount(0);
+  await expect(header.getByRole("button", { name: /yêu thích/ })).toHaveCount(
+    0,
+  );
+  const account = header.getByRole("button", { name: "Tài khoản" });
+  for (const control of [back, account]) {
+    const box = (await control.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+    expect(box.x + box.width).toBeLessThanOrEqual(320);
+  }
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+});

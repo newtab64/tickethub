@@ -13,7 +13,6 @@ const badgeVariants = cva(
         warning: "bg-warning-soft text-warning",
         destructive: "bg-destructive/10 text-destructive",
         neutral: "bg-fill text-foreground",
-        outline: "border-border text-foreground",
       },
     },
     defaultVariants: {

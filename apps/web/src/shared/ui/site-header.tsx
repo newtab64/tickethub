@@ -6,11 +6,13 @@ import { Logo } from "./logo";
 
 /** Header chung: một viên thuốc, logo bên trái, nội dung do trang ghép vào. */
 export function SiteHeader({
+  className,
   leading,
   logoClassName,
   center,
   actions,
 }: {
+  className?: string;
   /** Đứng trước logo, ví dụ nút Quay lại. */
   leading?: ReactNode;
   logoClassName?: string;
@@ -18,10 +20,10 @@ export function SiteHeader({
   actions: ReactNode;
 }) {
   return (
-    <header className="px-4 pt-3 sm:px-6">
+    <header className={cn("px-4 pt-3 sm:px-6", className)}>
       <nav
         aria-label="Điều hướng chính"
-        className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 rounded-full bg-background pr-1.5 pl-4 shadow-sheet sm:pl-6"
+        className="relative mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 rounded-full bg-background pr-1.5 pl-4 shadow-sheet sm:pl-6"
       >
         <div className="flex shrink-0 items-center gap-2">
           {leading}

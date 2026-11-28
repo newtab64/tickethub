@@ -77,7 +77,7 @@ test("Header đánh dấu thể loại của sự kiện đang xem", async ({ pa
   await expect(
     page
       .getByRole("banner")
-      .getByRole("link", { name: "Sân khấu & Hài kịch", exact: true }),
+      .getByRole("link", { name: "Sân khấu", exact: true }),
   ).toHaveAttribute("aria-current", "page");
 });
 
@@ -130,4 +130,21 @@ test("Ảnh hỏng thì liên kết ảnh của thẻ vẫn có tên", async ({ 
     .textContent())!;
   await expect(trending.locator("img")).toHaveCount(0);
   await expect(trending.getByRole("link").first()).toHaveAccessibleName(title);
+});
+
+test("Header khách: ba thể loại, mời đăng nhập, không chặn nội dung", async ({
+  page,
+}) => {
+  await page.goto("/faq");
+  const header = page.getByRole("banner").filter({ visible: true });
+  await expect(
+    header.getByRole("link", { name: /^(Hòa nhạc|Thể thao|Sân khấu)$/ }),
+  ).toHaveText(["Hòa nhạc", "Thể thao", "Sân khấu"]);
+  await expect(header.getByRole("link", { name: "Đăng nhập" })).toBeVisible();
+  await expect(header.getByRole("link", { name: "Vé của tôi" })).toHaveCount(0);
+  // Vùng hai bên viên thuốc phải bấm xuyên xuống trang.
+  const blocked = await page.evaluate(
+    () => !!document.elementFromPoint(4, 40)?.closest("header"),
+  );
+  expect(blocked).toBe(false);
 });
