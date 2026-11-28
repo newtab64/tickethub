@@ -247,18 +247,22 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
   const bar = page.getByRole("button", { name: "Thanh toán", exact: true });
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(bar).toBeVisible();
-  // Thanh nổi nền đen chữ trắng để tách khỏi thẻ, rộng bằng đúng thẻ.
+  // Thanh nổi nền đen chữ trắng để tách khỏi thẻ.
   const floating = page.getByTestId("mobile-pay-bar");
   await expect(floating).toHaveCSS("background-color", "rgb(20, 29, 35)");
   await expect(floating.locator("strong")).toHaveCSS(
     "color",
     "rgb(255, 255, 255)",
   );
-  for (const width of [320, 390, 700]) {
+  // Mép thanh trùng mép nội dung trong thẻ, ở cả điện thoại và tablet.
+  for (const width of [320, 360, 390, 700, 1000]) {
     await page.setViewportSize({ width, height: 700 });
+    await page.evaluate(() => window.scrollTo(0, 0));
     const pill = (await floating.boundingBox())!;
-    const card = (await page.getByTestId("checkout-sheet").boundingBox())!;
-    expect([pill.x, pill.width]).toEqual([card.x, card.width]);
+    const block = (await total.boundingBox())!;
+    expect([pill.x, pill.width], `${width}px`).toEqual([block.x, block.width]);
+    // Giá thông thường nằm gọn một hàng.
+    expect(pill.height, `${width}px`).toBeLessThanOrEqual(70);
   }
   // Đúng cỡ chữ và bo góc của mockup: tên và gợi ý không gãy dòng trên 390px.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -565,6 +569,17 @@ test("Có giảm giá thì hiện tạm tính; số tiền rất lớn vẫn v�
   expect(
     (await total.getByText("Tổng cộng").boundingBox())!.height,
   ).toBeLessThan(34);
+  // Số rất lớn vẫn không đẩy nút ra khỏi thanh nổi.
+  for (const width of [320, 360, 375]) {
+    await page.setViewportSize({ width, height: 640 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(bar).toBeVisible();
+    const outer = (await bar.boundingBox())!;
+    const inner = (await bar.getByRole("button").boundingBox())!;
+    expect(inner.x + inner.width, `${width}px`).toBeLessThanOrEqual(
+      outer.x + outer.width - 4,
+    );
+  }
   await page.unroute("**/booking/orders/*");
   await cancelHold(page);
 });
@@ -831,6 +846,222 @@ test("Nút thanh toán dùng URL backend và chuyển VNPay không hủy chỗ",
   expect(result.data.status).toBe("PENDING");
 });
 
+test("Kết quả đang chờ: một thẻ giữa màn, một nút chính, vừa màn 320px", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.route(`${api}/buyer/orders/${order.orderId}`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.event.title = "Đại nhạc hội ".repeat(10).trim();
+    body.data.finalAmount = 99_000_000_000;
+    await route.fulfill({ response, json: body });
+  });
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+    "Đang chờ xác nhận thanh toán",
+  );
+  await expect(main.getByRole("button")).toHaveText(["Kiểm tra lại"]);
+  await expect(main.getByRole("link")).toHaveText(["Xem đơn hàng"]);
+  await expect(main.getByRole("link")).toHaveAttribute(
+    "href",
+    `/buyer/orders/${order.orderId}`,
+  );
+  await expect(main.getByRole("img")).toBeVisible();
+  await expect(main).toContainText("Tổng cộng");
+  const card = (await page.getByTestId("result-card").boundingBox())!;
+  const link = (await main.getByRole("link").boundingBox())!;
+  const header = (await page
+    .getByRole("navigation", { name: "Điều hướng chính" })
+    .boundingBox())!;
+  const above = card.y - (header.y + header.height);
+  const below = 800 - (link.y + link.height);
+  expect(Math.abs(above - below)).toBeLessThanOrEqual(16);
+  expect(Math.abs(card.x + card.width / 2 - 640)).toBeLessThanOrEqual(1);
+  expect(card.width).toBeLessThanOrEqual(480);
+  await page.setViewportSize({ width: 320, height: 640 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+  // Lỗi khi kiểm tra lại: đơn vẫn hiện, kèm thông báo.
+  await page.unroute(`${api}/buyer/orders/${order.orderId}`);
+  await page.route(`${api}/buyer/orders/${order.orderId}`, (route) =>
+    route.fulfill({
+      status: 500,
+      json: { success: false, error: { code: "E", message: "Lỗi tạm thời" } },
+    }),
+  );
+  await main.getByRole("button", { name: "Kiểm tra lại" }).click();
+  await expect(
+    main.getByRole("alert").filter({ hasText: "Lỗi tạm thời" }),
+  ).toBeVisible();
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+    "Đang chờ xác nhận thanh toán",
+  );
+  await expect(main).toContainText(order.orderCode);
+});
+
+test("Kết quả không tải được thì thử lại được; thiếu mã đơn thì chỉ về Vé của tôi", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  const url = `${api}/buyer/orders/${order.orderId}`;
+  await page.route(url, (route) => route.abort("connectionrefused"));
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  const main = page.getByRole("main");
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+    "Chưa kiểm tra được thanh toán",
+  );
+  await expect(main.getByRole("alert")).toHaveText(
+    "Không kết nối được. Kiểm tra mạng rồi thử lại.",
+  );
+  await page.unroute(url);
+  await main.getByRole("button", { name: "Kiểm tra lại" }).click();
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+    "Đang chờ xác nhận thanh toán",
+  );
+  await page.goto("/checkout/result?orderId=khong-hop-le");
+  await expect(main.getByRole("heading", { level: 1 })).toHaveText(
+    "Chưa xác định được đơn",
+  );
+  await expect(
+    main.getByRole("link", { name: "Xem Vé của tôi" }),
+  ).toHaveAttribute("href", "/buyer/orders");
+});
+
+test("Quay về từ VNPay không chớp thông báo không xác định được đơn", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.addInitScript((orderId) => {
+    sessionStorage.setItem(
+      "tickethub:payment-return",
+      JSON.stringify({ orderId, transactionRef: "REF1" }),
+    );
+    new MutationObserver(() => {
+      if (document.body?.textContent?.includes("Chưa xác định được đơn"))
+        sessionStorage.setItem("flashed", "1");
+    }).observe(document, { childList: true, subtree: true });
+  }, order.orderId);
+  await page.goto("/checkout/vnpay-return?vnp_TxnRef=REF1");
+  await expect(
+    page.getByRole("heading", { name: "Đang chờ xác nhận thanh toán" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => sessionStorage.getItem("flashed")),
+  ).toBeNull();
+});
+
+test("Chưa đăng nhập mở kết quả đơn thì được đưa tới đăng nhập", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  await expect(page).toHaveURL(/\/auth\?redirect=.*checkout%2Fresult/);
+});
+
+test("Kiểm tra lại giữ nguyên tiêu điểm và thẻ trong lúc đang hỏi", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  const url = `${api}/buyer/orders/${order.orderId}`;
+  let release = () => {};
+  const held = () => new Promise<void>((done) => (release = done));
+  // Chưa trả lời: trang đang kiểm tra phải có tiêu đề.
+  let gate = held();
+  await page.route(url, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  const main = page.getByRole("main");
+  const title = main.getByRole("heading", { level: 1 });
+  await expect(title).toHaveText("Đang kiểm tra thanh toán");
+  release();
+  await expect(title).toHaveText("Đang chờ xác nhận thanh toán");
+  // Đang hỏi lại: nút vẫn giữ tiêu điểm.
+  gate = held();
+  const retry = main.getByRole("button", { name: "Kiểm tra lại" });
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await expect(retry).toHaveAttribute("aria-disabled", "true");
+  await expect(retry).toBeFocused();
+  release();
+  await expect(retry).toHaveAttribute("aria-disabled", "false");
+  await expect(retry).toBeFocused();
+  await page.unroute(url);
+  // Thử lại từ trạng thái lỗi không đổi cả thẻ thành vòng quay.
+  await page.route(url, (route) => route.abort("connectionrefused"));
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  await expect(title).toHaveText("Chưa kiểm tra được thanh toán");
+  await page.unroute(url);
+  gate = held();
+  await page.route(url, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await expect(retry).toHaveAttribute("aria-disabled", "true");
+  await expect(title).toHaveText("Chưa kiểm tra được thanh toán");
+  await expect(retry).toBeFocused();
+  release();
+  await expect(title).toHaveText("Đang chờ xác nhận thanh toán");
+});
+
+test("Đơn hết hạn vẫn được hỏi lại; hoàn tiền bị từ chối thì nói rõ", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  let status = "EXPIRED";
+  let refunds: unknown[] = [];
+  await page.route(`${api}/buyer/orders/${order.orderId}`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.status = status;
+    body.data.refunds = refunds;
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  const main = page.getByRole("main");
+  const title = main.getByRole("heading", { level: 1 });
+  await expect(title).toHaveText("Thanh toán không thành công");
+  await expect(main).toContainText("đừng thanh toán lại");
+  await expect(
+    main.getByRole("button", { name: "Kiểm tra lại" }),
+  ).toBeVisible();
+  // VNPay xác nhận muộn: trang tự cập nhật, người mua không phải bấm.
+  status = "PAYMENT_EXPIRED_REFUND_PENDING";
+  await expect(title).toHaveText("Đang hoàn tiền", { timeout: 20_000 });
+  refunds = [
+    {
+      id: "6f1d2c3b-4a5e-4f60-8b71-9c0d1e2f3a4b",
+      amount: 100,
+      status: "FAILED",
+      reason: null,
+      createdAt: "2026-11-28T00:00:00.000Z",
+    },
+  ];
+  await page.reload();
+  await expect(title).toHaveText("Chưa hoàn được tiền");
+  await expect(main).toContainText("Hoàn tiền chưa thực hiện được");
+});
+
 /** Vào chế độ hoàn vé, chọn dòng đầu tiên và mở phần xem trước. */
 async function startRefund(page: Page) {
   await page.getByText("Chi tiết đơn", { exact: true }).click();
@@ -855,7 +1086,7 @@ test("Xác nhận IPN cục bộ và hoàn một phần vé qua UI với databas
   await expect(
     page.getByRole("heading", { name: "Thanh toán thành công", exact: true }),
   ).toBeVisible();
-  await page.getByRole("link", { name: "Xem chi tiết đơn hàng" }).click();
+  await page.getByRole("link", { name: "Xem vé" }).click();
   const poster = page.getByRole("img", {
     name: "Ảnh sự kiện Liveshow Âm Nhạc Mùa Thu 2026",
   });

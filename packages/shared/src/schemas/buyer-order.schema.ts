@@ -228,3 +228,13 @@ export const BuyerOrderDetailSchema = z.object({
 });
 
 export type BuyerOrderDetail = z.infer<typeof BuyerOrderDetailSchema>;
+
+/**
+ * Mọi yêu cầu hoàn tiền đều bị từ chối. Còn một yêu cầu đang chạy thì tiền
+ * vẫn đang được hoàn.
+ */
+export function isRefundRejected(refunds: { status: string }[]): boolean {
+  return (
+    refunds.length > 0 && refunds.every((refund) => refund.status === "FAILED")
+  );
+}
