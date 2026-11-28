@@ -18,7 +18,7 @@ Giao diện `apps/web` cần đơn giản, chuyên nghiệp và lấy người d
 8. **Nói bằng lời người dùng.** Không dùng thuật ngữ kỹ thuật.
 9. **Bố cục theo mục đích.** Trang để xem dùng một cột; trang để giao dịch dùng hai cột.
 10. **Bấm được thì nhìn ra được.** Dùng nền, viền, gạch chân hoặc mũi tên; phần mở rộng có mũi tên.
-11. **Chỉ nút hành động mới có nền.** Liên kết điều hướng là chữ trơn. Nút phụ dùng nền xám `fill` với chữ đen; màu nhấn dành cho một hành động chính.
+11. **Chỉ nút hành động mới có nền.** Liên kết điều hướng là chữ trơn. Nút phụ dùng nền xám `fill` với chữ đen; màu nhấn dành cho một hành động chính. Nút phụ và ô chọn nằm thẳng trên nền xám dùng nền trắng, viền `control-border` và bóng.
 
 Ngoại lệ: logo dùng độ đậm 800, cỡ 24px (điện thoại 20px).
 
