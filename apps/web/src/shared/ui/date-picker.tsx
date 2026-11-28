@@ -170,8 +170,8 @@ export function DatePicker({
         onClick={() => {
           if (!disabled) setIsOpen((p) => !p);
         }}
-        className={`w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground text-left flex items-center justify-between gap-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none hover:bg-secondary/40 ${
-          isOpen ? "ring-2 ring-ring" : ""
+        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-full bg-field px-5 text-left text-[15px] text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-solid disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none ${
+          isOpen ? "outline-2 outline-primary outline-solid" : ""
         }`}
       >
         <span className="truncate tabular-nums">
@@ -378,8 +378,8 @@ export function TimePicker({
         onClick={() => {
           if (!disabled) setIsOpen((p) => !p);
         }}
-        className={`w-full h-10 px-3 rounded-md border border-input bg-background text-sm text-foreground text-left flex items-center justify-between gap-2 transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-50 disabled:pointer-events-none hover:bg-secondary/40 ${
-          isOpen ? "ring-2 ring-ring" : ""
+        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-full bg-field px-5 text-left text-[15px] text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-solid disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none ${
+          isOpen ? "outline-2 outline-primary outline-solid" : ""
         }`}
       >
         <span className="truncate tabular-nums">

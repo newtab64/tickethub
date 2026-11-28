@@ -23,6 +23,7 @@
   --color-gateway-soft: var(--gateway-soft);
   --color-fill: var(--fill);
   --color-fill-hover: var(--fill-hover);
+  --color-field: var(--field);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-success-border: var(--success-border);
@@ -96,6 +97,7 @@
   --success-border: #a7f3d0;
   --fill: #e1e4e8;
   --fill-hover: #d0d5db;
+  --field: #eceef1;
   --radius: 12px;
   --auth-stage-offset: 0px;
 }
