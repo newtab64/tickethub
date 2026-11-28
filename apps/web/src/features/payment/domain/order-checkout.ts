@@ -56,7 +56,6 @@ export function holdTone(seconds: number): HoldTone {
 
 export interface SeatRow {
   id: string;
-  badge: string;
   title: string;
   detail: string;
   amount: number;
@@ -70,20 +69,17 @@ export function seatRows(items: CheckoutOrder["items"]): SeatRow[] {
       if (!ticketType.isSeated)
         return {
           ...row,
-          badge: String(quantity),
           title: `Khu vực: ${ticketType.name} (Vé đứng)`,
           detail: `${quantity} vé x ${money(unitPrice)}`,
         };
       if (!seat)
         return {
           ...row,
-          badge: "?",
           title: ticketType.name,
           detail: "Vị trí ghế chưa được xác nhận",
         };
       return {
         ...row,
-        badge: seat.seatNumber,
         title: zoneLabel(seat.zoneName),
         detail: `Hàng ${seat.rowLabel}, ghế ${seat.seatNumber}`,
       };

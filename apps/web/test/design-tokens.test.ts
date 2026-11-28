@@ -42,8 +42,6 @@ describe("Design tokens: mau nhan cham", () => {
       accent: "#eef2ff",
       "accent-foreground": "#3730a3",
       ring: "#6366f1",
-      "pay-bar": "#1e1b4b",
-      "pay-bar-muted": "#c7d2fe",
       success: "#047857",
       "success-soft": "#ecfdf5",
       "success-border": "#a7f3d0",
@@ -54,10 +52,6 @@ describe("Design tokens: mau nhan cham", () => {
     for (const name of ["success", "success-soft", "success-border"]) {
       assert.ok(css.includes(`--color-${name}: var(--${name});`), name);
     }
-    assert.match(
-      css,
-      /--shadow-pay-bar:\s*0 10px 28px rgb\(30 27 75 \/ 0\.35\)/,
-    );
   });
 
   test("moi cap chu va nen dat tuong phan 4.5", () => {
@@ -68,8 +62,6 @@ describe("Design tokens: mau nhan cham", () => {
       [token("accent-foreground"), token("accent")],
       [token("primary"), white],
       [token("primary"), token("checkout-page")],
-      [token("pay-bar-muted"), token("pay-bar")],
-      [white, token("pay-bar")],
       [token("success"), white],
       [token("success"), token("success-soft")],
     ];

@@ -12,11 +12,11 @@ const LINKS = [
 export function CheckoutFooter() {
   return (
     // pb-20 trên mobile chừa chỗ cho thanh thanh toán nổi.
-    <footer className="mx-auto max-w-[1248px] px-4 pt-1 pb-20 text-[13px] text-muted-foreground sm:px-6 lg:pb-6 short:pb-3">
+    <footer className="mx-auto max-w-232 px-4 pt-1 pb-24 text-[13px] text-muted-foreground sm:px-6 lg:pb-6 short:pb-3">
       <p className="text-center">
         <ShieldCheck
           aria-hidden="true"
-          className="mr-2 inline size-4 align-[-3px] text-primary"
+          className="mr-2 inline size-4 align-[-3px]"
         />
         Vé chính hãng. Nếu đã trừ tiền mà không thể cấp vé, hệ thống hoàn tiền
         cho bạn.
@@ -28,13 +28,13 @@ export function CheckoutFooter() {
         <p>© 2026 tickethub</p>
         <nav
           aria-label="Chính sách và trợ giúp"
-          className="grid w-full grid-cols-2 justify-items-center gap-x-4 gap-y-1 text-center font-medium lg:flex lg:w-auto lg:gap-x-7"
+          className="grid w-full grid-cols-2 justify-items-center gap-x-4 gap-y-1 text-center lg:flex lg:w-auto lg:gap-x-7"
         >
           {LINKS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className="inline-flex min-h-10 items-center transition-colors hover:text-primary lg:min-h-8"
+              className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
             >
               {label}
             </Link>

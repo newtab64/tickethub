@@ -19,8 +19,6 @@
   --color-primary-strong: var(--primary-strong);
   --color-checkout-page: var(--checkout-page);
   --color-checkout-border: var(--checkout-border);
-  --color-gateway: var(--gateway);
-  --color-gateway-soft: var(--gateway-soft);
   --color-fill: var(--fill);
   --color-fill-hover: var(--fill-hover);
   --color-field: var(--field);
@@ -30,11 +28,8 @@
   --color-warning: var(--warning);
   --color-warning-soft: var(--warning-soft);
   --color-warning-border: var(--warning-border);
-  --color-pay-bar: var(--pay-bar);
-  --color-pay-bar-muted: var(--pay-bar-muted);
   --shadow-sheet:
     0 1px 2px rgb(16 26 32 / 0.06), 0 16px 40px rgb(16 26 32 / 0.1);
-  --shadow-pay-bar: 0 10px 28px rgb(30 27 75 / 0.35);
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
@@ -84,14 +79,10 @@
   --primary-strong: #3730a3;
   --checkout-page: #e4e9ec;
   --checkout-border: #c9d2d8;
-  --gateway: #0a5db0;
-  --gateway-soft: #e8f1fb;
   --warning: #9a3412;
   --warning-soft: #fff7ed;
   --warning-border: #fdba74;
   --warning-ring: #ea580c;
-  --pay-bar: #1e1b4b;
-  --pay-bar-muted: #c7d2fe;
   --success: #047857;
   --success-soft: #ecfdf5;
   --success-border: #a7f3d0;

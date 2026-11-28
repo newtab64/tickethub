@@ -235,25 +235,48 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
   const bar = page.getByRole("button", { name: "Thanh toán", exact: true });
   await page.evaluate(() => window.scrollTo(0, 0));
   await expect(bar).toBeVisible();
-  // Thanh nổi rộng bằng đúng các khối bên trong thẻ, ở cả điện thoại và tablet.
+  // Thanh nổi trắng rộng bằng đúng thẻ, ở cả điện thoại và tablet.
+  const floating = page.getByTestId("mobile-pay-bar");
+  await expect(floating).toHaveCSS("background-color", "rgb(255, 255, 255)");
   for (const width of [320, 390, 700]) {
     await page.setViewportSize({ width, height: 700 });
-    const pill = (await page.getByTestId("mobile-pay-bar").boundingBox())!;
-    const block = (await total.boundingBox())!;
-    expect([pill.x, pill.width]).toEqual([block.x, block.width]);
+    const pill = (await floating.boundingBox())!;
+    const card = (await page.getByTestId("checkout-sheet").boundingBox())!;
+    expect([pill.x, pill.width]).toEqual([card.x, card.width]);
   }
   // Đúng cỡ chữ và bo góc của mockup: tên và gợi ý không gãy dòng trên 390px.
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     (await payment.getByText("buyer@tickethub.vn").boundingBox())!.height,
   ).toBeLessThan(30);
+  expect(
+    (await page
+      .getByRole("button", { name: "Thanh toán ngay qua VNPay" })
+      .boundingBox())!.height,
+  ).toBe(48);
+  // Mỗi thông tin chỉ nói một lần; không có giảm giá thì không có tạm tính.
   await expect(
-    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
-  ).toHaveCSS("border-top-left-radius", "16px");
-  // Mỗi thông tin chỉ nói một lần, không hiện giảm giá bằng 0.
-  await expect(payment.getByText("Chọn tại cổng VNPay")).toBeVisible();
+    payment.getByText("Bạn chọn cách trả ở bước tiếp theo."),
+  ).toBeVisible();
+  await expect(summary.getByText("Đã gồm VAT")).toBeVisible();
   await expect(page.getByText("Giảm giá", { exact: true })).toHaveCount(0);
-  await expect(summary.getByText("Tạm tính")).toBeVisible();
+  await expect(page.getByText("Tạm tính")).toHaveCount(0);
+  // "Tổng cộng" và số tiền cùng đường chân chữ.
+  const baselines = await total.evaluate((block) =>
+    [
+      block.querySelector("[data-total-label]")!,
+      block.querySelector('[data-testid="checkout-total-amount"]')!,
+    ].map((element) => {
+      const mark = document.createElement("span");
+      mark.style.cssText =
+        "display:inline-block;width:0;height:0;vertical-align:baseline";
+      element.appendChild(mark);
+      const y = mark.getBoundingClientRect().top;
+      mark.remove();
+      return y;
+    }),
+  );
+  expect(Math.abs(baselines[0]! - baselines[1]!)).toBeLessThanOrEqual(1);
   await page.setViewportSize({ width: 320, height: 700 });
   await page
     .getByRole("button", { name: "Thanh toán ngay qua VNPay" })
@@ -408,7 +431,7 @@ test("Điện thoại nhỏ: không tràn, không gãy dòng, hiện đủ ghế
         "tiêu đề",
         page.getByRole("heading", { name: "Thanh toán", exact: true }),
       ],
-      ["nhãn tổng", total.getByText("Tổng thanh toán")],
+      ["nhãn tổng", total.getByText("Tổng cộng")],
       ["tên khu", page.getByText("Khu VIP A").first()],
       ["vị trí ghế", page.getByText(/Hàng .*, ghế/).first()],
     ] as const)
@@ -490,6 +513,57 @@ test("Đồng hồ và nút hủy nằm chung một khối, vừa màn 320px", a
     // Điện thoại: chữ tiêu đề nhường chỗ, chỉ còn cho trình đọc màn hình.
     expect((await heading.boundingBox())!.width <= 1).toBe(width < 1024);
   }
+  await cancelHold(page);
+});
+
+test("Có giảm giá thì hiện tạm tính; số tiền rất lớn vẫn vừa thanh nổi", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.route("**/booking/orders/*", async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.totalAmount = 100_000_000_000;
+    body.data.discountAmount = 1_000_000_000;
+    body.data.finalAmount = 99_000_000_000;
+    await route.fulfill({ response, json: body });
+  });
+  await page.setViewportSize({ width: 320, height: 640 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const total = page.getByTestId("checkout-total");
+  await expect(total.getByText("Tạm tính")).toBeVisible();
+  await expect(total.getByText("Giảm giá", { exact: true })).toBeVisible();
+  const bar = page.getByTestId("mobile-pay-bar");
+  await expect(bar).toBeVisible();
+  const pill = (await bar.boundingBox())!;
+  const button = (await bar.getByRole("button").boundingBox())!;
+  expect(button.x + button.width).toBeLessThanOrEqual(pill.x + pill.width);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth - window.innerWidth,
+    ),
+  ).toBeLessThanOrEqual(0);
+  await page.unroute("**/booking/orders/*");
+  await cancelHold(page);
+});
+
+test("Màn 1280x800: sáu ghế mà nút trả tiền vẫn thấy ngay", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request, 6, true);
+  await loginBrowser(page);
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  await expect(
+    page.getByRole("button", { name: "Thanh toán ngay qua VNPay" }),
+  ).toBeInViewport({ ratio: 1 });
+  await expect(page.getByLabel("Danh sách ghế")).toHaveAttribute(
+    "tabindex",
+    "0",
+  );
   await cancelHold(page);
 });
 

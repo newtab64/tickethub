@@ -102,21 +102,18 @@ test("Seat rows describe seated, unconfirmed and standing tickets", () => {
   ]);
   assert.deepEqual(a, {
     id: "a",
-    badge: "03",
     title: "Khu VIP A",
     detail: "Hàng A, ghế 03",
     amount: 100,
   });
   assert.deepEqual(b, {
     id: "b",
-    badge: "?",
     title: "VIP",
     detail: "Vị trí ghế chưa được xác nhận",
     amount: 100,
   });
   assert.deepEqual(c, {
     id: "c",
-    badge: "3",
     title: "Khu vực: Fanzone (Vé đứng)",
     detail: `3 vé x ${money(100)}`,
     amount: 300,

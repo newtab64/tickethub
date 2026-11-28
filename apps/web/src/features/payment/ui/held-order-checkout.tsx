@@ -39,7 +39,7 @@ const scrollToError = (node: HTMLElement | null) =>
 function CheckoutNotice({ children }: { children: ReactNode }) {
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">Thanh toán</h1>
+      <h1 className="text-[28px] font-semibold tracking-tight">Thanh toán</h1>
       {children}
     </div>
   );
@@ -303,7 +303,7 @@ function Checkout({ orderId }: { orderId: string }) {
       />
       <div
         data-testid="checkout-sheet"
-        className="grid grid-cols-1 rounded-3xl border border-checkout-border bg-background py-2 text-sm shadow-sheet lg:grid-cols-2 lg:grid-rows-[repeat(3,auto)] lg:py-6 short:py-2"
+        className="flex flex-col rounded-3xl bg-background shadow-sheet lg:grid lg:grid-cols-2"
       >
         <OrderSummary order={order} />
         <PaymentPanel
@@ -331,19 +331,20 @@ function Checkout({ orderId }: { orderId: string }) {
           }
         />
       </div>
-      {/* Mép thanh trùng mép các khối trong thẻ: lề trang + viền 1px + đệm khối. */}
+      {/* Mép thanh trùng mép thẻ: bằng lề trang. */}
       <div
         data-testid="mobile-pay-bar"
-        className={`fixed inset-x-[37px] bottom-3 z-30 flex h-14 items-center justify-between gap-3 rounded-full bg-pay-bar pr-2 pl-5 sm:inset-x-[45px] max-[359px]:gap-2 max-[359px]:pl-4 shadow-pay-bar transition-[translate,visibility] lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
+        className={`fixed inset-x-4 bottom-3 z-30 flex items-center justify-between gap-3 rounded-full bg-background py-2 pr-2 pl-6 shadow-sheet ring-1 ring-foreground/5 transition-[translate,visibility] motion-reduce:transition-none max-[359px]:gap-2 max-[359px]:pl-4 sm:inset-x-6 lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
       >
-        <p className="flex flex-col text-[11px] leading-[14px] text-pay-bar-muted">
-          Tổng thanh toán
-          <strong className="text-lg leading-[22px] whitespace-nowrap text-white tabular-nums max-[359px]:text-base">
+        <p className="flex flex-col text-[13px] text-muted-foreground">
+          Tổng cộng
+          <strong className="text-[17px] font-semibold whitespace-nowrap text-foreground tabular-nums max-[359px]:text-[15px]">
             {money(order.finalAmount)}
           </strong>
         </p>
         <Button
-          className="h-10 rounded-full bg-background px-5 font-semibold text-accent-foreground hover:bg-background/90 max-[359px]:px-3"
+          size="lg"
+          className="max-[359px]:px-4"
           disabled={payDisabled}
           onClick={() => payment.mutate()}
         >
@@ -398,7 +399,7 @@ export default function CheckoutPage() {
     <FlowShell
       header={<SiteHeader actions={<HeaderActions allowLogout={false} />} />}
       className="bg-checkout-page"
-      mainClassName="pt-3 pb-6 sm:pt-8 short:pt-3.5"
+      mainClassName="max-w-232 pt-2 pb-6 sm:pt-6 short:pt-3"
       footer={<CheckoutFooter />}
     >
       <Suspense fallback={<CheckoutNotice>Đang tải...</CheckoutNotice>}>
