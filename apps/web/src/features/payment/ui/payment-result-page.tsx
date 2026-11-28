@@ -42,14 +42,12 @@ const ICON: Record<ResultState, typeof Check> = {
 
 function Checking() {
   return (
-    <div className="grid justify-items-center gap-2 text-center">
+    <div role="status" className="grid justify-items-center gap-2 text-center">
       <span
         aria-hidden="true"
         className="mb-2 size-16 animate-spin rounded-full border-6 border-fill border-t-primary motion-reduce:animate-none"
       />
-      <p role="status" className="text-[17px] font-semibold">
-        Đang kiểm tra thanh toán
-      </p>
+      <h1 className="text-[17px] font-semibold">Đang kiểm tra thanh toán</h1>
       <p className="text-[13px] text-muted-foreground">
         Việc này thường mất vài giây.
       </p>
@@ -119,11 +117,15 @@ function ResultCard({
         {order && <OrderLine order={order} />}
       </section>
       {primary.kind === "retry" ? (
+        // Không dùng disabled: trang tự hỏi lại mỗi 3 giây, khóa nút sẽ làm
+        // người dùng bàn phím mất tiêu điểm.
         <Button
           size="lg"
           className="w-full"
-          disabled={retry?.busy}
-          onClick={retry?.run}
+          aria-disabled={retry?.busy ?? false}
+          onClick={() => {
+            if (!retry?.busy) retry?.run();
+          }}
         >
           {primary.label}
         </Button>
@@ -154,7 +156,8 @@ function OrderResult({ orderId }: { orderId: string }) {
     retry: false,
     refetchInterval: (q) => (q.state.data?.status === "PENDING" ? 3000 : false),
   });
-  if (query.isPending) return <Checking />;
+  // Thử lại sau lỗi cũng về trạng thái chờ; giữ nguyên thẻ để không mất nút.
+  if (query.isPending && query.errorUpdateCount === 0) return <Checking />;
   const order = query.data;
   return (
     <ResultCard

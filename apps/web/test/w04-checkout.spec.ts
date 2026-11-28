@@ -573,6 +573,17 @@ test("Có giảm giá thì hiện tạm tính; số tiền rất lớn vẫn v�
   expect(
     (await total.getByText("Tổng cộng").boundingBox())!.height,
   ).toBeLessThan(34);
+  // Số rất lớn vẫn không đẩy nút ra khỏi thanh nổi.
+  for (const width of [360, 375]) {
+    await page.setViewportSize({ width, height: 640 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(bar).toBeVisible();
+    const outer = (await bar.boundingBox())!;
+    const inner = (await bar.getByRole("button").boundingBox())!;
+    expect(inner.x + inner.width, `${width}px`).toBeLessThanOrEqual(
+      outer.x + outer.width - 4,
+    );
+  }
   await page.unroute("**/booking/orders/*");
   await cancelHold(page);
 });
@@ -960,6 +971,57 @@ test("Chưa đăng nhập mở kết quả đơn thì được đưa tới đăn
   const order = await hold(request);
   await page.goto(`/checkout/result?orderId=${order.orderId}`);
   await expect(page).toHaveURL(/\/auth\?redirect=.*checkout%2Fresult/);
+});
+
+test("Kiểm tra lại giữ nguyên tiêu điểm và thẻ trong lúc đang hỏi", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  const url = `${api}/buyer/orders/${order.orderId}`;
+  let release = () => {};
+  const held = () => new Promise<void>((done) => (release = done));
+  // Chưa trả lời: trang đang kiểm tra phải có tiêu đề.
+  let gate = held();
+  await page.route(url, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  const main = page.getByRole("main");
+  const title = main.getByRole("heading", { level: 1 });
+  await expect(title).toHaveText("Đang kiểm tra thanh toán");
+  release();
+  await expect(title).toHaveText("Đang chờ xác nhận thanh toán");
+  // Đang hỏi lại: nút vẫn giữ tiêu điểm.
+  gate = held();
+  const retry = main.getByRole("button", { name: "Kiểm tra lại" });
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await expect(retry).toHaveAttribute("aria-disabled", "true");
+  await expect(retry).toBeFocused();
+  release();
+  await expect(retry).toHaveAttribute("aria-disabled", "false");
+  await expect(retry).toBeFocused();
+  await page.unroute(url);
+  // Thử lại từ trạng thái lỗi không đổi cả thẻ thành vòng quay.
+  await page.route(url, (route) => route.abort("connectionrefused"));
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  await expect(title).toHaveText("Chưa kiểm tra được thanh toán");
+  await page.unroute(url);
+  gate = held();
+  await page.route(url, async (route) => {
+    await gate;
+    await route.continue();
+  });
+  await retry.focus();
+  await page.keyboard.press("Enter");
+  await expect(retry).toHaveAttribute("aria-disabled", "true");
+  await expect(title).toHaveText("Chưa kiểm tra được thanh toán");
+  await expect(retry).toBeFocused();
+  release();
+  await expect(title).toHaveText("Đang chờ xác nhận thanh toán");
 });
 
 /** Vào chế độ hoàn vé, chọn dòng đầu tiên và mở phần xem trước. */
