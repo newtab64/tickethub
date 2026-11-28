@@ -119,7 +119,7 @@ export async function apiClient<T>(
     throw new ApiError(
       0,
       "NETWORK_ERROR",
-      "Máy chủ API hiện chưa phản hồi. Vui lòng kiểm tra kết nối backend hoặc sử dụng chế độ xem trước giao diện.",
+      "Không kết nối được. Kiểm tra mạng rồi thử lại.",
     );
   }
 

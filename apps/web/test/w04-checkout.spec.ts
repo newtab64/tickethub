@@ -924,7 +924,9 @@ test("Kết quả không tải được thì thử lại được; thiếu mã �
   await expect(main.getByRole("heading", { level: 1 })).toHaveText(
     "Chưa kiểm tra được thanh toán",
   );
-  await expect(main.getByRole("alert")).toBeVisible();
+  await expect(main.getByRole("alert")).toHaveText(
+    "Không kết nối được. Kiểm tra mạng rồi thử lại.",
+  );
   await page.unroute(url);
   await main.getByRole("button", { name: "Kiểm tra lại" }).click();
   await expect(main.getByRole("heading", { level: 1 })).toHaveText(
@@ -1022,6 +1024,46 @@ test("Kiểm tra lại giữ nguyên tiêu điểm và thẻ trong lúc đang h�
   await expect(retry).toBeFocused();
   release();
   await expect(title).toHaveText("Đang chờ xác nhận thanh toán");
+});
+
+test("Đơn hết hạn vẫn được hỏi lại; hoàn tiền bị từ chối thì nói rõ", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  let status = "EXPIRED";
+  let refunds: unknown[] = [];
+  await page.route(`${api}/buyer/orders/${order.orderId}`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.data.status = status;
+    body.data.refunds = refunds;
+    await route.fulfill({ response, json: body });
+  });
+  await page.goto(`/checkout/result?orderId=${order.orderId}`);
+  const main = page.getByRole("main");
+  const title = main.getByRole("heading", { level: 1 });
+  await expect(title).toHaveText("Thanh toán không thành công");
+  await expect(main).toContainText("đừng thanh toán lại");
+  await expect(
+    main.getByRole("button", { name: "Kiểm tra lại" }),
+  ).toBeVisible();
+  // VNPay xác nhận muộn: trang tự cập nhật, người mua không phải bấm.
+  status = "PAYMENT_EXPIRED_REFUND_PENDING";
+  await expect(title).toHaveText("Đang hoàn tiền", { timeout: 20_000 });
+  refunds = [
+    {
+      id: "6f1d2c3b-4a5e-4f60-8b71-9c0d1e2f3a4b",
+      amount: 100,
+      status: "FAILED",
+      reason: null,
+      createdAt: "2026-11-28T00:00:00.000Z",
+    },
+  ];
+  await page.reload();
+  await expect(title).toHaveText("Chưa hoàn được tiền");
+  await expect(main).toContainText("Hoàn tiền chưa thực hiện được");
 });
 
 /** Vào chế độ hoàn vé, chọn dòng đầu tiên và mở phần xem trước. */

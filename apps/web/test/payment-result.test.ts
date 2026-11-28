@@ -1,6 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  detailedState,
   resultView,
   type ResultState,
 } from "../src/features/payment/domain/payment-result.ts";
@@ -72,6 +73,27 @@ const TABLE: [ResultState, string, string, string, string, string, string][] = [
   ],
 ];
 
+TABLE.push(
+  [
+    "expired",
+    "destructive",
+    "Thanh toán không thành công",
+    "Kiểm tra lại",
+    "retry",
+    "Xem đơn hàng",
+    "order",
+  ],
+  [
+    "refund_failed",
+    "destructive",
+    "Chưa hoàn được tiền",
+    "Xem đơn hàng",
+    "order",
+    "Xem Trợ giúp",
+    "/faq",
+  ],
+);
+
 describe("Nội dung trang kết quả thanh toán", () => {
   for (const [state, tone, title, primary, kind, secondary, href] of TABLE) {
     test(state, () => {
@@ -94,7 +116,40 @@ describe("Nội dung trang kết quả thanh toán", () => {
         "Xem tiến độ hoàn tiền trong chi tiết đơn.",
         "Hãy kiểm tra trong Vé của tôi trước khi thanh toán lại.",
         "",
+        "Nếu đã bị trừ tiền, đừng thanh toán lại. Hãy liên hệ hỗ trợ và gửi kèm mã đơn.",
+        "Hoàn tiền chưa thực hiện được. Hãy liên hệ hỗ trợ kèm mã đơn.",
       ],
+    );
+  });
+});
+
+describe("Trạng thái chi tiết", () => {
+  const refunds = (...status: string[]) => status.map((s) => ({ status: s }));
+
+  test("đơn hết hạn tách khỏi thất bại vì có thể vẫn được cấp vé", () => {
+    assert.equal(detailedState("failed", "EXPIRED", []), "expired");
+    assert.equal(detailedState("failed", "FAILED", []), "failed");
+    assert.equal(detailedState("failed", "CANCELLED", []), "failed");
+  });
+
+  test("hoàn tiền bị từ chối không được báo là đang hoàn", () => {
+    const status = "PAYMENT_EXPIRED_REFUND_PENDING";
+    assert.equal(
+      detailedState("refund_pending", status, refunds("FAILED")),
+      "refund_failed",
+    );
+    assert.equal(
+      detailedState("refund_pending", status, refunds("PENDING")),
+      "refund_pending",
+    );
+    // Lần thử sau đang chờ thì tiền vẫn đang được hoàn.
+    assert.equal(
+      detailedState("refund_pending", status, refunds("FAILED", "PENDING")),
+      "refund_pending",
+    );
+    assert.equal(
+      detailedState("success", "PAID", refunds("FAILED")),
+      "success",
     );
   });
 });

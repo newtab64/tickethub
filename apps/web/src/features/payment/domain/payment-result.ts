@@ -1,6 +1,9 @@
 import type { paymentState } from "./order-checkout.ts";
 
-export type ResultState = ReturnType<typeof paymentState> | "unknown" | "error";
+type PaymentState = ReturnType<typeof paymentState>;
+
+export type ResultState =
+  PaymentState | "expired" | "refund_failed" | "unknown" | "error";
 
 export interface ResultView {
   tone: "success" | "warning" | "destructive" | "neutral";
@@ -47,6 +50,21 @@ const VIEWS: Record<ResultState, ResultView> = {
     primary: { label: "Xem đơn hàng", kind: "order" },
     secondary: HELP,
   },
+  // Tiền trả sát hạn có thể được xác nhận muộn, nên vẫn cho kiểm tra lại.
+  expired: {
+    tone: "destructive",
+    title: "Thanh toán không thành công",
+    text: "Nếu đã bị trừ tiền, đừng thanh toán lại. Hãy liên hệ hỗ trợ và gửi kèm mã đơn.",
+    primary: RETRY,
+    secondary: { label: "Xem đơn hàng", href: "order" },
+  },
+  refund_failed: {
+    tone: "destructive",
+    title: "Chưa hoàn được tiền",
+    text: "Hoàn tiền chưa thực hiện được. Hãy liên hệ hỗ trợ kèm mã đơn.",
+    primary: { label: "Xem đơn hàng", kind: "order" },
+    secondary: HELP,
+  },
   refunded: {
     tone: "neutral",
     title: "Đơn đã hủy toàn bộ vé",
@@ -73,4 +91,22 @@ const VIEWS: Record<ResultState, ResultView> = {
 /** Nội dung trang kết quả theo trạng thái đơn. */
 export function resultView(state: ResultState): ResultView {
   return VIEWS[state];
+}
+
+/** Tách các trường hợp mà trạng thái đơn chưa nói đủ cho người đã trả tiền. */
+export function detailedState(
+  state: PaymentState,
+  status: string,
+  refunds: { status: string }[],
+): ResultState {
+  if (status === "EXPIRED") return "expired";
+  // Còn yêu cầu đang chạy thì tiền vẫn đang được hoàn.
+  if (
+    state === "refund_pending" &&
+    refunds.length > 0 &&
+    refunds.every((refund) => refund.status === "FAILED")
+  ) {
+    return "refund_failed";
+  }
+  return state;
 }

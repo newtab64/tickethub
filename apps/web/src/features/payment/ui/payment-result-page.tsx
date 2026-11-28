@@ -13,6 +13,7 @@ import {
 import { apiClient } from "@/shared/api/client";
 import { money, paymentState } from "../domain/order-checkout";
 import {
+  detailedState,
   resultView,
   type ResultState,
   type ResultView,
@@ -36,6 +37,8 @@ const ICON: Record<ResultState, typeof Check> = {
   refund_pending: RotateCcw,
   refunded: RotateCcw,
   failed: X,
+  expired: X,
+  refund_failed: X,
   unknown: CircleHelp,
   error: CircleHelp,
 };
@@ -154,7 +157,12 @@ function OrderResult({ orderId }: { orderId: string }) {
         await apiClient<unknown>(`/buyer/orders/${orderId}`),
       ),
     retry: false,
-    refetchInterval: (q) => (q.state.data?.status === "PENDING" ? 3000 : false),
+    // Đơn hết hạn vẫn hỏi thưa hơn: xác nhận từ VNPay có thể đến muộn.
+    refetchInterval: (q) => {
+      const status = q.state.data?.status;
+      if (status === "PENDING") return 3000;
+      return status === "EXPIRED" ? 10_000 : false;
+    },
   });
   // Thử lại sau lỗi cũng về trạng thái chờ; giữ nguyên thẻ để không mất nút.
   if (query.isPending && query.errorUpdateCount === 0) return <Checking />;
@@ -162,7 +170,15 @@ function OrderResult({ orderId }: { orderId: string }) {
   return (
     <ResultCard
       // Không dùng vnp_ResponseCode hay paymentSuccess trên URL để xác nhận.
-      state={order ? paymentState(order.status) : "error"}
+      state={
+        order
+          ? detailedState(
+              paymentState(order.status),
+              order.status,
+              order.refunds,
+            )
+          : "error"
+      }
       order={order}
       error={query.error && <FlowError error={query.error} />}
       retry={{ run: () => void query.refetch(), busy: query.isFetching }}
