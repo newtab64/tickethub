@@ -114,6 +114,13 @@ describe("Chuẩn giao diện", () => {
     }
   });
 
+  test("mũi tên ô chọn đứng yên khi giảm chuyển động", () => {
+    assert.match(
+      read("shared/ui/custom-select.tsx"),
+      /transition-transform [^"`]*motion-reduce:transition-none/,
+    );
+  });
+
   test("ô chọn báo mục đang trỏ cho trình đọc màn hình", () => {
     assert.match(read("shared/ui/custom-select.tsx"), /aria-activedescendant/);
   });

@@ -8,8 +8,8 @@ const slug = "liveshow-am-nhac-mua-thu-2026";
 test.describe.configure({ mode: "serial" });
 test.use({ serviceWorkers: "block" });
 test.skip(
-  process.env.W04_E2E_ISOLATED !== "true",
-  "Cần API dùng database test riêng",
+  !process.env.CI && process.env.W04_E2E_ISOLATED !== "true",
+  "Chỉ chạy trên CI hoặc database test riêng",
 );
 
 let token = "";
@@ -102,7 +102,8 @@ test("Cả dòng đơn thật bấm được, có ảnh, không có mã đơn ha
   await expect(link).toContainText("Liveshow Âm Nhạc Mùa Thu 2026");
   await expect(link).toContainText("2 vé");
   await expect(link).toContainText("Chờ thanh toán");
-  await expect(link.getByRole("img")).toBeVisible();
+  await expect(link.locator("img")).toBeVisible();
+  await expect(link).not.toHaveAccessibleName(/Ảnh sự kiện/);
   await expect(main).not.toContainText(orderCode);
   await expect(main.getByText("Tiếp tục thanh toán")).toHaveCount(0);
   await expect(main.getByRole("button", { name: "Xem thêm" })).toHaveCount(0);
@@ -117,6 +118,7 @@ test("Lọc trạng thái bằng bàn phím; lọc không ra thì xem lại tấ
   await page.goto("/buyer/orders");
   const filter = page.getByRole("combobox", { name: "Lọc theo trạng thái" });
   await expect(filter).toHaveText("Tất cả");
+  await expect(filter.getByText("Tất cả")).toHaveCSS("font-weight", "600");
   await filter.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByRole("option")).toHaveCount(8);
@@ -130,8 +132,10 @@ test("Lọc trạng thái bằng bàn phím; lọc không ra thì xem lại tấ
   await expect(filter).toBeFocused();
   const main = page.getByRole("main");
   await expect(main).toContainText("Không có đơn nào ở trạng thái này");
-  await main.getByRole("button", { name: "Xem tất cả" }).click();
+  await main.getByRole("button", { name: "Xem tất cả" }).focus();
+  await page.keyboard.press("Enter");
   await expect(filter).toHaveText("Tất cả");
+  await expect(filter).toBeFocused();
   await expect(
     main.locator(`a[href="/buyer/orders/${orderId}"]`),
   ).toBeVisible();
@@ -155,6 +159,46 @@ test("Xem thêm nối trang, không trùng đơn, hết thì ẩn", async ({ pag
   await expect(more).toHaveCount(0);
   // Nút biến mất thì tiêu điểm sang đơn mới đầu tiên.
   await expect(rows.nth(2).getByRole("link")).toBeFocused();
+});
+
+test("Đã chuyển đi nơi khác thì tải xong không kéo tiêu điểm về", async ({
+  page,
+}) => {
+  await signIn(page);
+  let release = () => {};
+  const gate = new Promise<void>((done) => (release = done));
+  await page.route(LIST, async (route) => {
+    const first =
+      new URL(route.request().url()).searchParams.get("page") === "1";
+    if (!first) await gate;
+    await route.fulfill({
+      json: {
+        success: true,
+        data: [row(first ? 1 : 2)],
+        meta: { totalPages: 2 },
+      },
+    });
+  });
+  await page.goto("/buyer/orders");
+  await page.getByRole("button", { name: "Xem thêm" }).click();
+  const account = page.getByRole("button", { name: "Tài khoản" });
+  await account.focus();
+  release();
+  await expect(page.getByRole("main").getByRole("listitem")).toHaveCount(2);
+  await page.waitForTimeout(200);
+  await expect(account).toBeFocused();
+});
+
+test("Màn thấp: mục đang trỏ trong ô lọc luôn cuộn vào tầm nhìn", async ({
+  page,
+}) => {
+  await signIn(page);
+  await page.setViewportSize({ width: 640, height: 360 });
+  await page.goto("/buyer/orders");
+  await page.getByRole("combobox", { name: "Lọc theo trạng thái" }).focus();
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("End");
+  await expect(page.getByRole("option").last()).toBeInViewport({ ratio: 1 });
 });
 
 test("Chưa có vé, lỗi rồi thử lại, lỗi khi xem thêm", async ({ page }) => {

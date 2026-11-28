@@ -27,6 +27,7 @@ const FILTERS = [
     label: orderStatusLabel[value],
   })),
 ];
+const FILTER_ID = "order-filter";
 const CARD = "rounded-3xl bg-background shadow-sheet";
 
 /** Cả dòng là một liên kết tới chi tiết đơn. */
@@ -45,7 +46,6 @@ function OrderRow({ order }: { order: BuyerOrderSummaryItem }) {
               bannerUrl: order.eventBannerUrl,
             }}
             sizes="64px"
-            labeled
           />
         </span>
         <span className="min-w-0 flex-1">
@@ -137,9 +137,11 @@ export default function OrdersPage() {
     const result = await query.fetchNextPage();
     // Hết trang thì nút biến mất: đưa tiêu điểm sang đơn mới đầu tiên.
     if (!result.hasNextPage && !result.isError) {
-      requestAnimationFrame(() =>
-        list.current?.querySelectorAll("a")[before]?.focus(),
-      );
+      requestAnimationFrame(() => {
+        // Người dùng đã chuyển đi nơi khác thì không kéo họ về.
+        if (document.activeElement !== document.body) return;
+        list.current?.querySelectorAll("a")[before]?.focus();
+      });
     }
   };
 
@@ -155,6 +157,7 @@ export default function OrdersPage() {
         </h1>
         <div className="min-w-0">
           <CustomSelect
+            id={FILTER_ID}
             surface
             align="end"
             ariaLabel="Lọc theo trạng thái"
@@ -182,7 +185,11 @@ export default function OrdersPage() {
             <Button
               variant="secondary"
               className="mt-4"
-              onClick={() => setStatus("")}
+              onClick={() => {
+                setStatus("");
+                // Nút này sắp biến mất, đưa tiêu điểm về ô lọc.
+                document.getElementById(FILTER_ID)?.focus();
+              }}
             >
               Xem tất cả
             </Button>

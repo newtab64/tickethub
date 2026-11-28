@@ -46,6 +46,14 @@ export function CustomSelect({
 
   const selectedOption = options.find((opt) => opt.value === value);
 
+  // Tiêu điểm ở lại trên ô nên trình duyệt không tự cuộn tới mục đang trỏ.
+  useEffect(() => {
+    if (!isOpen) return;
+    document
+      .getElementById(`${id}-option-${focusedIndex}`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [isOpen, focusedIndex, id]);
+
   // Close on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -157,7 +165,12 @@ export function CustomSelect({
               {selectedOption.icon && (
                 <selectedOption.icon className="size-4 text-muted-foreground shrink-0" />
               )}
-              <span className="truncate font-normal text-foreground">
+              <span
+                className={cn(
+                  "truncate text-foreground",
+                  !surface && "font-normal",
+                )}
+              >
                 {selectedOption.label}
               </span>
             </>
@@ -168,7 +181,7 @@ export function CustomSelect({
           )}
         </span>
         <ChevronDown
-          className={`size-4 text-muted-foreground transition-transform duration-200 shrink-0 ${
+          className={`size-4 text-muted-foreground transition-transform duration-200 shrink-0 motion-reduce:transition-none ${
             isOpen ? "rotate-180" : ""
           }`}
           aria-hidden="true"
@@ -183,7 +196,7 @@ export function CustomSelect({
           aria-labelledby={id}
           tabIndex={-1}
           className={cn(
-            "absolute z-50 mt-2 max-h-96 w-full min-w-60 overflow-y-auto rounded-3xl bg-popover p-2 text-[15px] text-popover-foreground shadow-sheet ring-1 ring-foreground/5 focus:outline-none",
+            "absolute z-50 mt-2 max-h-96 w-full min-w-50 overflow-y-auto rounded-3xl bg-popover p-2 text-[15px] text-popover-foreground shadow-sheet ring-1 ring-foreground/5 focus:outline-none",
             align === "end" ? "right-0" : "left-0",
             // Ô lọc trên nền xám hẹp hơn danh sách nên cho danh sách rộng riêng.
             surface && "min-w-75",
