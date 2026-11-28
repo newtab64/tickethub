@@ -254,19 +254,15 @@ test("Checkout đọc tiền thật, không áp voucher giả, hủy trả chỗ
     "color",
     "rgb(255, 255, 255)",
   );
-  // Thanh thụt vào so với thẻ 16px mỗi bên; màn hẹp thì rộng bằng thẻ.
-  for (const [width, inset] of [
-    [320, 0],
-    [390, 16],
-    [700, 16],
-  ] as const) {
+  // Mép thanh trùng mép nội dung trong thẻ, ở cả điện thoại và tablet.
+  for (const width of [320, 360, 390, 700, 1000]) {
     await page.setViewportSize({ width, height: 700 });
+    await page.evaluate(() => window.scrollTo(0, 0));
     const pill = (await floating.boundingBox())!;
-    const card = (await page.getByTestId("checkout-sheet").boundingBox())!;
-    expect([pill.x, pill.width], `${width}px`).toEqual([
-      card.x + inset,
-      card.width - 2 * inset,
-    ]);
+    const block = (await total.boundingBox())!;
+    expect([pill.x, pill.width], `${width}px`).toEqual([block.x, block.width]);
+    // Giá thông thường nằm gọn một hàng.
+    expect(pill.height, `${width}px`).toBeLessThanOrEqual(70);
   }
   // Đúng cỡ chữ và bo góc của mockup: tên và gợi ý không gãy dòng trên 390px.
   await page.setViewportSize({ width: 390, height: 844 });
@@ -574,7 +570,7 @@ test("Có giảm giá thì hiện tạm tính; số tiền rất lớn vẫn v�
     (await total.getByText("Tổng cộng").boundingBox())!.height,
   ).toBeLessThan(34);
   // Số rất lớn vẫn không đẩy nút ra khỏi thanh nổi.
-  for (const width of [360, 375]) {
+  for (const width of [320, 360, 375]) {
     await page.setViewportSize({ width, height: 640 });
     await page.evaluate(() => window.scrollTo(0, 0));
     await expect(bar).toBeVisible();

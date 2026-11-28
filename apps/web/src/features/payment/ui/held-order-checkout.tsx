@@ -337,10 +337,10 @@ function Checkout({ orderId }: { orderId: string }) {
           }
         />
       </div>
-      {/* Nền đen và thụt vào so với thẻ để thấy là thanh nổi. */}
+      {/* Nền đen; mép trùng nội dung trong thẻ. Số quá dài thì nút xuống hàng. */}
       <div
         data-testid="mobile-pay-bar"
-        className={`fixed inset-x-8 bottom-3 z-30 flex items-center justify-between gap-3 rounded-full bg-foreground py-2 pr-2 pl-6 shadow-sheet transition-[translate,visibility] motion-reduce:transition-none max-[389px]:gap-2 max-[389px]:pl-4 max-[359px]:inset-x-4 sm:inset-x-10 lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
+        className={`fixed inset-x-9 bottom-3 z-30 mx-auto flex max-w-210 flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-4xl bg-foreground py-2 pr-2 pl-6 shadow-sheet transition-[translate,visibility] motion-reduce:transition-none max-[389px]:gap-x-2 max-[389px]:pl-4 sm:inset-x-11 lg:hidden ${payButtonVisible ? "invisible translate-y-[140%]" : ""}`}
       >
         <p className="flex flex-col text-[13px] text-background/75">
           Tổng cộng
@@ -351,7 +351,7 @@ function Checkout({ orderId }: { orderId: string }) {
         <Button
           size="lg"
           // Viền focus trắng mới thấy được trên nền đen.
-          className="focus-visible:ring-background max-[389px]:px-4"
+          className="focus-visible:ring-background ml-auto max-[389px]:px-4"
           disabled={payDisabled}
           onClick={() => payment.mutate()}
         >
