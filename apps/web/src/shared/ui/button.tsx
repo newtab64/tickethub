@@ -13,6 +13,9 @@ const buttonVariants = cva(
           "bg-fill text-foreground hover:bg-fill-hover aria-expanded:bg-fill-hover",
         secondary:
           "bg-fill text-foreground hover:bg-fill-hover aria-expanded:bg-fill-hover",
+        // Cho nút nằm thẳng trên nền xám, nơi nền fill bị chìm.
+        surface:
+          "bg-background text-foreground shadow-md ring-1 ring-control-border hover:bg-muted",
         ghost: "text-foreground hover:bg-fill aria-expanded:bg-fill",
         destructive: "text-destructive hover:bg-destructive/10",
         link: "text-primary underline-offset-4 hover:underline",

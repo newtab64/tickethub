@@ -22,6 +22,7 @@
   --color-fill: var(--fill);
   --color-fill-hover: var(--fill-hover);
   --color-field: var(--field);
+  --color-control-border: var(--control-border);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
   --color-success-border: var(--success-border);
@@ -87,6 +88,7 @@
   --fill: #e1e4e8;
   --fill-hover: #d0d5db;
   --field: #eceef1;
+  --control-border: #aab4bc;
   --radius: 12px;
   --auth-stage-offset: 0px;
 }

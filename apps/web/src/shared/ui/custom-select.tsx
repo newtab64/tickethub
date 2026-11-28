@@ -1,8 +1,8 @@
-// apps/web/src/components/ui/custom-select.tsx
 "use client";
 
 import { useState, useRef, useEffect, useId } from "react";
 import { ChevronDown, Check } from "lucide-react";
+import { cn } from "@/shared/lib/utils";
 
 export interface SelectOption {
   value: string;
@@ -19,6 +19,10 @@ interface CustomSelectProps {
   className?: string;
   disabled?: boolean;
   id?: string;
+  /** Ô nằm thẳng trên nền xám: nền trắng, viền và bóng. */
+  surface?: boolean;
+  /** Danh sách mở ra canh theo mép trái hoặc phải của ô. */
+  align?: "start" | "end";
 }
 
 export function CustomSelect({
@@ -30,6 +34,8 @@ export function CustomSelect({
   className = "",
   disabled = false,
   id: customId,
+  surface = false,
+  align = "start",
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState(-1);
@@ -133,9 +139,17 @@ export function CustomSelect({
           }
         }}
         onKeyDown={handleKeyDown}
-        className={`flex h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-full bg-field px-5 text-left text-[15px] text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-solid disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none ${
-          isOpen ? "outline-2 outline-primary outline-solid" : ""
-        }`}
+        aria-activedescendant={
+          isOpen && focusedIndex >= 0
+            ? `${id}-option-${focusedIndex}`
+            : undefined
+        }
+        className={cn(
+          "flex h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-full bg-field px-5 text-left text-[15px] text-foreground transition-colors focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-solid disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none",
+          surface &&
+            "h-11 bg-background px-4 font-semibold shadow-md ring-1 ring-control-border hover:bg-muted",
+          isOpen && "outline-2 outline-primary outline-solid",
+        )}
       >
         <span className="flex min-w-0 items-center gap-2">
           {selectedOption ? (
@@ -168,7 +182,10 @@ export function CustomSelect({
           role="listbox"
           aria-labelledby={id}
           tabIndex={-1}
-          className="absolute left-0 mt-1.5 w-full min-w-[200px] max-h-60 overflow-y-auto rounded-md border border-border bg-popover text-popover-foreground shadow-lg py-1 z-50 text-xs focus:outline-none"
+          className={cn(
+            "absolute z-50 mt-2 max-h-96 w-full min-w-60 overflow-y-auto rounded-3xl bg-popover p-2 text-[15px] text-popover-foreground shadow-sheet ring-1 ring-foreground/5 focus:outline-none",
+            align === "end" ? "right-0" : "left-0",
+          )}
         >
           {options.map((opt, idx) => {
             const isSelected = opt.value === value;
@@ -184,19 +201,20 @@ export function CustomSelect({
                   setIsOpen(false);
                 }}
                 onMouseEnter={() => setFocusedIndex(idx)}
-                className={`flex items-center justify-between px-3 py-2 cursor-pointer transition-colors ${
-                  isFocused ? "bg-secondary text-foreground" : "text-foreground"
-                } ${isSelected ? "font-semibold bg-accent/30 text-primary" : ""}`}
+                id={`${id}-option-${idx}`}
+                className={cn(
+                  "flex min-h-11 cursor-pointer items-center justify-between rounded-2xl px-4",
+                  isFocused && "bg-muted",
+                  isSelected && "font-semibold",
+                )}
               >
                 <div className="flex items-center gap-2 truncate">
                   {opt.icon && (
-                    <opt.icon className="size-3.5 text-muted-foreground shrink-0" />
+                    <opt.icon className="size-4 shrink-0 text-muted-foreground" />
                   )}
                   <span className="truncate">{opt.label}</span>
                 </div>
-                {isSelected && (
-                  <Check className="size-3.5 text-primary shrink-0 ml-2" />
-                )}
+                {isSelected && <Check className="ml-2 size-4 shrink-0" />}
               </li>
             );
           })}

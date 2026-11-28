@@ -10,7 +10,7 @@ const css = read("app/globals.css");
 
 // File đã đưa về chuẩn. Mỗi đợt làm mới trang thêm file vào đây.
 const STANDARD_FILES = [
-  ...["button", "input", "card", "dialog", "badge"].map(
+  ...["button", "input", "card", "dialog", "badge", "custom-select"].map(
     (name) => `shared/ui/${name}.tsx`,
   ),
   ...[
@@ -99,6 +99,22 @@ describe("Chuẩn giao diện", () => {
       const source = read(`shared/ui/${name}.tsx`);
       assert.match(source, /h-12 [^"`]*rounded-full [^"`]*bg-field/, name);
     }
+  });
+
+  test("điều khiển trên nền xám: nền trắng, viền control-border", () => {
+    assert.equal(token("control-border"), "#aab4bc");
+    assert.ok(css.includes("--color-control-border: var(--control-border);"));
+    for (const file of ["button", "custom-select"]) {
+      assert.match(
+        read(`shared/ui/${file}.tsx`),
+        /bg-background [^"`]*ring-1 [^"`]*ring-control-border/,
+        file,
+      );
+    }
+  });
+
+  test("ô chọn báo mục đang trỏ cho trình đọc màn hình", () => {
+    assert.match(read("shared/ui/custom-select.tsx"), /aria-activedescendant/);
   });
 
   test("nút cao tối thiểu 44px", () => {
