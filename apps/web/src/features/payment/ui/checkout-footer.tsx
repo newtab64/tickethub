@@ -11,8 +11,8 @@ const LINKS = [
 /** Cam kết và chân trang; canh thẳng mép thẻ thanh toán. */
 export function CheckoutFooter() {
   return (
-    // pb-20 trên mobile chừa chỗ cho thanh thanh toán nổi.
-    <footer className="mx-auto max-w-232 px-4 pt-1 pb-24 text-[13px] text-muted-foreground sm:px-6 lg:pb-6 short:pb-3">
+    // Trên mobile chừa chỗ cho thanh thanh toán nổi.
+    <footer className="mx-auto w-full max-w-232 px-4 pt-1 pb-22 text-[13px] text-muted-foreground sm:px-6 lg:pb-3">
       <p className="text-center">
         <ShieldCheck
           aria-hidden="true"
@@ -23,12 +23,12 @@ export function CheckoutFooter() {
       </p>
       <div
         data-testid="checkout-footer-row"
-        className="mt-6 flex flex-col-reverse items-center gap-2 border-t border-checkout-border pt-4 lg:flex-row lg:justify-between lg:gap-4 short:mt-3 short:pt-2"
+        className="mt-2 flex flex-col-reverse items-center gap-2 border-t border-checkout-border pt-2 lg:flex-row lg:justify-between lg:gap-4"
       >
         <p>© 2026 tickethub</p>
         <nav
           aria-label="Chính sách và trợ giúp"
-          className="grid w-full grid-cols-2 justify-items-center gap-x-4 gap-y-1 text-center lg:flex lg:w-auto lg:gap-x-7"
+          className="flex flex-wrap justify-center gap-x-4 lg:gap-x-7"
         >
           {LINKS.map(({ href, label }) => (
             <Link

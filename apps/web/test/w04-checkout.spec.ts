@@ -623,6 +623,45 @@ test("Điện thoại nằm ngang: lỗi hủy không bị hàng đồng hồ ch
   await cancelHold(page);
 });
 
+test("Màn còn chỗ thì thẻ nằm giữa và chân trang sát đáy", async ({
+  page,
+  request,
+}) => {
+  const order = await hold(request);
+  await loginBrowser(page);
+  await page.goto(`/checkout?orderId=${order.orderId}`);
+  const sheet = page.getByTestId("checkout-sheet");
+  await expect(sheet).toBeVisible();
+  const box = async (target: Locator) => (await target.boundingBox())!;
+  const footer = page.getByRole("contentinfo");
+  for (const height of [800, 1080]) {
+    await page.setViewportSize({ width: 1280, height });
+    const header = await box(
+      page.getByRole("navigation", { name: "Điều hướng chính" }),
+    );
+    const capsule = await box(page.getByTestId("hold-capsule"));
+    const card = await box(sheet);
+    const foot = await box(footer);
+    const above = capsule.y - (header.y + header.height);
+    const below = foot.y - (card.y + card.height);
+    expect(Math.abs(above - below), `${height}px`).toBeLessThanOrEqual(8);
+    expect(Math.abs(foot.y + foot.height - height)).toBeLessThanOrEqual(1);
+  }
+  // Điện thoại: liên kết xếp liền hàng nên chân trang thấp hơn.
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect((await box(footer)).height).toBeLessThanOrEqual(280);
+  // Màn thấp: nội dung chạy từ trên xuống, không bị đẩy khỏi trang.
+  await page.setViewportSize({ width: 844, height: 390 });
+  await page.evaluate(() => window.scrollTo(0, 0));
+  const header = await box(
+    page.getByRole("navigation", { name: "Điều hướng chính" }),
+  );
+  expect(
+    (await box(page.getByTestId("hold-capsule"))).y,
+  ).toBeGreaterThanOrEqual(header.y + header.height);
+  await cancelHold(page);
+});
+
 test("Footer thẳng mép thẻ, không mang mã đơn, một lời cam kết", async ({
   page,
   request,

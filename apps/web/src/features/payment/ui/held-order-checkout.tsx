@@ -410,8 +410,9 @@ export default function CheckoutPage() {
           actions={<HeaderActions allowLogout={false} />}
         />
       }
-      className="bg-checkout-page"
-      mainClassName="max-w-232 pt-2 pb-6 sm:pt-6 short:pt-3"
+      className="flex flex-col bg-checkout-page"
+      // Còn chỗ thì nội dung nằm giữa; chân trang luôn sát đáy.
+      mainClassName="flex w-full max-w-232 flex-1 flex-col justify-center pt-2 pb-6 sm:pt-6 short:pt-3"
       footer={<CheckoutFooter />}
     >
       <Suspense fallback={<CheckoutNotice>Đang tải...</CheckoutNotice>}>
